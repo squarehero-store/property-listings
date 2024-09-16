@@ -49,9 +49,6 @@
   background: #011e45;
   color: #FFFFFF;
 }
-.property-listings.view-list section[data-section-id="66b1fd6eaaef674bda61907a"] {
-  display: none;
-}
 #propertyListingsContainer .property-grid,
 .related-properties-section .property-grid {
   display: grid;
