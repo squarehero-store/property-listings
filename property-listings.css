@@ -49,6 +49,9 @@
   background: #011e45;
   color: #FFFFFF;
 }
+.property-listings.view-list .collection-type-blog-basic-grid {
+  display: none;
+}
 #propertyListingsContainer .property-grid,
 .related-properties-section .property-grid {
   display: grid;
