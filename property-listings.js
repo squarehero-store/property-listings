@@ -71,23 +71,22 @@
     }
 
     function processPropertyData(sheetData, blogData) {
-        // Create a map of sheet data, allowing for wildcards
+        // Create a map of sheet data, converting wildcards to regex patterns
         const urlMap = new Map(sheetData.map(row => {
             const url = row.Url.trim().toLowerCase();
-            return [url.endsWith('*') ? url.slice(0, -1) : url, row];
+            const regexPattern = new RegExp('^' + url.replace(/\*/g, '.*') + '$');
+            return [regexPattern, row];
         }));
     
         return blogData.items.map(item => {
             const urlId = item.urlId.toLowerCase();
             
-            // Find matching sheet row, considering wildcards
-            const sheetRow = Array.from(urlMap.entries()).find(([key, value]) => {
-                return key.endsWith('*') ? urlId.startsWith(key.slice(0, -1)) : urlId === key;
-            });
+            // Find matching sheet row using regex
+            const sheetRow = Array.from(urlMap.entries()).find(([regexPattern, value]) => regexPattern.test(urlId));
     
             if (!sheetRow) {
                 console.warn(`No matching sheet data found for blog item: ${item.urlId}`);
-                console.log('Available URLs in sheet:', Array.from(urlMap.keys()));
+                console.log('Available URL patterns in sheet:', Array.from(urlMap.keys()).map(regex => regex.toString()));
             }
     
             return {
