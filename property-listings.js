@@ -1,4 +1,6 @@
-// Property Listings Script
+// ================================================
+//   ⚡ Property Listings plugin by SquareHero.store
+// ================================================
 (function () {
     // Check if the plugin is enabled
     const metaTag = document.querySelector('meta[squarehero-plugin="property-listings"]');
