@@ -130,7 +130,7 @@
   
       const relatedSection = document.createElement('div');
       relatedSection.className = 'related-properties-section';
-      relatedSection.innerHTML = '<h2>Related Properties</h2>';
+      relatedSection.innerHTML = '<h2>More Properties</h2>';
   
       const relatedContainer = document.createElement('div');
       relatedContainer.className = 'property-grid';
