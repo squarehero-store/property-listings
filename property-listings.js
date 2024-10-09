@@ -71,20 +71,36 @@
     }
 
     function processPropertyData(sheetData, blogData) {
-        const urlMap = new Map(sheetData.map(row => [row.Url.replace(/^\//, ''), row]));
+        // Create a map of sheet data, allowing for wildcards
+        const urlMap = new Map(sheetData.map(row => {
+            const url = row.Url.trim().toLowerCase();
+            return [url.endsWith('*') ? url.slice(0, -1) : url, row];
+        }));
+    
         return blogData.items.map(item => {
-            const sheetRow = urlMap.get(item.urlId);
+            const urlId = item.urlId.toLowerCase();
+            
+            // Find matching sheet row, considering wildcards
+            const sheetRow = Array.from(urlMap.entries()).find(([key, value]) => {
+                return key.endsWith('*') ? urlId.startsWith(key.slice(0, -1)) : urlId === key;
+            });
+    
+            if (!sheetRow) {
+                console.warn(`No matching sheet data found for blog item: ${item.urlId}`);
+                console.log('Available URLs in sheet:', Array.from(urlMap.keys()));
+            }
+    
             return {
                 id: item.id,
                 title: item.title,
                 location: item.tags && item.tags.length > 0 ? item.tags[0] : '',
                 imageUrl: item.assetUrl,
                 category: item.categories && item.categories.length > 0 ? item.categories[0] : '',
-                price: sheetRow && sheetRow.Price ? parseFloat(sheetRow.Price.replace(/[$,]/g, '')) : 0,
-                area: sheetRow && sheetRow.Area ? parseInt(sheetRow.Area, 10) : 0,
-                bedrooms: sheetRow && sheetRow.Bedrooms ? parseInt(sheetRow.Bedrooms, 10) : 0,
-                bathrooms: sheetRow && sheetRow.Bathrooms ? parseFloat(sheetRow.Bathrooms) : 0,
-                garage: sheetRow && sheetRow.Garage ? sheetRow.Garage : '',
+                price: sheetRow ? parseFloat(sheetRow[1].Price.replace(/[$,]/g, '')) : 0,
+                area: sheetRow ? parseInt(sheetRow[1].Area, 10) : 0,
+                bedrooms: sheetRow ? parseInt(sheetRow[1].Bedrooms, 10) : 0,
+                bathrooms: sheetRow ? parseFloat(sheetRow[1].Bathrooms) : 0,
+                garage: sheetRow ? sheetRow[1].Garage : '',
                 url: item.fullUrl
             };
         });
