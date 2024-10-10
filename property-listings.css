@@ -40,7 +40,7 @@
 }
 .propertyStyles .sh-button {
   display: inline-block;
-  border: solid 1px #011e45;
+  border: solid 2px #011e45;
   text-decoration: none;
   transition: background 0.3s;
   padding: 0.8125rem 1.625rem !important;
@@ -144,7 +144,7 @@
 #propertyListingsContainer .property-card .listing-content .sh-button,
 .related-properties-section .property-card .listing-content .sh-button {
   display: inline-block;
-  border: solid 1px #011e45;
+  border: solid 2px #011e45;
   text-decoration: none;
   transition: background 0.3s;
   padding: 0.8125rem 1.625rem !important;
@@ -267,6 +267,17 @@
 #propertyListingsContainer .range-display,
 .related-properties-section .range-display {
   font-size: 0.9em;
+}
+#propertyListingsContainer #reset-filters,
+.related-properties-section #reset-filters {
+  background: none !important;
+  border: 2px solid #011e45 !important;
+  color: #011e45 !important;
+}
+#propertyListingsContainer #reset-filters:hover,
+.related-properties-section #reset-filters:hover {
+  background: #011e45 !important;
+  color: white !important;
 }
 @media (max-width: 1024px) {
   #propertyListingsContainer .property-grid {
