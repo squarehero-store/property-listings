@@ -10,9 +10,6 @@
     const target = metaTag.getAttribute('target');
     const blogJsonUrl = `/${target}?format=json&nocache=${new Date().getTime()}`;
 
-    console.log('Sheet URL:', sheetUrl);
-    console.log('Blog JSON URL:', blogJsonUrl);
-
     // Load required libraries
     const libraries = [
         'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js',
@@ -27,17 +24,11 @@
                 fetch(sheetUrl).then(response => response.text()),
                 fetch(blogJsonUrl).then(response => response.json())
             ]).then(([csvData, blogData]) => {
-                console.log('CSV data fetched:', csvData.substring(0, 200) + '...');
-                console.log('Blog data fetched:', JSON.stringify(blogData).substring(0, 200) + '...');
-
                 const sheetData = parseCSV(csvData);
-                console.log('Parsed sheet data:', sheetData);
-
                 const propertyData = processPropertyData(sheetData, blogData);
-                console.log('Processed property data:', propertyData);
-
                 createFilterElements();
                 renderPropertyListings(propertyData);
+                console.log('🚀 SquareHero.store Property Listings plugin loaded');
             }).catch(error => console.error('Error fetching data:', error));
         })
         .catch(error => console.error('Error loading libraries:', error));
