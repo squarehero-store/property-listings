@@ -57,12 +57,10 @@
             header: true,
             skipEmptyLines: true
         });
-        console.log('Papaparse results:', results);
         return results.data;
     }
 
     function processPropertyData(sheetData, blogData) {
-        // Create a map of sheet data, converting wildcards to regex patterns
         const urlMap = new Map(sheetData.map(row => {
             const url = row.Url.trim().toLowerCase();
             const regexPattern = new RegExp('^' + url.replace(/\*/g, '.*') + '$');
@@ -71,14 +69,7 @@
     
         return blogData.items.map(item => {
             const urlId = item.urlId.toLowerCase();
-            
-            // Find matching sheet row using regex
             const sheetRow = Array.from(urlMap.entries()).find(([regexPattern, value]) => regexPattern.test(urlId));
-    
-            if (!sheetRow) {
-                console.warn(`No matching sheet data found for blog item: ${item.urlId}`);
-                console.log('Available URL patterns in sheet:', Array.from(urlMap.keys()).map(regex => regex.toString()));
-            }
     
             return {
                 id: item.id,
@@ -106,25 +97,13 @@
         const filtersContainer = document.createElement('div');
         filtersContainer.className = 'filters-container';
 
-        // Location filter
         filtersContainer.appendChild(createDropdownFilter('location-filter', 'Location', 'Any Location'));
-
-        // Property Status filter
         filtersContainer.appendChild(createDropdownFilter('status-filter', 'Property Status', 'All'));
-
-        // Bedrooms filter
         filtersContainer.appendChild(createButtonGroupFilter('bedrooms-filter', 'Bedrooms', ['Any', '1', '2', '3', '4', '5', '6', '7', '8']));
-
-        // Bathrooms filter
         filtersContainer.appendChild(createButtonGroupFilter('bathrooms-filter', 'Bathrooms', ['Any', '1', '1.5', '2', '2.5', '3', '3.5', '4', '4.5', '5', '5.5', '6']));
-
-        // Area filter
         filtersContainer.appendChild(createSliderFilter('area-slider', 'Sq. Ft.'));
-
-        // Price filter
         filtersContainer.appendChild(createSliderFilter('price-slider', 'Price'));
 
-        // Reset button
         const resetButton = document.createElement('button');
         resetButton.id = 'reset-filters';
         resetButton.className = 'reset-button sh-button';
@@ -134,7 +113,6 @@
 
         container.appendChild(filtersContainer);
 
-        // Create grid container
         const gridContainer = document.createElement('div');
         gridContainer.id = 'property-grid';
         gridContainer.className = 'property-grid';
@@ -276,7 +254,6 @@
             container.appendChild(card);
         });
 
-        console.log('Property listings rendered');
         initializeFilters(properties);
         initializeMixItUp();
     }
@@ -299,7 +276,6 @@
             if (window.mixer) window.mixer.filter(window.mixer.getState().activeFilter);
         });
 
-        // Hide unused bedroom and bathroom options
         hideUnusedOptions('bedrooms-filter', properties, 'bedrooms');
         hideUnusedOptions('bathrooms-filter', properties, 'bathrooms');
     }
@@ -343,7 +319,6 @@
             if (callback) callback(values);
         });
 
-        // Initial update
         updateRangeDisplay([min, max]);
     }
 
@@ -353,7 +328,7 @@
 
         filterButtons.forEach(button => {
             const filterValue = button.getAttribute('data-filter');
-            if (filterValue === 'all') return; // Always keep the 'Any' option
+            if (filterValue === 'all') return;
 
             const numericValue = parseFloat(filterValue.split('-')[1]);
             button.style.display = availableValues.has(numericValue) ? '' : 'none';
@@ -363,7 +338,6 @@
     function initializeMixItUp() {
         const container = document.getElementById('property-grid');
 
-        // Create a "no results" message element
         const noResultsMessage = document.createElement('div');
         noResultsMessage.id = 'no-results-message';
         noResultsMessage.className = 'no-results-message';
@@ -390,11 +364,9 @@
             },
             callbacks: {
                 onMixStart: function (state, futureState) {
-                    let total = futureState.totalShow;
-                    console.log(`Showing ${total} properties`);
+                    // Removed log for number of properties shown
                 },
                 onMixEnd: function (state) {
-                    // Check if there are any matching results
                     if (state.totalShow === 0) {
                         noResultsMessage.style.display = 'block';
                         container.style.display = 'none';
@@ -406,31 +378,14 @@
             }
         });
 
-        // Add event listener for the reset link in the no results message
         document.getElementById('reset-filters-link').addEventListener('click', resetFilters);
-        window.mixer = mixitup(container, {
-            selectors: {
-                target: '.property-card'
-            },
-            load: {
-                filter: 'all'
-            },
-            callbacks: {
-                onMixStart: function (state, futureState) {
-                    let total = futureState.totalShow;
-                    console.log(`Showing ${total} properties`);
-                }
-            }
-        });
 
-        // Set up event listeners for dropdowns
         const locationFilter = document.getElementById('location-filter');
         const statusFilter = document.getElementById('status-filter');
 
         locationFilter.addEventListener('change', updateFilters);
         statusFilter.addEventListener('change', updateFilters);
 
-        // Set up event listeners for button groups
         document.querySelectorAll('.button-group').forEach(group => {
             group.addEventListener('click', (e) => {
                 if (e.target.classList.contains('filter-button')) {
@@ -458,8 +413,6 @@
             const bedrooms = getActiveFilters('bedrooms-filter');
             const bathrooms = getActiveFilters('bathrooms-filter');
 
-            console.log('Active filters:', { location, status, bedrooms, bathrooms });
-
             let filterArray = [];
 
             if (location !== 'all') {
@@ -477,7 +430,6 @@
 
             let filterString = filterArray.length > 0 ? filterArray.join('') : 'all';
 
-            console.log('Applying filter:', filterString);
             window.mixer.filter(filterString);
         }
 
@@ -486,9 +438,7 @@
             if (activeButtons.length === 0) {
                 return ['all'];
             }
-            const filters = activeButtons.map(button => button.getAttribute('data-filter'));
-            console.log(`Active filters for ${groupId}:`, filters);
-            return filters;
+            return activeButtons.map(button => button.getAttribute('data-filter'));
         }
 
         function filterTestResult(testResult, target) {
@@ -511,7 +461,6 @@
         window.mixer.filter('all');
     }
 
-    // Add a reset function
     function resetFilters() {
         const locationFilter = document.getElementById('location-filter');
         const statusFilter = document.getElementById('status-filter');
@@ -533,19 +482,14 @@
         }
     }
 
-    // Add a reset button event listener if you have one
     const resetButton = document.getElementById('reset-filters');
     if (resetButton) {
         resetButton.addEventListener('click', resetFilters);
     }
 
-    // Call the function when the DOM is fully loaded
     document.addEventListener('DOMContentLoaded', () => {
         const container = document.getElementById('propertyListingsContainer');
-        if (container) {
-            // The rest of your initialization code will be called from within the 
-            // Promise.all() chain in the main part of the script
-        } else {
+        if (!container) {
             console.error('Property listings container not found');
         }
     });
