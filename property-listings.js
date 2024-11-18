@@ -10,28 +10,36 @@
     const target = metaTag.getAttribute('target');
     const blogJsonUrl = `/${target}?format=json&nocache=${new Date().getTime()}`;
 
+    console.log('🏗️ SquareHero Plugin Initializing...', {
+        sheetUrl,
+        target,
+        blogJsonUrl
+    });
+
+    // Currency symbol helper
+    const getCurrencySymbol = (currencyCode) => {
+        const symbols = {
+            USD: '$',
+            CAD: '$',
+            AUD: '$',
+            NZD: '$',
+            GBP: '£',
+            EUR: '€'
+        };
+        return symbols[currencyCode] || '$';
+    };
+
+    // Area unit helper
+    const getAreaUnit = (isMetric) => {
+        return isMetric ? 'm²' : 'sq ft';
+    };
+
     // Load required libraries
     const libraries = [
         'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js',
         'https://cdn.jsdelivr.net/npm/nouislider@14.6.3/distribute/nouislider.min.js',
         'https://cdn.jsdelivr.net/npm/nouislider@14.6.3/distribute/nouislider.min.css'
     ];
-
-    Promise.all(libraries.map(url => loadLibrary(url)))
-        .then(() => {
-            // Fetch data from Google Sheets and Blog JSON
-            Promise.all([
-                fetch(sheetUrl).then(response => response.text()),
-                fetch(blogJsonUrl).then(response => response.json())
-            ]).then(([csvData, blogData]) => {
-                const sheetData = parseCSV(csvData);
-                const propertyData = processPropertyData(sheetData, blogData);
-                createFilterElements();
-                renderPropertyListings(propertyData);
-                console.log('🚀 SquareHero.store Property Listings plugin loaded');
-            }).catch(error => console.error('Error fetching data:', error));
-        })
-        .catch(error => console.error('Error loading libraries:', error));
 
     function loadLibrary(url) {
         return new Promise((resolve, reject) => {
@@ -60,7 +68,46 @@
         return results.data;
     }
 
-    function processPropertyData(sheetData, blogData) {
+    Promise.all(libraries.map(url => loadLibrary(url)))
+        .then(() => {
+            console.log('📚 Libraries loaded successfully');
+            // Fetch data from Google Sheets and Blog JSON
+            Promise.all([
+                fetch(sheetUrl).then(response => response.text()),
+                fetch(blogJsonUrl).then(response => response.json())
+            ]).then(([csvData, blogData]) => {
+                console.log('📊 Blog JSON Data received:', blogData);
+                const storeSettings = blogData.websiteSettings?.storeSettings || {};
+                console.log('⚙️ Store Settings:', storeSettings);
+                
+                const isMetric = storeSettings.measurementStandard === 2;
+                const currencySymbol = getCurrencySymbol(storeSettings.selectedCurrency);
+                const areaUnit = getAreaUnit(isMetric);
+                
+                console.log('🔧 Display Settings:', {
+                    measurementStandard: storeSettings.measurementStandard,
+                    isMetric,
+                    selectedCurrency: storeSettings.selectedCurrency,
+                    currencySymbol,
+                    areaUnit
+                });
+
+                // Store settings globally for other functions to access
+                window.storeSettings = storeSettings;
+
+                const sheetData = parseCSV(csvData);
+                console.log('📑 Sheet Data:', sheetData);
+                
+                const propertyData = processPropertyData(sheetData, blogData);
+                console.log('🏠 Processed Property Data:', propertyData);
+
+                createFilterElements();
+                renderPropertyListings(propertyData);
+                console.log('🚀 SquareHero.store Property Listings plugin loaded');
+            }).catch(error => console.error('❌ Error fetching data:', error));
+        })
+        .catch(error => console.error('❌ Error loading libraries:', error));
+        function processPropertyData(sheetData, blogData) {
         const urlMap = new Map(sheetData.map(row => {
             const url = row.Url.trim().toLowerCase();
             const regexPattern = new RegExp('^' + url.replace(/\*/g, '.*') + '$');
@@ -101,7 +148,7 @@
         filtersContainer.appendChild(createDropdownFilter('status-filter', 'Property Status', 'All'));
         filtersContainer.appendChild(createButtonGroupFilter('bedrooms-filter', 'Bedrooms', ['Any', '1', '2', '3', '4', '5', '6', '7', '8']));
         filtersContainer.appendChild(createButtonGroupFilter('bathrooms-filter', 'Bathrooms', ['Any', '1', '1.5', '2', '2.5', '3', '3.5', '4', '4.5', '5', '5.5', '6']));
-        filtersContainer.appendChild(createSliderFilter('area-slider', 'Sq. Ft.'));
+        filtersContainer.appendChild(createSliderFilter('area-slider', 'Area'));
         filtersContainer.appendChild(createSliderFilter('price-slider', 'Price'));
 
         const resetButton = document.createElement('button');
@@ -181,7 +228,7 @@
         labelContainer.className = 'slider-label-container';
 
         const labelElement = document.createElement('label');
-        labelElement.textContent = label;
+        labelElement.textContent = label; // No longer checking for 'Sq. Ft.'
 
         const rangeDisplay = document.createElement('span');
         rangeDisplay.className = 'range-display';
@@ -201,6 +248,11 @@
     }
 
     function createPropertyCard(property) {
+        const storeSettings = window.storeSettings || {};
+        const isMetric = storeSettings.measurementStandard === 2;
+        const currencySymbol = getCurrencySymbol(storeSettings.selectedCurrency);
+        const areaUnit = getAreaUnit(isMetric);
+
         const card = document.createElement('a');
         card.className = 'property-card mix';
         card.href = property.url;
@@ -219,9 +271,9 @@
             <div class="listing-content">
                 <h3 class="property-title">${property.title}</h3>
                 ${property.location ? `<p class="property-location">${property.location}</p>` : ''}
-                <p class="property-price ${property.price === 0 ? 'no-price' : ''}">${property.price === 0 ? 'Price TBA' : '$' + property.price.toLocaleString()}</p>
+                <p class="property-price ${property.price === 0 ? 'no-price' : ''}">${property.price === 0 ? 'Price TBA' : `${currencySymbol}${property.price.toLocaleString()}`}</p>
                 <div class="property-details">
-                    ${property.area ? `<span class="details-icon"><img src="https://cdn.jsdelivr.net/gh/squarehero-store/property-listings@main/Icons/Icon-Set_Size.svg" alt="Area"> ${property.area} sq ft</span>` : ''}
+                    ${property.area ? `<span class="details-icon"><img src="https://cdn.jsdelivr.net/gh/squarehero-store/property-listings@main/Icons/Icon-Set_Size.svg" alt="Area"> ${property.area.toLocaleString()} ${areaUnit}</span>` : ''}
                     ${property.bedrooms ? `<span class="details-icon"><img src="https://cdn.jsdelivr.net/gh/squarehero-store/property-listings@main/Icons/Icon-Set_Bedroom.svg" alt="Bedrooms"> ${property.bedrooms}</span>` : ''}
                     ${property.bathrooms ? `<span class="details-icon"><img src="https://cdn.jsdelivr.net/gh/squarehero-store/property-listings@main/Icons/Icon-Set_Bathroom.svg" alt="Bathrooms"> ${formatBathrooms(property.bathrooms)}</span>` : ''}
                     ${property.garage ? `<span class="details-icon"><img src="https://cdn.jsdelivr.net/gh/squarehero-store/property-listings@main/Icons/Icon-Set_Garage.svg" alt="Garage"> ${property.garage}</span>` : ''}
@@ -233,7 +285,6 @@
         card.innerHTML = cardContent;
         return card;
     }
-
     function formatBathrooms(bathrooms) {
         return Number.isInteger(bathrooms) ? bathrooms.toString() : bathrooms.toFixed(1);
     }
@@ -269,10 +320,12 @@
         populateDropdown('location-filter', locations);
         populateDropdown('status-filter', categories);
 
-        initializeSlider('area-slider', minArea, maxArea, 'sq ft', () => {
+        initializeSlider('area-slider', minArea, maxArea, window.storeSettings?.measurementStandard === 2 ? 'm²' : 'sq ft', () => {
             if (window.mixer) window.mixer.filter(window.mixer.getState().activeFilter);
         });
-        initializeSlider('price-slider', minPrice, maxPrice, '$', () => {
+        
+        const currencySymbol = getCurrencySymbol(window.storeSettings?.selectedCurrency);
+        initializeSlider('price-slider', minPrice, maxPrice, currencySymbol, () => {
             if (window.mixer) window.mixer.filter(window.mixer.getState().activeFilter);
         });
 
@@ -305,12 +358,12 @@
         });
 
         function updateRangeDisplay(values) {
-            const formattedMin = unit === '$' ?
-                `$${parseInt(values[0]).toLocaleString()}` :
-                `${parseInt(values[0]).toLocaleString()} ${unit}`;
-            const formattedMax = unit === '$' ?
-                `$${parseInt(values[1]).toLocaleString()}` :
-                `${parseInt(values[1]).toLocaleString()} ${unit}`;
+            const formattedMin = unit === 'm²' || unit === 'sq ft' ?
+                `${parseInt(values[0]).toLocaleString()} ${unit}` :
+                `${unit}${parseInt(values[0]).toLocaleString()}`;
+            const formattedMax = unit === 'm²' || unit === 'sq ft' ?
+                `${parseInt(values[1]).toLocaleString()} ${unit}` :
+                `${unit}${parseInt(values[1]).toLocaleString()}`;
             rangeDisplay.textContent = `${formattedMin} - ${formattedMax}`;
         }
 
@@ -363,8 +416,8 @@
                 easing: 'ease'
             },
             callbacks: {
-                onMixStart: function (state, futureState) {
-                    // Removed log for number of properties shown
+                onMixStart: function(state) {
+                    return filterByRanges(state);
                 },
                 onMixEnd: function (state) {
                     if (state.totalShow === 0) {
@@ -376,6 +429,57 @@
                     }
                 }
             }
+        });
+
+        function filterByRanges(state) {
+            const areaSlider = document.getElementById('area-slider');
+            const priceSlider = document.getElementById('price-slider');
+            const cards = state.targets;
+
+            // Get current slider values
+            const [minArea, maxArea] = areaSlider.noUiSlider.get().map(Number);
+            const [minPrice, maxPrice] = priceSlider.noUiSlider.get().map(Number);
+
+            cards.forEach(card => {
+                // Get the raw numeric values
+                const cardArea = parseFloat(card.getAttribute('data-area'));
+                const cardPrice = parseFloat(card.getAttribute('data-price'));
+
+                // Check if the card matches all range criteria
+                const areaMatch = cardArea >= minArea && cardArea <= maxArea;
+                const priceMatch = cardPrice >= minPrice && cardPrice <= maxPrice;
+
+                // Only hide/show if the card is part of the current filter state
+                if (state.matching.includes(card)) {
+                    if (areaMatch && priceMatch) {
+                        card.classList.remove('range-filtered');
+                    } else {
+                        card.classList.add('range-filtered');
+                    }
+                }
+            });
+
+            // Add CSS if it doesn't exist
+            if (!document.getElementById('range-filter-style')) {
+                const style = document.createElement('style');
+                style.id = 'range-filter-style';
+                style.textContent = '.range-filtered { display: none !important; }';
+                document.head.appendChild(style);
+            }
+
+            return true;
+        }
+
+        // Update slider event handlers
+        const areaSlider = document.getElementById('area-slider');
+        const priceSlider = document.getElementById('price-slider');
+
+        [areaSlider, priceSlider].forEach(slider => {
+            slider.noUiSlider.on('update', () => {
+                if (window.mixer) {
+                    window.mixer.filter(window.mixer.getState().activeFilter);
+                }
+            });
         });
 
         document.getElementById('reset-filters-link').addEventListener('click', resetFilters);
@@ -407,84 +511,83 @@
             });
         });
 
-        function updateFilters() {
-            const location = locationFilter.value;
-            const status = statusFilter.value;
-            const bedrooms = getActiveFilters('bedrooms-filter');
-            const bathrooms = getActiveFilters('bathrooms-filter');
-
-            let filterArray = [];
-
-            if (location !== 'all') {
-                filterArray.push(`[data-location="${location}"]`);
-            }
-            if (status !== 'all') {
-                filterArray.push(`[data-category="${status}"]`);
-            }
-            if (bedrooms.length > 0 && !bedrooms.includes('all')) {
-                filterArray.push(bedrooms.map(bed => `[data-bedrooms="${bed}"]`).join(', '));
-            }
-            if (bathrooms.length > 0 && !bathrooms.includes('all')) {
-                filterArray.push(bathrooms.map(bath => `[data-bathrooms="${bath}"]`).join(', '));
-            }
-
-            let filterString = filterArray.length > 0 ? filterArray.join('') : 'all';
-
-            window.mixer.filter(filterString);
-        }
-
-        function getActiveFilters(groupId) {
-            const activeButtons = Array.from(document.querySelectorAll(`#${groupId} .filter-button.active`));
-            if (activeButtons.length === 0) {
-                return ['all'];
-            }
-            return activeButtons.map(button => button.getAttribute('data-filter'));
-        }
-
-        function filterTestResult(testResult, target) {
-            if (!testResult) return false;
-
-            const areaSlider = document.getElementById('area-slider');
-            const priceSlider = document.getElementById('price-slider');
-
-            const [minArea, maxArea] = areaSlider.noUiSlider.get().map(Number);
-            const [minPrice, maxPrice] = priceSlider.noUiSlider.get().map(Number);
-
-            const area = Number(target.dom.el.getAttribute('data-area'));
-            const price = Number(target.dom.el.getAttribute('data-price'));
-
-            return (area >= minArea && area <= maxArea) && (price >= minPrice && price <= maxPrice);
-        }
-
-        mixitup.Mixer.registerFilter('testResultEvaluateHideShow', 'sliderFilter', filterTestResult);
-
         window.mixer.filter('all');
     }
 
-    function resetFilters() {
+    function updateFilters() {
+        const locationFilter = document.getElementById('location-filter');
+        const statusFilter = document.getElementById('status-filter');
+        
+        const location = locationFilter.value;
+        const status = statusFilter.value;
+        const bedrooms = getActiveFilters('bedrooms-filter');
+        const bathrooms = getActiveFilters('bathrooms-filter');
+
+        let filterArray = [];
+
+        if (location !== 'all') {
+            filterArray.push(`[data-location="${location}"]`);
+        }
+        if (status !== 'all') {
+            filterArray.push(`[data-category="${status}"]`);
+        }
+        if (bedrooms.length > 0 && !bedrooms.includes('all')) {
+            filterArray.push(bedrooms.map(bed => `[data-bedrooms="${bed}"]`).join(', '));
+        }
+        if (bathrooms.length > 0 && !bathrooms.includes('all')) {
+            filterArray.push(bathrooms.map(bath => `[data-bathrooms="${bath}"]`).join(', '));
+        }
+
+        let filterString = filterArray.length > 0 ? filterArray.join('') : 'all';
+
+        // Clear any existing range filters before applying new filters
+        document.querySelectorAll('.property-card').forEach(card => {
+            card.classList.remove('range-filtered');
+        });
+        
+        if (window.mixer) {
+            window.mixer.filter(filterString);
+        }
+    }
+
+    function getActiveFilters(groupId) {
+        const activeButtons = Array.from(document.querySelectorAll(`#${groupId} .filter-button.active`));
+        if (activeButtons.length === 0) {
+            return ['all'];
+        }
+        return activeButtons.map(button => button.getAttribute('data-filter'));
+    }
+
+       function resetFilters() {
         const locationFilter = document.getElementById('location-filter');
         const statusFilter = document.getElementById('status-filter');
         locationFilter.value = 'all';
         statusFilter.value = 'all';
+        
         document.querySelectorAll('.button-group .filter-button').forEach(button => {
             button.classList.remove('active');
         });
+        
         const areaSlider = document.getElementById('area-slider');
         const priceSlider = document.getElementById('price-slider');
+        
+        // Reset sliders
         if (areaSlider.noUiSlider) {
             areaSlider.noUiSlider.reset();
         }
         if (priceSlider.noUiSlider) {
             priceSlider.noUiSlider.reset();
         }
+        
+        // Remove range-filtered class from all cards
+        document.querySelectorAll('.property-card').forEach(card => {
+            card.classList.remove('range-filtered');
+        });
+
+        // Reset the mixer
         if (window.mixer) {
             window.mixer.filter('all');
         }
-    }
-
-    const resetButton = document.getElementById('reset-filters');
-    if (resetButton) {
-        resetButton.addEventListener('click', resetFilters);
     }
 
     document.addEventListener('DOMContentLoaded', () => {
