@@ -40,13 +40,13 @@
 }
 .propertyStyles .sh-button {
   display: inline-block;
-  border: solid 2px #011e45;
+  border: solid 2px hsla(var(--darkAccent-hsl), 1);
   text-decoration: none;
   transition: background 0.3s;
   padding: 0.8125rem 1.625rem !important;
 }
 .propertyStyles .sh-button:hover {
-  background: #011e45;
+  background: hsla(var(--darkAccent-hsl), 1);
   color: hsla(var(--white-hsl), 1);
 }
 .property-listings.view-list .collection-type-blog-basic-grid {
@@ -94,7 +94,7 @@
   position: absolute;
   top: 20px;
   left: 0;
-  background: #011e45;
+  background: hsla(var(--darkAccent-hsl), 1);
   color: hsla(var(--white-hsl), 1);
   padding: 5px 20px;
   font-size: 0.8em;
@@ -144,14 +144,14 @@
 #propertyListingsContainer .property-card .listing-content .sh-button,
 .related-properties-section .property-card .listing-content .sh-button {
   display: inline-block;
-  border: solid 2px #011e45;
+  border: solid 2px hsla(var(--darkAccent-hsl), 1);
   text-decoration: none;
   transition: background 0.3s;
   padding: 0.8125rem 1.625rem !important;
 }
 #propertyListingsContainer .property-card .listing-content .sh-button:hover,
 .related-properties-section .property-card .listing-content .sh-button:hover {
-  background: #011e45;
+  background: hsla(var(--darkAccent-hsl), 1);
   color: hsla(var(--white-hsl), 1);
 }
 #propertyListingsContainer .property-card:hover .property-image img,
@@ -197,8 +197,9 @@
 .related-properties-section .button-group .filter-button {
   padding: 7px 15px;
   border-radius: 16px;
-  background: var(--Grey, #DCDCDC);
+  background: hsla(var(--darkAccent-hsl), 0.1);
   font-size: 0.875rem;
+  color: hsla(var(--black-hsl), 1);
   font-weight: 500;
   line-height: 140%;
   border: none;
@@ -207,13 +208,13 @@
 }
 #propertyListingsContainer .button-group .filter-button.active,
 .related-properties-section .button-group .filter-button.active {
-  background-color: #011e45;
+  background-color: hsla(var(--darkAccent-hsl), 1);
   color: white;
 }
 #propertyListingsContainer .range-slider,
 .related-properties-section .range-slider {
   height: 8px;
-  background: #011e45;
+  background: hsla(var(--darkAccent-hsl), 1);
   border-radius: 4px;
   margin-top: 20px;
 }
@@ -223,14 +224,14 @@
 }
 #propertyListingsContainer .range-slider .noUi-connects .noUi-connect,
 .related-properties-section .range-slider .noUi-connects .noUi-connect {
-  background: #011e45;
+  background: hsla(var(--darkAccent-hsl), 1);
 }
 #propertyListingsContainer .range-slider .noUi-handle,
 .related-properties-section .range-slider .noUi-handle {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #011e45;
+  background: hsla(var(--darkAccent-hsl), 1);
   box-shadow: none;
   border: none;
   cursor: pointer;
@@ -271,12 +272,12 @@
 #propertyListingsContainer #reset-filters,
 .related-properties-section #reset-filters {
   background: none !important;
-  border: 2px solid #011e45 !important;
-  color: #011e45 !important;
+  border: 2px solid hsla(var(--darkAccent-hsl), 1) !important;
+  color: hsla(var(--darkAccent-hsl), 1) !important;
 }
 #propertyListingsContainer #reset-filters:hover,
 .related-properties-section #reset-filters:hover {
-  background: #011e45 !important;
+  background: hsla(var(--darkAccent-hsl), 1) !important;
   color: white !important;
 }
 @media (max-width: 1024px) {
