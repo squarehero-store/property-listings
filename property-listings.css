@@ -318,10 +318,19 @@
   object-fit: cover;
   object-position: 50% 50%;
 }
-.property-listings.view-item .item-excerpt p {
+.property-listings.view-item .blog-item-title {
+  display: grid;
+}
+.property-listings.view-item .blog-item-title h1 {
+  order: 1;
+}
+.property-listings.view-item .blog-item-title .item-excerpt {
+  order: 3;
+}
+.property-listings.view-item .blog-item-title .item-excerpt p {
   margin-bottom: 0;
 }
-.property-listings.view-item .item-excerpt a {
+.property-listings.view-item .blog-item-title .item-excerpt a {
   display: inline-block !important;
   text-align: center;
   font-size: 1rem;
@@ -333,12 +342,15 @@
   color: hsla(var(--darkAccent-hsl), 1);
   transition: background 0.3s;
 }
-.property-listings.view-item .item-excerpt a:hover {
+.property-listings.view-item .blog-item-title .item-excerpt a:hover {
   background: hsla(var(--darkAccent-hsl), 1);
   color: white;
   border: solid 2px hsla(var(--darkAccent-hsl), 1);
 }
-.property-listings.view-item .current-property-details .listing-content {
+.property-listings.view-item .blog-item-title .current-property-details {
+  order: 2;
+}
+.property-listings.view-item .blog-item-title .current-property-details .listing-content {
   padding: 30px 20px;
   /*Title*/
   /*Location*/
@@ -346,34 +358,34 @@
   /*icons*/
   padding-left: 0;
 }
-.property-listings.view-item .current-property-details .listing-content .property-title {
+.property-listings.view-item .blog-item-title .current-property-details .listing-content .property-title {
   margin: 0;
   font-size: 1.2em;
 }
-.property-listings.view-item .current-property-details .listing-content .property-location {
+.property-listings.view-item .blog-item-title .current-property-details .listing-content .property-location {
   margin: 0;
 }
-.property-listings.view-item .current-property-details .listing-content .property-price {
+.property-listings.view-item .blog-item-title .current-property-details .listing-content .property-price {
   margin: 20px 0 0;
 }
-.property-listings.view-item .current-property-details .listing-content .property-details {
+.property-listings.view-item .blog-item-title .current-property-details .listing-content .property-details {
   display: flex;
   justify-content: flex-start;
   gap: 15px;
   margin: 15px 0;
 }
-.property-listings.view-item .current-property-details .listing-content .property-details .details-icon {
+.property-listings.view-item .blog-item-title .current-property-details .listing-content .property-details .details-icon {
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.9em;
   gap: 5px;
 }
-.property-listings.view-item .current-property-details .listing-content .property-details .details-icon svg {
+.property-listings.view-item .blog-item-title .current-property-details .listing-content .property-details .details-icon svg {
   width: 20px;
   height: 20px;
 }
-.property-listings.view-item .current-property-details .listing-content .sh-button {
+.property-listings.view-item .blog-item-title .current-property-details .listing-content .sh-button {
   display: inline-block;
   border: solid 2px hsla(var(--darkAccent-hsl), 1);
   text-decoration: none;
@@ -381,7 +393,7 @@
   padding: 0.8125rem 1.625rem !important;
   color: hsla(var(--darkAccent-hsl), 1);
 }
-.property-listings.view-item .current-property-details .listing-content .sh-button:hover {
+.property-listings.view-item .blog-item-title .current-property-details .listing-content .sh-button:hover {
   background: hsla(var(--darkAccent-hsl), 1);
   color: hsla(var(--white-hsl), 1);
 }
