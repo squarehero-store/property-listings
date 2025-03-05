@@ -276,6 +276,7 @@
   background: none !important;
   border: 2px solid hsla(var(--darkAccent-hsl), 1) !important;
   color: hsla(var(--darkAccent-hsl), 1) !important;
+  min-height: 50px;
 }
 #propertyListingsContainer #reset-filters:hover,
 .related-properties-section #reset-filters:hover {

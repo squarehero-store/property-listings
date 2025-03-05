@@ -1,6 +1,6 @@
-// ================================================
-//   ⚡ Property Listings plugin by SquareHero.store
-// ================================================
+// ===================================================
+//   ⚡ Real Estate Listings plugin by SquareHero.store
+// ===================================================
 (function () {
     // Check if the plugin is enabled
     const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
@@ -9,12 +9,10 @@
     const sheetUrl = metaTag.getAttribute('sheet-url');
     const target = metaTag.getAttribute('target');
     const blogJsonUrl = `/${target}?format=json&nocache=${new Date().getTime()}`;
-
-    console.log('🏗️ SquareHero Plugin Initializing...', {
-        sheetUrl,
-        target,
-        blogJsonUrl
-    });
+    
+    // Custom labels for filter sections (with defaults)
+    const categoryLabel = metaTag.getAttribute('category-label') || 'Property Status';
+    const tagLabel = metaTag.getAttribute('tag-label') || 'Location';
 
     // Currency symbol helper
     const getCurrencySymbol = (currencyCode) => {
@@ -70,44 +68,31 @@
 
     Promise.all(libraries.map(url => loadLibrary(url)))
         .then(() => {
-            console.log('📚 Libraries loaded successfully');
             // Fetch data from Google Sheets and Blog JSON
             Promise.all([
                 fetch(sheetUrl).then(response => response.text()),
                 fetch(blogJsonUrl).then(response => response.json())
             ]).then(([csvData, blogData]) => {
-                console.log('📊 Blog JSON Data received:', blogData);
                 const storeSettings = blogData.websiteSettings?.storeSettings || {};
-                console.log('⚙️ Store Settings:', storeSettings);
                 
                 const isMetric = storeSettings.measurementStandard === 2;
                 const currencySymbol = getCurrencySymbol(storeSettings.selectedCurrency);
                 const areaUnit = getAreaUnit(isMetric);
-                
-                console.log('🔧 Display Settings:', {
-                    measurementStandard: storeSettings.measurementStandard,
-                    isMetric,
-                    selectedCurrency: storeSettings.selectedCurrency,
-                    currencySymbol,
-                    areaUnit
-                });
 
                 // Store settings globally for other functions to access
                 window.storeSettings = storeSettings;
 
                 const sheetData = parseCSV(csvData);
-                console.log('📑 Sheet Data:', sheetData);
-                
                 const propertyData = processPropertyData(sheetData, blogData);
-                console.log('🏠 Processed Property Data:', propertyData);
 
-                createFilterElements();
+                createFilterElements(propertyData);
                 renderPropertyListings(propertyData);
-                console.log('🚀 SquareHero.store Property Listings plugin loaded');
+                console.log('🚀 SquareHero.store Real Estate Listings plugin loaded');
             }).catch(error => console.error('❌ Error fetching data:', error));
         })
         .catch(error => console.error('❌ Error loading libraries:', error));
-        function processPropertyData(sheetData, blogData) {
+        
+    function processPropertyData(sheetData, blogData) {
         const urlMap = new Map(sheetData.map(row => {
             const url = row.Url.trim().toLowerCase();
             const regexPattern = new RegExp('^' + url.replace(/\*/g, '.*') + '$');
@@ -124,17 +109,17 @@
                 location: item.tags && item.tags.length > 0 ? item.tags[0] : '',
                 imageUrl: item.assetUrl,
                 category: item.categories && item.categories.length > 0 ? item.categories[0] : '',
-                price: sheetRow ? parseFloat(sheetRow[1].Price.replace(/[$,]/g, '')) : 0,
-                area: sheetRow ? parseInt(sheetRow[1].Area, 10) : 0,
-                bedrooms: sheetRow ? parseInt(sheetRow[1].Bedrooms, 10) : 0,
-                bathrooms: sheetRow ? parseFloat(sheetRow[1].Bathrooms) : 0,
-                garage: sheetRow ? sheetRow[1].Garage : '',
+                price: sheetRow && sheetRow[1].Price ? parseFloat(sheetRow[1].Price.replace(/[$,]/g, '')) : 0,
+                area: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area, 10) : 0,
+                bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms, 10) : 0,
+                bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms) : 0,
+                garage: sheetRow && sheetRow[1].Garage ? sheetRow[1].Garage : '',
                 url: item.fullUrl
             };
         });
     }
 
-    function createFilterElements() {
+    function createFilterElements(propertyData) {
         const container = document.getElementById('propertyListingsContainer');
         if (!container) {
             console.error('Property listings container not found');
@@ -142,45 +127,76 @@
         }
 
         const filtersContainer = document.createElement('div');
-        filtersContainer.className = 'filters-container';
+        filtersContainer.className = 'filters-container sh-filters-container';
 
-        filtersContainer.appendChild(createDropdownFilter('location-filter', 'Location', 'Any Location'));
-        filtersContainer.appendChild(createDropdownFilter('status-filter', 'Property Status', 'All'));
-        filtersContainer.appendChild(createButtonGroupFilter('bedrooms-filter', 'Bedrooms', ['Any', '1', '2', '3', '4', '5', '6', '7', '8']));
-        filtersContainer.appendChild(createButtonGroupFilter('bathrooms-filter', 'Bathrooms', ['Any', '1', '1.5', '2', '2.5', '3', '3.5', '4', '4.5', '5', '5.5', '6']));
-        filtersContainer.appendChild(createSliderFilter('area-slider', 'Area'));
-        filtersContainer.appendChild(createSliderFilter('price-slider', 'Price'));
+        // Check which attributes are available in the data
+        const hasLocations = propertyData.some(p => p.location);
+        const hasCategories = propertyData.some(p => p.category);
+        const hasBedrooms = propertyData.some(p => p.bedrooms > 0);
+        const hasBathrooms = propertyData.some(p => p.bathrooms > 0);
+        const hasAreas = propertyData.some(p => p.area > 0);
+        const hasPrices = propertyData.some(p => p.price > 0);
 
-        const resetButton = document.createElement('button');
-        resetButton.id = 'reset-filters';
-        resetButton.className = 'reset-button sh-button';
-        resetButton.textContent = 'Reset Filters';
-        resetButton.addEventListener('click', resetFilters);
-        filtersContainer.appendChild(resetButton);
+        // Only add filters for attributes that exist in the data
+        if (hasLocations) {
+            filtersContainer.appendChild(createDropdownFilter('location-filter', tagLabel, 'Any Location', 'sh-location-filter'));
+        }
+        
+        if (hasCategories) {
+            filtersContainer.appendChild(createDropdownFilter('status-filter', categoryLabel, 'All', 'sh-status-filter'));
+        }
+        
+        if (hasBedrooms) {
+            filtersContainer.appendChild(createButtonGroupFilter('bedrooms-filter', 'Bedrooms', ['Any', '1', '2', '3', '4', '5', '6', '7', '8'], 'sh-bedrooms-filter'));
+        }
+        
+        if (hasBathrooms) {
+            filtersContainer.appendChild(createButtonGroupFilter('bathrooms-filter', 'Bathrooms', ['Any', '1', '1.5', '2', '2.5', '3', '3.5', '4', '4.5', '5', '5.5', '6'], 'sh-bathrooms-filter'));
+        }
+        
+        if (hasAreas) {
+            filtersContainer.appendChild(createSliderFilter('area-slider', 'Area', 'sh-area-filter'));
+        }
+        
+        if (hasPrices) {
+            filtersContainer.appendChild(createSliderFilter('price-slider', 'Price', 'sh-price-filter'));
+        }
+
+        // Only add reset button if we have at least one filter
+        if (hasLocations || hasCategories || hasBedrooms || hasBathrooms || hasAreas || hasPrices) {
+            const resetButton = document.createElement('button');
+            resetButton.id = 'reset-filters';
+            resetButton.className = 'reset-button sh-button sh-reset-button';
+            resetButton.textContent = 'Reset Filters';
+            resetButton.addEventListener('click', resetFilters);
+            filtersContainer.appendChild(resetButton);
+        }
 
         container.appendChild(filtersContainer);
 
         const gridContainer = document.createElement('div');
         gridContainer.id = 'property-grid';
-        gridContainer.className = 'property-grid';
+        gridContainer.className = 'property-grid sh-property-grid';
         container.appendChild(gridContainer);
     }
 
-    function createDropdownFilter(id, label, defaultOption) {
+    function createDropdownFilter(id, label, defaultOption, customClass) {
         const group = document.createElement('div');
-        group.className = 'filter-group';
+        group.className = `filter-group ${customClass}-group`;
 
         const labelElement = document.createElement('label');
         labelElement.htmlFor = id;
         labelElement.textContent = label;
+        labelElement.className = `${customClass}-label`;
 
         const select = document.createElement('select');
         select.id = id;
-        select.className = 'dropdown-filter';
+        select.className = `dropdown-filter ${customClass}`;
 
         const option = document.createElement('option');
         option.value = 'all';
         option.textContent = defaultOption;
+        option.className = `${customClass}-option`;
         select.appendChild(option);
 
         group.appendChild(labelElement);
@@ -189,20 +205,21 @@
         return group;
     }
 
-    function createButtonGroupFilter(id, label, options) {
+    function createButtonGroupFilter(id, label, options, customClass) {
         const group = document.createElement('div');
-        group.className = 'filter-group';
+        group.className = `filter-group ${customClass}-group`;
 
         const labelElement = document.createElement('label');
         labelElement.textContent = label;
+        labelElement.className = `${customClass}-label`;
 
         const buttonGroup = document.createElement('div');
         buttonGroup.id = id;
-        buttonGroup.className = 'button-group';
+        buttonGroup.className = `button-group ${customClass}-buttons`;
 
         options.forEach(option => {
             const button = document.createElement('button');
-            button.className = 'filter-button';
+            button.className = `filter-button ${customClass}-button`;
             let filterValue = option.toLowerCase() === 'any' ? 'all' : option;
             if (id === 'bedrooms-filter' && filterValue !== 'all') {
                 filterValue = `bed-${filterValue}`;
@@ -220,18 +237,19 @@
         return group;
     }
 
-    function createSliderFilter(id, label) {
+    function createSliderFilter(id, label, customClass) {
         const group = document.createElement('div');
-        group.className = 'filter-group';
+        group.className = `filter-group ${customClass}-group`;
 
         const labelContainer = document.createElement('div');
-        labelContainer.className = 'slider-label-container';
+        labelContainer.className = `slider-label-container ${customClass}-label-container`;
 
         const labelElement = document.createElement('label');
-        labelElement.textContent = label; // No longer checking for 'Sq. Ft.'
+        labelElement.textContent = label;
+        labelElement.className = `${customClass}-label`;
 
         const rangeDisplay = document.createElement('span');
-        rangeDisplay.className = 'range-display';
+        rangeDisplay.className = `range-display ${customClass}-range`;
         rangeDisplay.id = `${id}-range`;
 
         labelContainer.appendChild(labelElement);
@@ -239,7 +257,7 @@
 
         const slider = document.createElement('div');
         slider.id = id;
-        slider.className = 'range-slider';
+        slider.className = `range-slider ${customClass}-slider`;
 
         group.appendChild(labelContainer);
         group.appendChild(slider);
@@ -254,14 +272,33 @@
         const areaUnit = getAreaUnit(isMetric);
 
         const card = document.createElement('a');
-        card.className = 'property-card mix';
+        card.className = 'property-card mix sh-property-card';
         card.href = property.url;
-        card.setAttribute('data-location', property.location);
-        card.setAttribute('data-category', property.category);
-        card.setAttribute('data-bedrooms', `bed-${property.bedrooms}`);
-        card.setAttribute('data-bathrooms', `bath-${formatBathroomsForFilter(property.bathrooms)}`);
-        card.setAttribute('data-area', property.area);
-        card.setAttribute('data-price', property.price);
+        
+        // Only set data attributes for properties that exist
+        if (property.location) {
+            card.setAttribute('data-location', property.location);
+        }
+        
+        if (property.category) {
+            card.setAttribute('data-category', property.category);
+        }
+        
+        if (property.bedrooms > 0) {
+            card.setAttribute('data-bedrooms', `bed-${property.bedrooms}`);
+        }
+        
+        if (property.bathrooms > 0) {
+            card.setAttribute('data-bathrooms', `bath-${formatBathroomsForFilter(property.bathrooms)}`);
+        }
+        
+        if (property.area > 0) {
+            card.setAttribute('data-area', property.area);
+        }
+        
+        if (property.price > 0) {
+            card.setAttribute('data-price', property.price);
+        }
 
         // SVG definitions
         const areaSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="17" fill="none" viewBox="0 0 18 17"><g fill="hsl(var(--black-hsl))" clip-path="url(#areaClip)"><path d="M.364 3.203 0 2.839 2.202.638l2.202 2.201-.363.364a.794.794 0 0 1-1.122 0l-.717-.715-.714.715a.794.794 0 0 1-1.124 0Z"/><path d="M16.855 15.016H1.548V1.563h1.308v12.144h14v1.309Z"/><path d="m15.58 16.564-.364-.364a.794.794 0 0 1 0-1.121l.714-.715-.714-.715a.794.794 0 0 1 0-1.122l.363-.363 2.202 2.202-2.202 2.198ZM16.119 11.598h-.634a.654.654 0 0 1 0-1.308h.634c.192 0 .347-.14.347-.317v-.614a.654.654 0 1 1 1.309 0v.614c0 .896-.743 1.625-1.656 1.625ZM13.063 11.599H9.727a.654.654 0 1 1 0-1.309h3.336a.654.654 0 0 1 0 1.309ZM7.251 11.598h-.633c-.913 0-1.657-.729-1.657-1.625v-.614a.654.654 0 1 1 1.309 0v.614c0 .175.156.317.348.317h.633a.654.654 0 1 1 0 1.309ZM5.616 7.727a.654.654 0 0 1-.655-.654V5.17a.654.654 0 1 1 1.309 0v1.904a.654.654 0 0 1-.654.654ZM5.616 3.537a.654.654 0 0 1-.655-.654v-.614c0-.896.744-1.625 1.657-1.625h.633a.654.654 0 0 1 0 1.308h-.633c-.192 0-.348.14-.348.317v.614a.654.654 0 0 1-.654.654ZM13.01 1.952H9.674a.654.654 0 0 1 0-1.308h3.337a.654.654 0 0 1 0 1.308ZM17.12 3.537a.654.654 0 0 1-.654-.654v-.614c0-.175-.155-.317-.347-.317h-.634a.654.654 0 1 1 0-1.308h.634c.913 0 1.656.729 1.656 1.625v.614a.654.654 0 0 1-.654.654ZM17.12 7.727a.655.655 0 0 1-.654-.654V5.17a.654.654 0 1 1 1.309 0v1.904a.654.654 0 0 1-.654.654Z"/></g><defs><clipPath id="areaClip"><path fill="#fff" d="M0 .65h17.759v15.89H0z"/></clipPath></defs></svg>`;
@@ -273,27 +310,28 @@
         const garageSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="18" fill="none" viewBox="0 0 20 18"><g fill="hsl(var(--black-hsl))" clip-path="url(#garageClip)"><path d="M15.908 17.09c.413-.046.717-.41.717-.826v-.788a.81.81 0 0 0 .81-.81v-3.238a.81.81 0 0 0-.81-.81h-.113l-1.122-3.77a.404.404 0 0 0-.384-.277H5.292a.404.404 0 0 0-.384.277l-1.122 3.77h-.113a.81.81 0 0 0-.81.81v3.238a.81.81 0 0 0 .81.81v.788c0 .415.304.78.717.826a.812.812 0 0 0 .9-.805v-.81h9.716v.81a.81.81 0 0 0 .902.805ZM5.896 7.785h8.506l.843 2.834H5.052l.844-2.834Zm-.917 5.764a.911.911 0 1 1-.185-1.814.911.911 0 0 1 .185 1.814Zm9.526-.814a.91.91 0 1 1 1.812-.187.91.91 0 0 1-1.812.187ZM18.24 5.92l-8.091-4.245-8.09 4.245a.85.85 0 0 1-1.15-.358l-.254-.487 9.494-4.98 9.494 4.98-.256.487a.851.851 0 0 1-1.148.358Z"/></g><defs><clipPath id="garageClip"><path fill="#fff" d="M.649.094h19v17h-19z"/></clipPath></defs></svg>`;
 
         let cardContent = `
-            <div class="property-image">
-                <img src="${property.imageUrl}" alt="${property.title}">
-                ${property.category ? `<span class="property-category">${property.category}</span>` : ''}
+            <div class="property-image sh-property-image">
+                <img src="${property.imageUrl}" alt="${property.title}" class="sh-property-img">
+                ${property.category ? `<span class="property-category sh-property-category">${property.category}</span>` : ''}
             </div>
-            <div class="listing-content">
-                <h3 class="property-title">${property.title}</h3>
-                ${property.location ? `<p class="property-location">${property.location}</p>` : ''}
-                <p class="property-price ${property.price === 0 ? 'no-price' : ''}">${property.price === 0 ? 'Price TBA' : `${currencySymbol}${property.price.toLocaleString()}`}</p>
-                <div class="property-details">
-                    ${property.area ? `<span class="details-icon">${areaSvg} ${property.area.toLocaleString()} ${areaUnit}</span>` : ''}
-                    ${property.bedrooms ? `<span class="details-icon">${bedsSvg} ${property.bedrooms}</span>` : ''}
-                    ${property.bathrooms ? `<span class="details-icon">${bathsSvg} ${formatBathrooms(property.bathrooms)}</span>` : ''}
-                    ${property.garage ? `<span class="details-icon">${garageSvg} ${property.garage}</span>` : ''}
+            <div class="listing-content sh-listing-content">
+                <h3 class="property-title sh-property-title">${property.title}</h3>
+                ${property.location ? `<p class="property-location sh-property-location">${property.location}</p>` : ''}
+                <p class="property-price sh-property-price ${property.price === 0 ? 'no-price' : ''}">${property.price === 0 ? 'Price TBA' : `${currencySymbol}${property.price.toLocaleString()}`}</p>
+                <div class="property-details sh-property-details">
+                    ${property.area > 0 ? `<span class="details-icon sh-area-icon">${areaSvg} <span class="sh-area-value">${property.area.toLocaleString()} ${areaUnit}</span></span>` : ''}
+                    ${property.bedrooms > 0 ? `<span class="details-icon sh-beds-icon">${bedsSvg} <span class="sh-beds-value">${property.bedrooms}</span></span>` : ''}
+                    ${property.bathrooms > 0 ? `<span class="details-icon sh-baths-icon">${bathsSvg} <span class="sh-baths-value">${formatBathrooms(property.bathrooms)}</span></span>` : ''}
+                    ${property.garage ? `<span class="details-icon sh-garage-icon">${garageSvg} <span class="sh-garage-value">${property.garage}</span></span>` : ''}
                 </div>
-                <span class="sh-button">View Home</span>
+                <span class="sh-button sh-view-button">View Home</span>
             </div>
         `;
 
         card.innerHTML = cardContent;
         return card;
     }
+    
     function formatBathrooms(bathrooms) {
         return Number.isInteger(bathrooms) ? bathrooms.toString() : bathrooms.toFixed(1);
     }
@@ -319,42 +357,79 @@
     }
 
     function initializeFilters(properties) {
+        // Get unique values for dropdown filters
         const locations = new Set(properties.map(p => p.location).filter(Boolean));
         const categories = new Set(properties.map(p => p.category).filter(Boolean));
-        const minArea = Math.min(...properties.map(p => p.area));
-        const maxArea = Math.max(...properties.map(p => p.area));
-        const minPrice = Math.min(...properties.map(p => p.price));
-        const maxPrice = Math.max(...properties.map(p => p.price));
-
-        populateDropdown('location-filter', locations);
-        populateDropdown('status-filter', categories);
-
-        initializeSlider('area-slider', minArea, maxArea, window.storeSettings?.measurementStandard === 2 ? 'm²' : 'sq ft', () => {
-            if (window.mixer) window.mixer.filter(window.mixer.getState().activeFilter);
-        });
         
-        const currencySymbol = getCurrencySymbol(window.storeSettings?.selectedCurrency);
-        initializeSlider('price-slider', minPrice, maxPrice, currencySymbol, () => {
-            if (window.mixer) window.mixer.filter(window.mixer.getState().activeFilter);
-        });
-
-        hideUnusedOptions('bedrooms-filter', properties, 'bedrooms');
-        hideUnusedOptions('bathrooms-filter', properties, 'bathrooms');
+        // Only fill dropdowns if they exist
+        const locationFilter = document.getElementById('location-filter');
+        if (locationFilter && locations.size > 0) {
+            populateDropdown('location-filter', locations, 'sh-location-option');
+        }
+        
+        const statusFilter = document.getElementById('status-filter');
+        if (statusFilter && categories.size > 0) {
+            populateDropdown('status-filter', categories, 'sh-status-option');
+        }
+        
+        // Initialize sliders only if they exist and have valid data
+        const areaValues = properties.map(p => p.area).filter(area => area > 0);
+        const priceValues = properties.map(p => p.price).filter(price => price > 0);
+        
+        const areaSlider = document.getElementById('area-slider');
+        if (areaSlider && areaValues.length > 0) {
+            const minArea = Math.min(...areaValues);
+            const maxArea = Math.max(...areaValues);
+            initializeSlider('area-slider', minArea, maxArea, window.storeSettings?.measurementStandard === 2 ? 'm²' : 'sq ft', () => {
+                if (window.mixer) window.mixer.filter(window.mixer.getState().activeFilter);
+            });
+        }
+        
+        const priceSlider = document.getElementById('price-slider');
+        if (priceSlider && priceValues.length > 0) {
+            const minPrice = Math.min(...priceValues);
+            const maxPrice = Math.max(...priceValues);
+            const currencySymbol = getCurrencySymbol(window.storeSettings?.selectedCurrency);
+            initializeSlider('price-slider', minPrice, maxPrice, currencySymbol, () => {
+                if (window.mixer) window.mixer.filter(window.mixer.getState().activeFilter);
+            });
+        }
+        
+        // Only initialize button group filters if they exist
+        const bedroomsFilter = document.getElementById('bedrooms-filter');
+        if (bedroomsFilter) {
+            hideUnusedOptions('bedrooms-filter', properties, 'bedrooms');
+        }
+        
+        const bathroomsFilter = document.getElementById('bathrooms-filter');
+        if (bathroomsFilter) {
+            hideUnusedOptions('bathrooms-filter', properties, 'bathrooms');
+        }
     }
 
-    function populateDropdown(id, options) {
+    function populateDropdown(id, options, customClass) {
         const dropdown = document.getElementById(id);
+        if (!dropdown) return;
+        
         options.forEach(option => {
             const optionElement = document.createElement('option');
             optionElement.value = option;
             optionElement.textContent = option;
+            optionElement.className = customClass;
             dropdown.appendChild(optionElement);
         });
     }
-
     function initializeSlider(id, min, max, unit, callback) {
         const slider = document.getElementById(id);
+        if (!slider) return;
+        
         const rangeDisplay = document.getElementById(`${id}-range`);
+        if (!rangeDisplay) return;
+
+        // Ensure min and max are not the same to avoid noUiSlider errors
+        if (min === max) {
+            max = min + 1;
+        }
 
         noUiSlider.create(slider, {
             start: [min, max],
@@ -386,6 +461,8 @@
 
     function hideUnusedOptions(filterId, properties, propertyKey) {
         const filterButtons = document.querySelectorAll(`#${filterId} .filter-button`);
+        if (!filterButtons.length) return;
+        
         const availableValues = new Set(properties.map(p => p[propertyKey]).filter(Boolean));
 
         filterButtons.forEach(button => {
@@ -399,152 +476,205 @@
 
     function initializeMixItUp() {
         const container = document.getElementById('property-grid');
+        if (!container) return;
 
         const noResultsMessage = document.createElement('div');
         noResultsMessage.id = 'no-results-message';
-        noResultsMessage.className = 'no-results-message';
+        noResultsMessage.className = 'no-results-message sh-no-results';
         noResultsMessage.style.display = 'none';
         noResultsMessage.innerHTML = `
-            <h3>No properties found</h3>
-            <p>We couldn't find any properties matching your current filter criteria. 
-            Please try adjusting your filters or <a href="#" id="reset-filters-link">reset all filters</a> to see all available properties.</p>
+            <h3 class="sh-no-results-title">No properties found</h3>
+            <p class="sh-no-results-text">We couldn't find any properties matching your current filter criteria. 
+            Please try adjusting your filters or <a href="#" id="reset-filters-link" class="sh-reset-link">reset all filters</a> to see all available properties.</p>
         `;
         container.parentNode.insertBefore(noResultsMessage, container.nextSibling);
 
-        window.mixer = mixitup(container, {
-            selectors: {
-                target: '.property-card'
-            },
-            load: {
-                filter: 'all'
-            },
-            animation: {
-                enable: false,
-                effects: 'fade',
-                duration: 300,
-                easing: 'ease'
-            },
-            callbacks: {
-                onMixStart: function(state) {
-                    return filterByRanges(state);
+        try {
+            window.mixer = mixitup(container, {
+                selectors: {
+                    target: '.property-card'
                 },
-                onMixEnd: function (state) {
-                    if (state.totalShow === 0) {
-                        noResultsMessage.style.display = 'block';
-                        container.style.display = 'none';
-                    } else {
-                        noResultsMessage.style.display = 'none';
-                        container.style.display = 'grid';
-                    }
-                }
-            }
-        });
-
-        function filterByRanges(state) {
-            const areaSlider = document.getElementById('area-slider');
-            const priceSlider = document.getElementById('price-slider');
-            const cards = state.targets;
-
-            // Get current slider values
-            const [minArea, maxArea] = areaSlider.noUiSlider.get().map(Number);
-            const [minPrice, maxPrice] = priceSlider.noUiSlider.get().map(Number);
-
-            cards.forEach(card => {
-                // Get the raw numeric values
-                const cardArea = parseFloat(card.getAttribute('data-area'));
-                const cardPrice = parseFloat(card.getAttribute('data-price'));
-
-                // Check if the card matches all range criteria
-                const areaMatch = cardArea >= minArea && cardArea <= maxArea;
-                const priceMatch = cardPrice >= minPrice && cardPrice <= maxPrice;
-
-                // Only hide/show if the card is part of the current filter state
-                if (state.matching.includes(card)) {
-                    if (areaMatch && priceMatch) {
-                        card.classList.remove('range-filtered');
-                    } else {
-                        card.classList.add('range-filtered');
-                    }
-                }
-            });
-
-            // Add CSS if it doesn't exist
-            if (!document.getElementById('range-filter-style')) {
-                const style = document.createElement('style');
-                style.id = 'range-filter-style';
-                style.textContent = '.range-filtered { display: none !important; }';
-                document.head.appendChild(style);
-            }
-
-            return true;
-        }
-
-        // Update slider event handlers
-        const areaSlider = document.getElementById('area-slider');
-        const priceSlider = document.getElementById('price-slider');
-
-        [areaSlider, priceSlider].forEach(slider => {
-            slider.noUiSlider.on('update', () => {
-                if (window.mixer) {
-                    window.mixer.filter(window.mixer.getState().activeFilter);
-                }
-            });
-        });
-
-        document.getElementById('reset-filters-link').addEventListener('click', resetFilters);
-
-        const locationFilter = document.getElementById('location-filter');
-        const statusFilter = document.getElementById('status-filter');
-
-        locationFilter.addEventListener('change', updateFilters);
-        statusFilter.addEventListener('change', updateFilters);
-
-        document.querySelectorAll('.button-group').forEach(group => {
-            group.addEventListener('click', (e) => {
-                if (e.target.classList.contains('filter-button')) {
-                    e.target.classList.toggle('active');
-                    if (e.target.getAttribute('data-filter') === 'all') {
-                        Array.from(e.target.parentNode.children).forEach(sibling => {
-                            if (sibling !== e.target) {
-                                sibling.classList.remove('active');
-                            }
-                        });
-                    } else {
-                        const anyButton = e.target.parentNode.querySelector('[data-filter="all"]');
-                        if (anyButton) {
-                            anyButton.classList.remove('active');
+                load: {
+                    filter: 'all'
+                },
+                animation: {
+                    enable: false,
+                    effects: 'fade',
+                    duration: 300,
+                    easing: 'ease'
+                },
+                callbacks: {
+                    onMixStart: function(state) {
+                        return filterByRanges(state);
+                    },
+                    onMixEnd: function (state) {
+                        if (state.totalShow === 0) {
+                            noResultsMessage.style.display = 'block';
+                            container.style.display = 'none';
+                        } else {
+                            noResultsMessage.style.display = 'none';
+                            container.style.display = 'grid';
                         }
                     }
-                    updateFilters();
                 }
             });
-        });
 
-        window.mixer.filter('all');
+            function filterByRanges(state) {
+                const areaSlider = document.getElementById('area-slider');
+                const priceSlider = document.getElementById('price-slider');
+                const cards = state.targets;
+    
+                // Only apply range filtering if sliders exist
+                if (!areaSlider && !priceSlider) return true;
+    
+                cards.forEach(card => {
+                    // Default to showing card
+                    let shouldShow = true;
+                    
+                    // Apply area filter if slider exists
+                    if (areaSlider && areaSlider.noUiSlider) {
+                        const [minArea, maxArea] = areaSlider.noUiSlider.get().map(Number);
+                        const cardArea = parseFloat(card.getAttribute('data-area') || 0);
+                        
+                        // Skip area filtering if card doesn't have area data
+                        if (card.hasAttribute('data-area')) {
+                            shouldShow = shouldShow && (cardArea >= minArea && cardArea <= maxArea);
+                        }
+                    }
+                    
+                    // Apply price filter if slider exists
+                    if (priceSlider && priceSlider.noUiSlider) {
+                        const [minPrice, maxPrice] = priceSlider.noUiSlider.get().map(Number);
+                        const cardPrice = parseFloat(card.getAttribute('data-price') || 0);
+                        
+                        // Skip price filtering if card doesn't have price data
+                        if (card.hasAttribute('data-price')) {
+                            shouldShow = shouldShow && (cardPrice >= minPrice && cardPrice <= maxPrice);
+                        }
+                    }
+    
+                    // Only hide/show if the card is part of the current filter state
+                    if (state.matching.includes(card)) {
+                        if (shouldShow) {
+                            card.classList.remove('range-filtered');
+                        } else {
+                            card.classList.add('range-filtered');
+                        }
+                    }
+                });
+    
+                // Add CSS if it doesn't exist
+                if (!document.getElementById('range-filter-style')) {
+                    const style = document.createElement('style');
+                    style.id = 'range-filter-style';
+                    style.textContent = '.range-filtered { display: none !important; }';
+                    document.head.appendChild(style);
+                }
+    
+                return true;
+            }
+            
+            // Update slider event handlers
+            const areaSlider = document.getElementById('area-slider');
+            const priceSlider = document.getElementById('price-slider');
+    
+            if (areaSlider && areaSlider.noUiSlider) {
+                areaSlider.noUiSlider.on('update', () => {
+                    if (window.mixer) {
+                        window.mixer.filter(window.mixer.getState().activeFilter);
+                    }
+                });
+            }
+            
+            if (priceSlider && priceSlider.noUiSlider) {
+                priceSlider.noUiSlider.on('update', () => {
+                    if (window.mixer) {
+                        window.mixer.filter(window.mixer.getState().activeFilter);
+                    }
+                });
+            }
+            
+            // Add reset filters link event listener
+            const resetLink = document.getElementById('reset-filters-link');
+            if (resetLink) {
+                resetLink.addEventListener('click', resetFilters);
+            }
+    
+            // Add event listeners to dropdown and button filters
+            const locationFilter = document.getElementById('location-filter');
+            const statusFilter = document.getElementById('status-filter');
+    
+            if (locationFilter) {
+                locationFilter.addEventListener('change', updateFilters);
+            }
+            
+            if (statusFilter) {
+                statusFilter.addEventListener('change', updateFilters);
+            }
+    
+            document.querySelectorAll('.button-group').forEach(group => {
+                group.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('filter-button')) {
+                        e.target.classList.toggle('active');
+                        if (e.target.getAttribute('data-filter') === 'all') {
+                            Array.from(e.target.parentNode.children).forEach(sibling => {
+                                if (sibling !== e.target) {
+                                    sibling.classList.remove('active');
+                                }
+                            });
+                        } else {
+                            const anyButton = e.target.parentNode.querySelector('[data-filter="all"]');
+                            if (anyButton) {
+                                anyButton.classList.remove('active');
+                            }
+                        }
+                        updateFilters();
+                    }
+                });
+            });
+            
+            // Apply initial filter
+            window.mixer.filter('all');
+        } catch (error) {
+            console.error('Error initializing MixItUp:', error);
+        }
     }
 
     function updateFilters() {
         const locationFilter = document.getElementById('location-filter');
         const statusFilter = document.getElementById('status-filter');
         
-        const location = locationFilter.value;
-        const status = statusFilter.value;
-        const bedrooms = getActiveFilters('bedrooms-filter');
-        const bathrooms = getActiveFilters('bathrooms-filter');
-
         let filterArray = [];
 
-        if (location !== 'all') {
-            filterArray.push(`[data-location="${location}"]`);
+        // Only apply filters that exist
+        if (locationFilter) {
+            const location = locationFilter.value;
+            if (location !== 'all') {
+                filterArray.push(`[data-location="${location}"]`);
+            }
         }
-        if (status !== 'all') {
-            filterArray.push(`[data-category="${status}"]`);
+        
+        if (statusFilter) {
+            const status = statusFilter.value;
+            if (status !== 'all') {
+                filterArray.push(`[data-category="${status}"]`);
+            }
         }
-        if (bedrooms.length > 0 && !bedrooms.includes('all')) {
-            filterArray.push(bedrooms.map(bed => `[data-bedrooms="${bed}"]`).join(', '));
+        
+        const bedroomsFilter = document.getElementById('bedrooms-filter');
+        if (bedroomsFilter) {
+            const bedrooms = getActiveFilters('bedrooms-filter');
+            if (bedrooms.length > 0 && !bedrooms.includes('all')) {
+                filterArray.push(bedrooms.map(bed => `[data-bedrooms="${bed}"]`).join(', '));
+            }
         }
-        if (bathrooms.length > 0 && !bathrooms.includes('all')) {
-            filterArray.push(bathrooms.map(bath => `[data-bathrooms="${bath}"]`).join(', '));
+        
+        const bathroomsFilter = document.getElementById('bathrooms-filter');
+        if (bathroomsFilter) {
+            const bathrooms = getActiveFilters('bathrooms-filter');
+            if (bathrooms.length > 0 && !bathrooms.includes('all')) {
+                filterArray.push(bathrooms.map(bath => `[data-bathrooms="${bath}"]`).join(', '));
+            }
         }
 
         let filterString = filterArray.length > 0 ? filterArray.join('') : 'all';
@@ -560,6 +690,9 @@
     }
 
     function getActiveFilters(groupId) {
+        const group = document.getElementById(groupId);
+        if (!group) return ['all'];
+        
         const activeButtons = Array.from(document.querySelectorAll(`#${groupId} .filter-button.active`));
         if (activeButtons.length === 0) {
             return ['all'];
@@ -567,12 +700,19 @@
         return activeButtons.map(button => button.getAttribute('data-filter'));
     }
 
-       function resetFilters() {
+    function resetFilters() {
+        // Only reset filters that exist
         const locationFilter = document.getElementById('location-filter');
-        const statusFilter = document.getElementById('status-filter');
-        locationFilter.value = 'all';
-        statusFilter.value = 'all';
+        if (locationFilter) {
+            locationFilter.value = 'all';
+        }
         
+        const statusFilter = document.getElementById('status-filter');
+        if (statusFilter) {
+            statusFilter.value = 'all';
+        }
+        
+        // Clear all active button states
         document.querySelectorAll('.button-group .filter-button').forEach(button => {
             button.classList.remove('active');
         });
@@ -580,11 +720,12 @@
         const areaSlider = document.getElementById('area-slider');
         const priceSlider = document.getElementById('price-slider');
         
-        // Reset sliders
-        if (areaSlider.noUiSlider) {
+        // Reset sliders if they exist
+        if (areaSlider && areaSlider.noUiSlider) {
             areaSlider.noUiSlider.reset();
         }
-        if (priceSlider.noUiSlider) {
+        
+        if (priceSlider && priceSlider.noUiSlider) {
             priceSlider.noUiSlider.reset();
         }
         
@@ -615,5 +756,12 @@
             console.error('Property listings container not found');
         }
     });
+
+    // Add MixItUp library
+    if (!window.mixitup && !document.querySelector('script[src*="mixitup"]')) {
+        const mixitupScript = document.createElement('script');
+        mixitupScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mixitup/3.3.1/mixitup.min.js';
+        document.head.appendChild(mixitupScript);
+    }
 
 })();
