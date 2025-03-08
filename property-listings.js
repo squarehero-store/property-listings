@@ -13,6 +13,17 @@
     // Custom labels for filter sections (with defaults)
     const categoryLabel = metaTag.getAttribute('category-label') || 'Property Status';
     const tagLabel = metaTag.getAttribute('tag-label') || 'Location';
+    
+    // Custom button text (new)
+    const buttonText = metaTag.getAttribute('button-text') || 'View Home';
+    
+    // Development logging
+    console.log('📌 SquareHero.store Real Estate Listings plugin configuration:');
+    console.log('- Sheet URL:', sheetUrl);
+    console.log('- Target:', target);
+    console.log('- Category Label:', categoryLabel);
+    console.log('- Tag Label:', tagLabel);
+    console.log('- Button Text:', buttonText);
 
     // Currency symbol helper
     const getCurrencySymbol = (currencyCode) => {
@@ -31,7 +42,6 @@
     const getAreaUnit = (isMetric) => {
         return isMetric ? 'm²' : 'sq ft';
     };
-
     // Load required libraries
     const libraries = [
         'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js',
@@ -99,16 +109,33 @@
             return [regexPattern, row];
         }));
     
+        // Debug excerpt availability
+        const hasExcerpts = blogData.items.some(item => item.excerpt && item.excerpt.trim() !== '');
+        console.log('📝 Properties with excerpts available:', hasExcerpts);
+        
+        if (hasExcerpts) {
+            console.log('Sample excerpt from first item with excerpt:', 
+                blogData.items.find(item => item.excerpt && item.excerpt.trim() !== '')?.excerpt || 'None found');
+        }
+    
         return blogData.items.map(item => {
             const urlId = item.urlId.toLowerCase();
             const sheetRow = Array.from(urlMap.entries()).find(([regexPattern, value]) => regexPattern.test(urlId));
     
+            // Clean and trim the excerpt if available
+            let cleanExcerpt = '';
+            if (item.excerpt) {
+                // Remove any HTML tags and trim whitespace
+                cleanExcerpt = item.excerpt.replace(/<\/?[^>]+(>|$)/g, '').trim();
+            }
+            
             return {
                 id: item.id,
                 title: item.title,
                 location: item.tags && item.tags.length > 0 ? item.tags[0] : '',
                 imageUrl: item.assetUrl,
                 category: item.categories && item.categories.length > 0 ? item.categories[0] : '',
+                excerpt: cleanExcerpt, // Added excerpt with HTML cleaning
                 price: sheetRow && sheetRow[1].Price ? parseFloat(sheetRow[1].Price.replace(/[$,]/g, '')) : 0,
                 area: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area, 10) : 0,
                 bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms, 10) : 0,
@@ -118,7 +145,6 @@
             };
         });
     }
-
     function createFilterElements(propertyData) {
         const container = document.getElementById('propertyListingsContainer');
         if (!container) {
@@ -264,7 +290,6 @@
 
         return group;
     }
-
     function createPropertyCard(property) {
         const storeSettings = window.storeSettings || {};
         const isMetric = storeSettings.measurementStandard === 2;
@@ -309,6 +334,10 @@
 
         const garageSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="18" fill="none" viewBox="0 0 20 18"><g fill="hsl(var(--black-hsl))" clip-path="url(#garageClip)"><path d="M15.908 17.09c.413-.046.717-.41.717-.826v-.788a.81.81 0 0 0 .81-.81v-3.238a.81.81 0 0 0-.81-.81h-.113l-1.122-3.77a.404.404 0 0 0-.384-.277H5.292a.404.404 0 0 0-.384.277l-1.122 3.77h-.113a.81.81 0 0 0-.81.81v3.238a.81.81 0 0 0 .81.81v.788c0 .415.304.78.717.826a.812.812 0 0 0 .9-.805v-.81h9.716v.81a.81.81 0 0 0 .902.805ZM5.896 7.785h8.506l.843 2.834H5.052l.844-2.834Zm-.917 5.764a.911.911 0 1 1-.185-1.814.911.911 0 0 1 .185 1.814Zm9.526-.814a.91.91 0 1 1 1.812-.187.91.91 0 0 1-1.812.187ZM18.24 5.92l-8.091-4.245-8.09 4.245a.85.85 0 0 1-1.15-.358l-.254-.487 9.494-4.98 9.494 4.98-.256.487a.851.851 0 0 1-1.148.358Z"/></g><defs><clipPath id="garageClip"><path fill="#fff" d="M.649.094h19v17h-19z"/></clipPath></defs></svg>`;
 
+        // New: Check if excerpt exists
+        const excerptHtml = property.excerpt ? 
+            `<p class="property-excerpt sh-property-excerpt">${property.excerpt}</p>` : '';
+
         let cardContent = `
             <div class="property-image sh-property-image">
                 <img src="${property.imageUrl}" alt="${property.title}" class="sh-property-img">
@@ -324,7 +353,8 @@
                     ${property.bathrooms > 0 ? `<span class="details-icon sh-baths-icon">${bathsSvg} <span class="sh-baths-value">${formatBathrooms(property.bathrooms)}</span></span>` : ''}
                     ${property.garage ? `<span class="details-icon sh-garage-icon">${garageSvg} <span class="sh-garage-value">${property.garage}</span></span>` : ''}
                 </div>
-                <span class="sh-button sh-view-button">View Home</span>
+                ${excerptHtml}
+                <span class="sh-button sh-view-button">${buttonText}</span>
             </div>
         `;
 
@@ -339,7 +369,6 @@
     function formatBathroomsForFilter(bathrooms) {
         return Number.isInteger(bathrooms) ? bathrooms.toString() : bathrooms.toFixed(1);
     }
-
     function renderPropertyListings(properties) {
         const container = document.getElementById('property-grid');
         if (!container) {
@@ -419,6 +448,7 @@
             dropdown.appendChild(optionElement);
         });
     }
+
     function initializeSlider(id, min, max, unit, callback) {
         const slider = document.getElementById(id);
         if (!slider) return;
@@ -458,7 +488,6 @@
 
         updateRangeDisplay([min, max]);
     }
-
     function hideUnusedOptions(filterId, properties, propertyKey) {
         const filterButtons = document.querySelectorAll(`#${filterId} .filter-button`);
         if (!filterButtons.length) return;
@@ -473,8 +502,27 @@
             button.style.display = availableValues.has(numericValue) ? '' : 'none';
         });
     }
-
+    
     function initializeMixItUp() {
+        // Add custom CSS for excerpt
+        const excerptStyle = document.createElement('style');
+        excerptStyle.id = 'sh-excerpt-style';
+        excerptStyle.textContent = `
+            .sh-property-excerpt {
+                margin-top: 10px;
+                margin-bottom: 15px;
+                font-size: 14px;
+                line-height: 1.5;
+                color: hsl(var(--black-hsl));
+                opacity: 0.85;
+                overflow: hidden;
+                display: -webkit-box;
+                -webkit-line-clamp: 3;
+                -webkit-box-orient: vertical;
+            }
+        `;
+        document.head.appendChild(excerptStyle);
+
         const container = document.getElementById('property-grid');
         if (!container) return;
 
@@ -635,11 +683,13 @@
             
             // Apply initial filter
             window.mixer.filter('all');
+            
+            // Apply URL params after initialization
+            setTimeout(applyUrlFilters, 500);
         } catch (error) {
             console.error('Error initializing MixItUp:', error);
         }
     }
-
     function updateFilters() {
         const locationFilter = document.getElementById('location-filter');
         const statusFilter = document.getElementById('status-filter');
@@ -687,6 +737,9 @@
         if (window.mixer) {
             window.mixer.filter(filterString);
         }
+        
+        // Update URL parameters when filters change
+        updateUrlWithFilters();
     }
 
     function getActiveFilters(groupId) {
@@ -738,8 +791,204 @@
         if (window.mixer) {
             window.mixer.filter('all');
         }
+        
+        // Clear URL parameters
+        history.pushState(null, '', window.location.pathname);
+    }
+    // Function to parse URL parameters and apply filters on page load
+    function applyUrlFilters() {
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        let filtersApplied = false;
+        
+        // Check for location filter
+        if (urlParams.has('location')) {
+            const locationValue = urlParams.get('location');
+            const locationFilter = document.getElementById('location-filter');
+            if (locationFilter) {
+                // Find the option that matches (case insensitive)
+                Array.from(locationFilter.options).forEach(option => {
+                    if (option.value.toLowerCase() === locationValue.toLowerCase()) {
+                        locationFilter.value = option.value;
+                        filtersApplied = true;
+                    }
+                });
+            }
+        }
+        
+        // Check for category/status filter
+        if (urlParams.has('category') || urlParams.has('status')) {
+            const categoryValue = urlParams.get('category') || urlParams.get('status');
+            const statusFilter = document.getElementById('status-filter');
+            if (statusFilter) {
+                // Find the option that matches (case insensitive)
+                Array.from(statusFilter.options).forEach(option => {
+                    if (option.value.toLowerCase() === categoryValue.toLowerCase()) {
+                        statusFilter.value = option.value;
+                        filtersApplied = true;
+                    }
+                });
+            }
+        }
+        
+        // Check for bedrooms filter
+        if (urlParams.has('bedrooms')) {
+            const bedroomsValue = urlParams.get('bedrooms');
+            const bedroomsFilter = document.getElementById('bedrooms-filter');
+            if (bedroomsFilter) {
+                const button = bedroomsFilter.querySelector(`[data-filter="bed-${bedroomsValue}"]`);
+                if (button) {
+                    button.classList.add('active');
+                    filtersApplied = true;
+                    
+                    // Remove 'active' from 'Any' button
+                    const anyButton = bedroomsFilter.querySelector('[data-filter="all"]');
+                    if (anyButton) {
+                        anyButton.classList.remove('active');
+                    }
+                }
+            }
+        }
+        
+        // Check for bathrooms filter
+        if (urlParams.has('bathrooms')) {
+            const bathroomsValue = urlParams.get('bathrooms');
+            const bathroomsFilter = document.getElementById('bathrooms-filter');
+            if (bathroomsFilter) {
+                const button = bathroomsFilter.querySelector(`[data-filter="bath-${bathroomsValue}"]`);
+                if (button) {
+                    button.classList.add('active');
+                    filtersApplied = true;
+                    
+                    // Remove 'active' from 'Any' button
+                    const anyButton = bathroomsFilter.querySelector('[data-filter="all"]');
+                    if (anyButton) {
+                        anyButton.classList.remove('active');
+                    }
+                }
+            }
+        }
+        
+        // Check for price filter
+        if (urlParams.has('minprice') || urlParams.has('maxprice')) {
+            const priceSlider = document.getElementById('price-slider');
+            if (priceSlider && priceSlider.noUiSlider) {
+                const currentValues = priceSlider.noUiSlider.get().map(Number);
+                let minPrice = urlParams.has('minprice') ? Number(urlParams.get('minprice')) : currentValues[0];
+                let maxPrice = urlParams.has('maxprice') ? Number(urlParams.get('maxprice')) : currentValues[1];
+                
+                // Update the slider with new values
+                priceSlider.noUiSlider.set([minPrice, maxPrice]);
+                filtersApplied = true;
+            }
+        }
+        
+        // Check for area filter
+        if (urlParams.has('minarea') || urlParams.has('maxarea')) {
+            const areaSlider = document.getElementById('area-slider');
+            if (areaSlider && areaSlider.noUiSlider) {
+                const currentValues = areaSlider.noUiSlider.get().map(Number);
+                let minArea = urlParams.has('minarea') ? Number(urlParams.get('minarea')) : currentValues[0];
+                let maxArea = urlParams.has('maxarea') ? Number(urlParams.get('maxarea')) : currentValues[1];
+                
+                // Update the slider with new values
+                areaSlider.noUiSlider.set([minArea, maxArea]);
+                filtersApplied = true;
+            }
+        }
+        
+        // Apply filters if any parameters were found
+        if (filtersApplied && window.mixer) {
+            console.log('🔍 Applying filters from URL parameters');
+            updateFilters();
+        }
     }
 
+    // Function to update URL with current filter state
+    function updateUrlWithFilters() {
+        // Create a new URLSearchParams object
+        const params = new URLSearchParams();
+        
+        // Get current filter values
+        const locationFilter = document.getElementById('location-filter');
+        if (locationFilter && locationFilter.value !== 'all') {
+            params.set('location', locationFilter.value);
+        }
+        
+        const statusFilter = document.getElementById('status-filter');
+        if (statusFilter && statusFilter.value !== 'all') {
+            params.set('category', statusFilter.value);
+        }
+        
+        // Get bedrooms filter
+        const bedroomsButtons = document.querySelectorAll('#bedrooms-filter .filter-button.active');
+        if (bedroomsButtons.length === 1 && !bedroomsButtons[0].getAttribute('data-filter').includes('all')) {
+            const bedroomsValue = bedroomsButtons[0].getAttribute('data-filter').replace('bed-', '');
+            params.set('bedrooms', bedroomsValue);
+        }
+        
+        // Get bathrooms filter
+        const bathroomsButtons = document.querySelectorAll('#bathrooms-filter .filter-button.active');
+        if (bathroomsButtons.length === 1 && !bathroomsButtons[0].getAttribute('data-filter').includes('all')) {
+            const bathroomsValue = bathroomsButtons[0].getAttribute('data-filter').replace('bath-', '');
+            params.set('bathrooms', bathroomsValue);
+        }
+        
+        // Get price range
+        const priceSlider = document.getElementById('price-slider');
+        if (priceSlider && priceSlider.noUiSlider) {
+            const [minPrice, maxPrice] = priceSlider.noUiSlider.get().map(Number);
+            
+            // Get all property cards with price data
+            const priceValues = Array.from(document.querySelectorAll('.property-card[data-price]'))
+                .map(card => parseFloat(card.getAttribute('data-price')))
+                .filter(Boolean);
+            
+            if (priceValues.length > 0) {
+                const priceMin = Math.min(...priceValues);
+                const priceMax = Math.max(...priceValues);
+                
+                // Only add if the values are different from min/max
+                if (minPrice > priceMin) {
+                    params.set('minprice', minPrice);
+                }
+                if (maxPrice < priceMax) {
+                    params.set('maxprice', maxPrice);
+                }
+            }
+        }
+        
+        // Get area range
+        const areaSlider = document.getElementById('area-slider');
+        if (areaSlider && areaSlider.noUiSlider) {
+            const [minArea, maxArea] = areaSlider.noUiSlider.get().map(Number);
+            
+            // Get all property cards with area data
+            const areaValues = Array.from(document.querySelectorAll('.property-card[data-area]'))
+                .map(card => parseFloat(card.getAttribute('data-area')))
+                .filter(Boolean);
+            
+            if (areaValues.length > 0) {
+                const areaMin = Math.min(...areaValues);
+                const areaMax = Math.max(...areaValues);
+                
+                // Only add if the values are different from min/max
+                if (minArea > areaMin) {
+                    params.set('minarea', minArea);
+                }
+                if (maxArea < areaMax) {
+                    params.set('maxarea', maxArea);
+                }
+            }
+        }
+        
+        // Update URL without reloading the page
+        const newUrl = params.toString() ? 
+            `${window.location.pathname}?${params.toString()}` : 
+            window.location.pathname;
+        
+        history.pushState(null, '', newUrl);
+    }
     function addPropertyListingsClass() {
         document.body.classList.add('property-listings');
     }
