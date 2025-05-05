@@ -1,6 +1,6 @@
-// ===================================================
-//   ⚡ Featured Listings plugin by SquareHero.store
-// ===================================================
+// =========================================================================
+//   ⚡ Featured Listings for Real Estate Listings plugin by SquareHero.store
+// ============================================================================
 (function () {
     // Check if the plugin is enabled
     const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
