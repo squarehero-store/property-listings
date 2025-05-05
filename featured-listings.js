@@ -87,23 +87,25 @@
                 const sheetData = parseCSV(csvData);
                 const propertyData = processPropertyData(sheetData, blogData);
 
-                // Find the container element
-                const container = document.getElementById('featuredListingsContainer');
-                if (container) {
-                    // Get the number of listings to show from the attribute
-                    const listingsAmount = parseInt(container.getAttribute('listings-amount') || '3', 10);
-                    
-                    // Create the grid container
-                    const gridContainer = document.createElement('div');
-                    gridContainer.id = 'featured-property-grid';
-                    gridContainer.className = 'property-grid sh-property-grid sh-featured-grid';
-                    
-                    // Render limited number of properties
-                    renderFeaturedListings(propertyData, gridContainer, listingsAmount);
-                    
-                    // Add grid to the main container
-                    container.appendChild(gridContainer);
-                }
+                // Find the container element - now looking for class instead of ID
+                const containers = document.querySelectorAll('#propertyListingsContainer.featured-listings');
+                containers.forEach(container => {
+                    if (container) {
+                        // Get the number of listings to show from the attribute
+                        const listingsAmount = parseInt(container.getAttribute('listings-amount') || '3', 10);
+                        
+                        // Create the grid container
+                        const gridContainer = document.createElement('div');
+                        gridContainer.id = 'property-grid';
+                        gridContainer.className = 'property-grid sh-property-grid sh-featured-grid';
+                        
+                        // Render limited number of properties
+                        renderFeaturedListings(propertyData, gridContainer, listingsAmount);
+                        
+                        // Add grid to the main container
+                        container.appendChild(gridContainer);
+                    }
+                });
                 
                 console.log('🚀 SquareHero.store Featured Listings plugin loaded');
             }).catch(error => console.error('❌ Error fetching data:', error));
@@ -211,10 +213,10 @@
             return;
         }
 
-        // Add custom CSS for excerpt
-        const excerptStyle = document.createElement('style');
-        excerptStyle.id = 'sh-excerpt-style';
-        excerptStyle.textContent = `
+        // Add custom CSS for featured properties
+        const featuredStyle = document.createElement('style');
+        featuredStyle.id = 'sh-featured-style';
+        featuredStyle.textContent = `
             .sh-property-excerpt {
                 margin-top: 10px;
                 margin-bottom: 15px;
@@ -234,8 +236,17 @@
                 gap: 30px;
                 margin: 30px 0;
             }
+            
+            /* Hide filters and search sections for featured listings */
+            #propertyListingsContainer.featured-listings .filters-container {
+                display: none;
+            }
+            
+            #propertyListingsContainer.featured-listings #no-results-message {
+                display: none;
+            }
         `;
-        document.head.appendChild(excerptStyle);
+        document.head.appendChild(featuredStyle);
 
         // Take only the specified amount of properties
         const limitedProperties = properties.slice(0, listingsAmount);
@@ -249,20 +260,13 @@
         console.log(`🏠 Rendered ${limitedProperties.length} featured properties`);
     }
 
-    function addFeaturedListingsClass() {
-        document.body.classList.add('featured-listings');
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', addFeaturedListingsClass);
-    } else {
-        addFeaturedListingsClass();
-    }
-
     document.addEventListener('DOMContentLoaded', () => {
-        const container = document.getElementById('featuredListingsContainer');
-        if (!container) {
-            console.error('Featured listings container not found');
+        // Look for containers with the featured-listings class
+        const containers = document.querySelectorAll('#propertyListingsContainer.featured-listings');
+        if (containers.length === 0) {
+            console.log('No featured listings containers found');
+        } else {
+            console.log(`Found ${containers.length} featured listings containers`);
         }
     });
 })();
