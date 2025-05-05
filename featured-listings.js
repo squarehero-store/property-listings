@@ -99,8 +99,13 @@
                         gridContainer.id = 'property-grid';
                         gridContainer.className = 'property-grid sh-property-grid sh-featured-grid';
                         
-                        // Render limited number of properties
-                        renderFeaturedListings(propertyData, gridContainer, listingsAmount);
+                        // Get only featured properties and sort by featured order
+                        const featuredProperties = propertyData
+                            .filter(p => p.featured && !isNaN(parseInt(p.featured)))
+                            .sort((a, b) => parseInt(a.featured) - parseInt(b.featured));
+                        
+                        // Render featured properties
+                        renderFeaturedListings(featuredProperties, gridContainer, listingsAmount);
                         
                         // Add grid to the main container
                         container.appendChild(gridContainer);
@@ -123,9 +128,14 @@
         const hasExcerpts = blogData.items.some(item => item.excerpt && item.excerpt.trim() !== '');
         console.log('📝 Properties with excerpts available:', hasExcerpts);
         
-        if (hasExcerpts) {
-            console.log('Sample excerpt from first item with excerpt:', 
-                blogData.items.find(item => item.excerpt && item.excerpt.trim() !== '')?.excerpt || 'None found');
+        // Check if any properties have a featured column
+        const hasFeatured = sheetData.some(row => row.Featured && row.Featured.trim() !== '');
+        console.log('⭐ Properties with featured values:', hasFeatured);
+        
+        if (hasFeatured) {
+            console.log('Sample featured properties:', 
+                sheetData.filter(row => row.Featured && row.Featured.trim() !== '')
+                .map(row => `${row.Url}: ${row.Featured}`).join(', '));
         }
     
         return blogData.items.map(item => {
@@ -151,6 +161,7 @@
                 bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms, 10) : 0,
                 bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms) : 0,
                 garage: sheetRow && sheetRow[1].Garage ? sheetRow[1].Garage : '',
+                featured: sheetRow && sheetRow[1].Featured ? sheetRow[1].Featured : '', // Get Featured value
                 url: item.fullUrl
             };
         });
@@ -165,6 +176,11 @@
         const card = document.createElement('a');
         card.className = 'property-card sh-property-card sh-featured-card';
         card.href = property.url;
+        
+        // Add featured data attribute for custom styling
+        if (property.featured) {
+            card.setAttribute('data-featured-order', property.featured);
+        }
 
         // SVG definitions
         const areaSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="17" fill="none" viewBox="0 0 18 17"><g fill="hsl(var(--black-hsl))" clip-path="url(#areaClip)"><path d="M.364 3.203 0 2.839 2.202.638l2.202 2.201-.363.364a.794.794 0 0 1-1.122 0l-.717-.715-.714.715a.794.794 0 0 1-1.124 0Z"/><path d="M16.855 15.016H1.548V1.563h1.308v12.144h14v1.309Z"/><path d="m15.58 16.564-.364-.364a.794.794 0 0 1 0-1.121l.714-.715-.714-.715a.794.794 0 0 1 0-1.122l.363-.363 2.202 2.202-2.202 2.198ZM16.119 11.598h-.634a.654.654 0 0 1 0-1.308h.634c.192 0 .347-.14.347-.317v-.614a.654.654 0 1 1 1.309 0v.614c0 .896-.743 1.625-1.656 1.625ZM13.063 11.599H9.727a.654.654 0 1 1 0-1.309h3.336a.654.654 0 0 1 0 1.309ZM7.251 11.598h-.633c-.913 0-1.657-.729-1.657-1.625v-.614a.654.654 0 1 1 1.309 0v.614c0 .175.156.317.348.317h.633a.654.654 0 1 1 0 1.309ZM5.616 7.727a.654.654 0 0 1-.655-.654V5.17a.654.654 0 1 1 1.309 0v1.904a.654.654 0 0 1-.654.654ZM5.616 3.537a.654.654 0 0 1-.655-.654v-.614c0-.896.744-1.625 1.657-1.625h.633a.654.654 0 0 1 0 1.308h-.633c-.192 0-.348.14-.348.317v.614a.654.654 0 0 1-.654.654ZM13.01 1.952H9.674a.654.654 0 0 1 0-1.308h3.337a.654.654 0 0 1 0 1.308ZM17.12 3.537a.654.654 0 0 1-.654-.654v-.614c0-.175-.155-.317-.347-.317h-.634a.654.654 0 1 1 0-1.308h.634c.913 0 1.656.729 1.656 1.625v.614a.654.654 0 0 1-.654.654ZM17.12 7.727a.655.655 0 0 1-.654-.654V5.17a.654.654 0 1 1 1.309 0v1.904a.654.654 0 0 1-.654.654Z"/></g><defs><clipPath id="areaClip"><path fill="#fff" d="M0 .65h17.759v15.89H0z"/></clipPath></defs></svg>`;
@@ -245,11 +261,26 @@
             #propertyListingsContainer.featured-listings #no-results-message {
                 display: none;
             }
+            
+            /* Special styling for featured properties */
+            .sh-featured-card {
+                position: relative;
+            }
         `;
         document.head.appendChild(featuredStyle);
 
         // Take only the specified amount of properties
         const limitedProperties = properties.slice(0, listingsAmount);
+        
+        // If we don't have enough featured properties, add a message
+        if (limitedProperties.length === 0) {
+            const noFeaturedMessage = document.createElement('div');
+            noFeaturedMessage.className = 'no-featured-message';
+            noFeaturedMessage.innerHTML = '<p>No featured properties found. Add a Featured column to your spreadsheet and assign numbers (1, 2, 3, etc.) to the properties you want to feature.</p>';
+            container.appendChild(noFeaturedMessage);
+            console.log('⚠️ No featured properties found');
+            return;
+        }
         
         // Create and append property cards
         limitedProperties.forEach(property => {
