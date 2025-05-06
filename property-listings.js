@@ -78,6 +78,7 @@
     
     // Function to fetch all properties across all pages with lazy loading
     async function fetchAllProperties(baseUrl) {
+        console.log('📋 Fetching all properties with pagination and lazy loading...');
         let allItems = [];
         let currentUrl = `${baseUrl}?format=json&nocache=${new Date().getTime()}`;
         let pageCount = 1;
