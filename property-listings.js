@@ -76,56 +76,168 @@
         return results.data;
     }
     
-    // Function to fetch all properties across all pages
+    // Function to fetch all properties across all pages with lazy loading
     async function fetchAllProperties(baseUrl) {
-        console.log('📋 Fetching all properties with pagination...');
         let allItems = [];
         let currentUrl = `${baseUrl}?format=json&nocache=${new Date().getTime()}`;
         let pageCount = 1;
+        let firstPageLoaded = false;
+        let firstPageData = null;
         
-        while (currentUrl) {
-            try {
-                console.log(`📄 Fetching page ${pageCount}...`);
-                const response = await fetch(currentUrl);
-                const data = await response.json();
-                
-                if (!data.items || data.items.length === 0) {
-                    console.log('No items found on this page');
+        // Create a function that will be called to fetch the remaining pages
+        const fetchRemainingPages = async (nextUrl, offset) => {
+            let url = nextUrl;
+            let page = 2;
+            
+            while (url) {
+                try {
+                    console.log(`📄 Fetching page ${page} in the background...`);
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    if (!data.items || data.items.length === 0) {
+                        console.log('No items found on this page');
+                        break;
+                    }
+                    
+                    // Add the items to the global allItems array 
+                    allItems.push(...data.items);
+                    console.log(`✅ Found ${data.items.length} items on page ${page}, total now: ${allItems.length}`);
+                    
+                    // Trigger rendering the new items
+                    if (window.renderAdditionalProperties) {
+                        window.renderAdditionalProperties(data.items);
+                    }
+                    
+                    // Check for pagination
+                    if (data.pagination && data.pagination.nextPage) {
+                        const offset = data.pagination.nextPageOffset;
+                        if (offset) {
+                            // Build the URL with format=json and the proper offset
+                            const nextPageUrl = new URL(baseUrl, window.location.origin);
+                            nextPageUrl.searchParams.set('format', 'json');
+                            nextPageUrl.searchParams.set('offset', offset);
+                            nextPageUrl.searchParams.set('nocache', new Date().getTime());
+                            url = nextPageUrl.toString();
+                            page++;
+                        } else {
+                            console.log('Missing offset value in pagination data');
+                            url = null;
+                        }
+                    } else {
+                        console.log('No more pages available');
+                        url = null;
+                    }
+                } catch (error) {
+                    console.error('❌ Error fetching additional properties:', error);
                     break;
                 }
-                
-                allItems = allItems.concat(data.items);
-                console.log(`✅ Found ${data.items.length} items on page ${pageCount}`);
-                
-                // Check for pagination
-                if (data.pagination && data.pagination.nextPage) {
-                    // For Squarespace, we need to use the offset parameter
-                    // We'll start with the base URL and add offset
-                    const offset = data.pagination.nextPageOffset;
-                    if (offset) {
-                        // Build the URL with format=json and the proper offset
-                        const url = new URL(baseUrl, window.location.origin);
-                        url.searchParams.set('format', 'json');
-                        url.searchParams.set('offset', offset);
-                        url.searchParams.set('nocache', new Date().getTime());
-                        currentUrl = url.toString();
-                        pageCount++;
-                    } else {
-                        console.log('Missing offset value in pagination data');
-                        currentUrl = null;
-                    }
-                } else {
-                    console.log('No more pages available');
-                    currentUrl = null;
-                }
-            } catch (error) {
-                console.error('❌ Error fetching properties:', error);
-                break;
             }
+            
+            console.log(`🏁 Total properties fetched: ${allItems.length}`);
+        };
+        
+        // First, fetch only the first page
+        try {
+            console.log('📄 Fetching first page...');
+            const response = await fetch(currentUrl);
+            const data = await response.json();
+            
+            if (!data.items || data.items.length === 0) {
+                console.log('No items found on the first page');
+                return [];
+            }
+            
+            // Store the first page items
+            allItems = [...data.items];
+            console.log(`✅ Found ${data.items.length} items on page 1`);
+            firstPageLoaded = true;
+            firstPageData = data;
+            
+            // Check if there are more pages
+            if (data.pagination && data.pagination.nextPage) {
+                const offset = data.pagination.nextPageOffset;
+                if (offset) {
+                    // Build the URL for the next page
+                    const nextPageUrl = new URL(baseUrl, window.location.origin);
+                    nextPageUrl.searchParams.set('format', 'json');
+                    nextPageUrl.searchParams.set('offset', offset);
+                    nextPageUrl.searchParams.set('nocache', new Date().getTime());
+                    
+                    // Start fetching remaining pages in the background
+                    setTimeout(() => {
+                        fetchRemainingPages(nextPageUrl.toString(), offset);
+                    }, 100);
+                }
+            } else {
+                console.log('Only one page of results available');
+            }
+        } catch (error) {
+            console.error('❌ Error fetching first page of properties:', error);
         }
         
-        console.log(`🏁 Total properties fetched: ${allItems.length}`);
+        // Return the first page items immediately
         return allItems;
+    }
+
+    // Function to render additional properties when they're loaded
+    window.renderAdditionalProperties = function(newItems) {
+        const container = document.getElementById('property-grid');
+        if (!container) {
+            console.error('Property grid container not found for additional properties');
+            return;
+        }
+        
+        // Process the new properties with sheet data
+        const sheetData = window.propertySheetData || [];
+        const processedItems = processPropertyBatch(sheetData, newItems);
+        
+        // Create and append cards for each new property
+        processedItems.forEach(property => {
+            const card = createPropertyCard(property);
+            container.appendChild(card);
+        });
+        
+        // If MixItUp is initialized, update it
+        if (window.mixer) {
+            window.mixer.forceRefresh();
+        }
+    }
+    
+    // Function to process a batch of properties
+    function processPropertyBatch(sheetData, blogItems) {
+        const urlMap = new Map(sheetData.map(row => {
+            const url = row.Url.trim().toLowerCase();
+            const regexPattern = new RegExp('^' + url.replace(/\*/g, '.*') + '$');
+            return [regexPattern, row];
+        }));
+    
+        return blogItems.map(item => {
+            const urlId = item.urlId.toLowerCase();
+            const sheetRow = Array.from(urlMap.entries()).find(([regexPattern, value]) => regexPattern.test(urlId));
+    
+            // Clean and trim the excerpt if available
+            let cleanExcerpt = '';
+            if (item.excerpt) {
+                // Remove any HTML tags and trim whitespace
+                cleanExcerpt = item.excerpt.replace(/<\/?[^>]+(>|$)/g, '').trim();
+            }
+            
+            return {
+                id: item.id,
+                title: item.title,
+                location: item.tags && item.tags.length > 0 ? item.tags[0] : '',
+                imageUrl: item.assetUrl,
+                category: item.categories && item.categories.length > 0 ? item.categories[0] : '',
+                excerpt: cleanExcerpt, // Added excerpt with HTML cleaning
+                price: sheetRow && sheetRow[1].Price ? parseFloat(sheetRow[1].Price.replace(/[$,]/g, '')) : 0,
+                area: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area, 10) : 0,
+                bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms, 10) : 0,
+                bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms) : 0,
+                garage: sheetRow && sheetRow[1].Garage ? sheetRow[1].Garage : '',
+                url: item.fullUrl
+            };
+        });
     }
 
     Promise.all(libraries.map(url => loadLibrary(url)))
@@ -173,6 +285,7 @@
                 // Fetch sheet data first
                 const csvData = await fetch(sheetUrl).then(response => response.text());
                 const sheetData = parseCSV(csvData);
+                window.propertySheetData = sheetData; // Store globally for lazy loading
                 
                 // Get website settings to have them available
                 const websiteSettingsResponse = await fetch(blogJsonUrl);
@@ -208,7 +321,7 @@
 
                 createFilterElements(propertyData);
                 renderPropertyListings(propertyData);
-                console.log('🚀 SquareHero.store Real Estate Listings plugin loaded with pagination support');
+                console.log('🚀 SquareHero.store Real Estate Listings plugin loaded');
             } catch (error) {
                 console.error('❌ Error fetching data:', error);
                 
@@ -1034,107 +1147,4 @@
         const params = new URLSearchParams();
         
         // Get current filter values
-        const locationFilter = document.getElementById('location-filter');
-        if (locationFilter && locationFilter.value !== 'all') {
-            params.set('location', locationFilter.value);
-        }
-        
-        const statusFilter = document.getElementById('status-filter');
-        if (statusFilter && statusFilter.value !== 'all') {
-            params.set('category', statusFilter.value);
-        }
-        
-        // Get bedrooms filter
-        const bedroomsButtons = document.querySelectorAll('#bedrooms-filter .filter-button.active');
-        if (bedroomsButtons.length === 1 && !bedroomsButtons[0].getAttribute('data-filter').includes('all')) {
-            const bedroomsValue = bedroomsButtons[0].getAttribute('data-filter').replace('bed-', '');
-            params.set('bedrooms', bedroomsValue);
-        }
-        
-        // Get bathrooms filter
-        const bathroomsButtons = document.querySelectorAll('#bathrooms-filter .filter-button.active');
-        if (bathroomsButtons.length === 1 && !bathroomsButtons[0].getAttribute('data-filter').includes('all')) {
-            const bathroomsValue = bathroomsButtons[0].getAttribute('data-filter').replace('bath-', '');
-            params.set('bathrooms', bathroomsValue);
-        }
-        
-        // Get price range
-        const priceSlider = document.getElementById('price-slider');
-        if (priceSlider && priceSlider.noUiSlider) {
-            const [minPrice, maxPrice] = priceSlider.noUiSlider.get().map(Number);
-            
-            // Get all property cards with price data
-            const priceValues = Array.from(document.querySelectorAll('.property-card[data-price]'))
-                .map(card => parseFloat(card.getAttribute('data-price')))
-                .filter(Boolean);
-            
-            if (priceValues.length > 0) {
-                const priceMin = Math.min(...priceValues);
-                const priceMax = Math.max(...priceValues);
-                
-                // Only add if the values are different from min/max
-                if (minPrice > priceMin) {
-                    params.set('minprice', minPrice);
-                }
-                if (maxPrice < priceMax) {
-                    params.set('maxprice', maxPrice);
-                }
-            }
-        }
-        
-        // Get area range
-        const areaSlider = document.getElementById('area-slider');
-        if (areaSlider && areaSlider.noUiSlider) {
-            const [minArea, maxArea] = areaSlider.noUiSlider.get().map(Number);
-            
-            // Get all property cards with area data
-            const areaValues = Array.from(document.querySelectorAll('.property-card[data-area]'))
-                .map(card => parseFloat(card.getAttribute('data-area')))
-                .filter(Boolean);
-            
-            if (areaValues.length > 0) {
-                const areaMin = Math.min(...areaValues);
-                const areaMax = Math.max(...areaValues);
-                
-                // Only add if the values are different from min/max
-                if (minArea > areaMin) {
-                    params.set('minarea', minArea);
-                }
-                if (maxArea < areaMax) {
-                    params.set('maxarea', maxArea);
-                }
-            }
-        }
-        
-        // Update URL without reloading the page
-        const newUrl = params.toString() ? 
-            `${window.location.pathname}?${params.toString()}` : 
-            window.location.pathname;
-        
-        history.pushState(null, '', newUrl);
-    }
-    function addPropertyListingsClass() {
-        document.body.classList.add('property-listings');
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', addPropertyListingsClass);
-    } else {
-        addPropertyListingsClass();
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        const container = document.getElementById('propertyListingsContainer');
-        if (!container) {
-            console.error('Property listings container not found');
-        }
-    });
-
-    // Add MixItUp library
-    if (!window.mixitup && !document.querySelector('script[src*="mixitup"]')) {
-        const mixitupScript = document.createElement('script');
-        mixitupScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mixitup/3.3.1/mixitup.min.js';
-        document.head.appendChild(mixitupScript);
-    }
-
-})();
+        const locationFilter = document.getElement
