@@ -80,7 +80,7 @@
     async function fetchAllProperties(baseUrl) {
         console.log('📋 Fetching all properties with pagination...');
         let allItems = [];
-        let currentUrl = baseUrl;
+        let currentUrl = `${baseUrl}?format=json&nocache=${new Date().getTime()}`;
         let pageCount = 1;
         
         while (currentUrl) {
@@ -90,21 +90,32 @@
                 const data = await response.json();
                 
                 if (!data.items || data.items.length === 0) {
+                    console.log('No items found on this page');
                     break;
                 }
                 
                 allItems = allItems.concat(data.items);
                 console.log(`✅ Found ${data.items.length} items on page ${pageCount}`);
                 
+                // Check for pagination
                 if (data.pagination && data.pagination.nextPage) {
-                    // Use the nextPageUrl from the pagination object
-                    const nextPageUrl = new URL(data.pagination.nextPageUrl, window.location.origin);
-                    // Make sure to add format=json and a cache buster
-                    nextPageUrl.searchParams.set('format', 'json');
-                    nextPageUrl.searchParams.set('nocache', new Date().getTime());
-                    currentUrl = nextPageUrl.toString();
-                    pageCount++;
+                    // For Squarespace, we need to use the offset parameter
+                    // We'll start with the base URL and add offset
+                    const offset = data.pagination.nextPageOffset;
+                    if (offset) {
+                        // Build the URL with format=json and the proper offset
+                        const url = new URL(baseUrl, window.location.origin);
+                        url.searchParams.set('format', 'json');
+                        url.searchParams.set('offset', offset);
+                        url.searchParams.set('nocache', new Date().getTime());
+                        currentUrl = url.toString();
+                        pageCount++;
+                    } else {
+                        console.log('Missing offset value in pagination data');
+                        currentUrl = null;
+                    }
                 } else {
+                    console.log('No more pages available');
                     currentUrl = null;
                 }
             } catch (error) {
