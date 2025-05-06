@@ -75,30 +75,143 @@
         });
         return results.data;
     }
+    
+    // Function to fetch all properties across all pages
+    async function fetchAllProperties(baseUrl) {
+        console.log('📋 Fetching all properties with pagination...');
+        let allItems = [];
+        let currentUrl = baseUrl;
+        let pageCount = 1;
+        
+        while (currentUrl) {
+            try {
+                console.log(`📄 Fetching page ${pageCount}...`);
+                const response = await fetch(currentUrl);
+                const data = await response.json();
+                
+                if (!data.items || data.items.length === 0) {
+                    break;
+                }
+                
+                allItems = allItems.concat(data.items);
+                console.log(`✅ Found ${data.items.length} items on page ${pageCount}`);
+                
+                if (data.pagination && data.pagination.nextPage) {
+                    // Use the nextPageUrl from the pagination object
+                    const nextPageUrl = new URL(data.pagination.nextPageUrl, window.location.origin);
+                    // Make sure to add format=json and a cache buster
+                    nextPageUrl.searchParams.set('format', 'json');
+                    nextPageUrl.searchParams.set('nocache', new Date().getTime());
+                    currentUrl = nextPageUrl.toString();
+                    pageCount++;
+                } else {
+                    currentUrl = null;
+                }
+            } catch (error) {
+                console.error('❌ Error fetching properties:', error);
+                break;
+            }
+        }
+        
+        console.log(`🏁 Total properties fetched: ${allItems.length}`);
+        return allItems;
+    }
 
     Promise.all(libraries.map(url => loadLibrary(url)))
-        .then(() => {
-            // Fetch data from Google Sheets and Blog JSON
-            Promise.all([
-                fetch(sheetUrl).then(response => response.text()),
-                fetch(blogJsonUrl).then(response => response.json())
-            ]).then(([csvData, blogData]) => {
-                const storeSettings = blogData.websiteSettings?.storeSettings || {};
+        .then(async () => {
+            // Show loading indicator
+            const container = document.getElementById('propertyListingsContainer');
+            if (container) {
+                const loadingIndicator = document.createElement('div');
+                loadingIndicator.className = 'sh-loading-indicator';
+                loadingIndicator.innerHTML = `
+                    <div class="sh-spinner"></div>
+                    <p>Loading all properties...</p>
+                `;
+                container.appendChild(loadingIndicator);
+                
+                // Add spinner styles
+                const spinnerStyle = document.createElement('style');
+                spinnerStyle.textContent = `
+                    .sh-loading-indicator {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 40px 0;
+                        width: 100%;
+                    }
+                    .sh-spinner {
+                        border: 4px solid rgba(0, 0, 0, 0.1);
+                        border-radius: 50%;
+                        border-top: 4px solid hsl(var(--accent-hsl));
+                        width: 40px;
+                        height: 40px;
+                        animation: sh-spin 1s linear infinite;
+                        margin-bottom: 15px;
+                    }
+                    @keyframes sh-spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                `;
+                document.head.appendChild(spinnerStyle);
+            }
+            
+            try {
+                // Fetch sheet data first
+                const csvData = await fetch(sheetUrl).then(response => response.text());
+                const sheetData = parseCSV(csvData);
+                
+                // Get website settings to have them available
+                const websiteSettingsResponse = await fetch(blogJsonUrl);
+                const websiteSettingsData = await websiteSettingsResponse.json();
+                const storeSettings = websiteSettingsData.websiteSettings?.storeSettings || {};
+                
+                // Use the fetchAllProperties function to get ALL blog items
+                const baseUrl = `/${target}`;
+                const allBlogItems = await fetchAllProperties(baseUrl);
+                
+                // Create a blogData object with the same structure as expected
+                const blogData = {
+                    items: allBlogItems,
+                    websiteSettings: websiteSettingsData.websiteSettings
+                };
+                
+                // Store settings globally for other functions to access
+                window.storeSettings = storeSettings;
                 
                 const isMetric = storeSettings.measurementStandard === 2;
                 const currencySymbol = getCurrencySymbol(storeSettings.selectedCurrency);
                 const areaUnit = getAreaUnit(isMetric);
 
-                // Store settings globally for other functions to access
-                window.storeSettings = storeSettings;
-
-                const sheetData = parseCSV(csvData);
                 const propertyData = processPropertyData(sheetData, blogData);
+                
+                // Remove loading indicator if it exists
+                if (container) {
+                    const loadingIndicator = container.querySelector('.sh-loading-indicator');
+                    if (loadingIndicator) {
+                        container.removeChild(loadingIndicator);
+                    }
+                }
 
                 createFilterElements(propertyData);
                 renderPropertyListings(propertyData);
-                console.log('🚀 SquareHero.store Real Estate Listings plugin loaded');
-            }).catch(error => console.error('❌ Error fetching data:', error));
+                console.log('🚀 SquareHero.store Real Estate Listings plugin loaded with pagination support');
+            } catch (error) {
+                console.error('❌ Error fetching data:', error);
+                
+                // Show error message if loading indicator exists
+                const container = document.getElementById('propertyListingsContainer');
+                if (container) {
+                    const loadingIndicator = container.querySelector('.sh-loading-indicator');
+                    if (loadingIndicator) {
+                        loadingIndicator.innerHTML = `
+                            <p style="color: red">❌ Error loading properties. Please refresh and try again.</p>
+                        `;
+                    }
+                }
+            }
         })
         .catch(error => console.error('❌ Error loading libraries:', error));
         
