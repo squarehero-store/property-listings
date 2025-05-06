@@ -383,6 +383,7 @@
             };
         });
     }
+
     function createFilterElements(propertyData) {
         const container = document.getElementById('propertyListingsContainer');
         if (!container) {
@@ -528,6 +529,7 @@
 
         return group;
     }
+    
     function createPropertyCard(property) {
         const storeSettings = window.storeSettings || {};
         const isMetric = storeSettings.measurementStandard === 2;
@@ -607,6 +609,7 @@
     function formatBathroomsForFilter(bathrooms) {
         return Number.isInteger(bathrooms) ? bathrooms.toString() : bathrooms.toFixed(1);
     }
+    
     function renderPropertyListings(properties) {
         const container = document.getElementById('property-grid');
         if (!container) {
@@ -726,6 +729,7 @@
 
         updateRangeDisplay([min, max]);
     }
+    
     function hideUnusedOptions(filterId, properties, propertyKey) {
         const filterButtons = document.querySelectorAll(`#${filterId} .filter-button`);
         if (!filterButtons.length) return;
@@ -928,6 +932,7 @@
             console.error('Error initializing MixItUp:', error);
         }
     }
+    
     function updateFilters() {
         const locationFilter = document.getElementById('location-filter');
         const statusFilter = document.getElementById('status-filter');
@@ -1033,6 +1038,7 @@
         // Clear URL parameters
         history.pushState(null, '', window.location.pathname);
     }
+    
     // Function to parse URL parameters and apply filters on page load
     function applyUrlFilters() {
         // Get URL parameters
@@ -1141,11 +1147,115 @@
             updateFilters();
         }
     }
-
+    
     // Function to update URL with current filter state
     function updateUrlWithFilters() {
         // Create a new URLSearchParams object
         const params = new URLSearchParams();
         
         // Get current filter values
-        const locationFilter = document.getElement
+        const locationFilter = document.getElementById('location-filter');
+        if (locationFilter && locationFilter.value !== 'all') {
+            params.set('location', locationFilter.value);
+        }
+        
+        const statusFilter = document.getElementById('status-filter');
+        if (statusFilter && statusFilter.value !== 'all') {
+            params.set('category', statusFilter.value);
+        }
+        
+        // Get bedrooms filter
+        const bedroomsButtons = document.querySelectorAll('#bedrooms-filter .filter-button.active');
+        if (bedroomsButtons.length === 1 && !bedroomsButtons[0].getAttribute('data-filter').includes('all')) {
+            const bedroomsValue = bedroomsButtons[0].getAttribute('data-filter').replace('bed-', '');
+            params.set('bedrooms', bedroomsValue);
+        }
+        
+        // Get bathrooms filter
+        const bathroomsButtons = document.querySelectorAll('#bathrooms-filter .filter-button.active');
+        if (bathroomsButtons.length === 1 && !bathroomsButtons[0].getAttribute('data-filter').includes('all')) {
+            const bathroomsValue = bathroomsButtons[0].getAttribute('data-filter').replace('bath-', '');
+            params.set('bathrooms', bathroomsValue);
+        }
+        
+        // Get price range
+        const priceSlider = document.getElementById('price-slider');
+        if (priceSlider && priceSlider.noUiSlider) {
+            const [minPrice, maxPrice] = priceSlider.noUiSlider.get().map(Number);
+            
+            // Get all property cards with price data
+            const priceValues = Array.from(document.querySelectorAll('.property-card[data-price]'))
+                .map(card => parseFloat(card.getAttribute('data-price')))
+                .filter(Boolean);
+            
+            if (priceValues.length > 0) {
+                const priceMin = Math.min(...priceValues);
+                const priceMax = Math.max(...priceValues);
+                
+                // Only add if the values are different from min/max
+                if (minPrice > priceMin) {
+                    params.set('minprice', minPrice);
+                }
+                if (maxPrice < priceMax) {
+                    params.set('maxprice', maxPrice);
+                }
+            }
+        }
+        
+        // Get area range
+        const areaSlider = document.getElementById('area-slider');
+        if (areaSlider && areaSlider.noUiSlider) {
+            const [minArea, maxArea] = areaSlider.noUiSlider.get().map(Number);
+            
+            // Get all property cards with area data
+            const areaValues = Array.from(document.querySelectorAll('.property-card[data-area]'))
+                .map(card => parseFloat(card.getAttribute('data-area')))
+                .filter(Boolean);
+            
+            if (areaValues.length > 0) {
+                const areaMin = Math.min(...areaValues);
+                const areaMax = Math.max(...areaValues);
+                
+                // Only add if the values are different from min/max
+                if (minArea > areaMin) {
+                    params.set('minarea', minArea);
+                }
+                if (maxArea < areaMax) {
+                    params.set('maxarea', maxArea);
+                }
+            }
+        }
+        
+        // Update URL without reloading the page
+        const newUrl = params.toString() ? 
+            `${window.location.pathname}?${params.toString()}` : 
+            window.location.pathname;
+        
+        history.pushState(null, '', newUrl);
+    }
+    
+    function addPropertyListingsClass() {
+        document.body.classList.add('property-listings');
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', addPropertyListingsClass);
+    } else {
+        addPropertyListingsClass();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const container = document.getElementById('propertyListingsContainer');
+        if (!container) {
+            console.error('Property listings container not found');
+        }
+    });
+
+    // Add MixItUp library
+    if (!window.mixitup && !document.querySelector('script[src*="mixitup"]')) {
+        const mixitupScript = document.createElement('script');
+        mixitupScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mixitup/3.3.1/mixitup.min.js';
+        document.head.appendChild(mixitupScript);
+    }
+
+})();
