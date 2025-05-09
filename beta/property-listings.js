@@ -383,7 +383,7 @@
         console.log('📋 First row sample:', sheetData[0]);
         
         // Identify custom columns (all columns except standard ones)
-        const standardColumns = ['Title', 'Url', 'Price', 'Area', 'Bedrooms', 'Bathrooms', 'Garage'];
+        const standardColumns = ['Title', 'Url', 'Price', 'Area', 'Bedrooms', 'Bathrooms', 'Garage', 'Featured'];
         const customColumns = Object.keys(sheetData[0] || {}).filter(column => 
             !standardColumns.includes(column));
         
@@ -394,6 +394,8 @@
         
         // Determine data types for custom columns
         window.customColumnTypes = {};
+        window.customColumnSpecialHandling = {};
+        
         customColumns.forEach(column => {
             // Check values to determine type
             const values = sheetData.map(row => row[column]).filter(Boolean);
@@ -407,6 +409,12 @@
             } else if (values.every(value => !isNaN(parseFloat(value)))) {
                 console.log(`🔢 Column "${column}" appears to be numeric`);
                 window.customColumnTypes[column] = 'numeric';
+                
+                // Special handling for "Sleeps" column - use button group instead of slider
+                if (column.toLowerCase() === 'sleeps') {
+                    console.log(`👥 "Sleeps" column will use button group instead of slider`);
+                    window.customColumnSpecialHandling[column] = 'buttonGroup';
+                }
             } else {
                 console.log(`📝 Column "${column}" appears to be text`);
                 window.customColumnTypes[column] = 'text';
@@ -517,8 +525,31 @@
                         .filter(v => v !== undefined && !isNaN(v));
                     
                     if (values.length > 0) {
-                        console.log(`📊 Creating numeric slider filter for "${column}"`);
-                        filtersContainer.appendChild(createSliderFilter(`${columnId}-slider`, column, `sh-${columnId}-filter`));
+                        // Check if this column has special handling
+                        const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[column];
+                        
+                        if (specialHandling === 'buttonGroup') {
+                            // For Sleeps, create a button group instead of slider
+                            console.log(`👥 Creating button group filter for "${column}"`);
+                            
+                            // Find the unique values and sort them numerically
+                            const uniqueValues = [...new Set(values.map(v => Math.floor(Number(v))))];
+                            uniqueValues.sort((a, b) => a - b);
+                            
+                            // Create options array with "Any" and all possible values
+                            const options = ['Any', ...uniqueValues.map(v => v.toString())];
+                            
+                            filtersContainer.appendChild(createButtonGroupFilter(
+                                `${columnId}-filter`, 
+                                column, 
+                                options, 
+                                `sh-${columnId}-filter`
+                            ));
+                        } else {
+                            // Standard numeric slider filter
+                            console.log(`📊 Creating numeric slider filter for "${column}"`);
+                            filtersContainer.appendChild(createSliderFilter(`${columnId}-slider`, column, `sh-${columnId}-filter`));
+                        }
                     }
                 } else if (columnType === 'boolean') {
                     // For Yes/No columns, create a toggle filter
@@ -604,7 +635,23 @@
 
         const buttonGroup = document.createElement('div');
         buttonGroup.id = id;
-        buttonGroup.className = `button-group ${customClass}-buttons`;
+        
+        // Check if this is a boolean filter (Yes/No)
+        const isBooleanFilter = id.includes('-filter') && 
+                               options.length === 3 && 
+                               options.includes('Any') && 
+                               options.includes('Yes') && 
+                               options.includes('No');
+        
+        // Use a special class for boolean filters to style them differently
+        buttonGroup.className = isBooleanFilter 
+            ? `button-group ${customClass}-buttons boolean-button-group` 
+            : `button-group ${customClass}-buttons`;
+            
+        // Set a data attribute to identify boolean filters
+        if (isBooleanFilter) {
+            buttonGroup.setAttribute('data-boolean-filter', 'true');
+        }
 
         options.forEach(option => {
             const button = document.createElement('button');
@@ -694,13 +741,20 @@
             Object.entries(property.customFields).forEach(([key, value]) => {
                 const attributeName = `data-${key.toLowerCase().replace(/\s+/g, '-')}`;
                 const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[key];
                 
                 if (columnType === 'boolean') {
                     // For boolean fields, set to 'yes' or 'no' for easier filtering
                     card.setAttribute(attributeName, value ? 'yes' : 'no');
                 } else if (columnType === 'numeric') {
-                    // For numeric fields, set the raw number
-                    card.setAttribute(attributeName, value);
+                    if (specialHandling === 'buttonGroup') {
+                        // For special numeric fields with button group (like Sleeps)
+                        // Use the integer value for exact matching
+                        card.setAttribute(attributeName, Math.floor(Number(value)));
+                    } else {
+                        // For standard numeric fields, set the raw number for range filtering
+                        card.setAttribute(attributeName, value);
+                    }
                 } else {
                     // For text fields, set the text value
                     card.setAttribute(attributeName, value);
@@ -1105,17 +1159,53 @@
             document.querySelectorAll('.button-group').forEach(group => {
                 group.addEventListener('click', (e) => {
                     if (e.target.classList.contains('filter-button')) {
-                        e.target.classList.toggle('active');
-                        if (e.target.getAttribute('data-filter') === 'all') {
-                            Array.from(e.target.parentNode.children).forEach(sibling => {
-                                if (sibling !== e.target) {
-                                    sibling.classList.remove('active');
+                        const isBooleanGroup = group.getAttribute('data-boolean-filter') === 'true';
+                        
+                        if (isBooleanGroup) {
+                            // For boolean filters, implement radio-button like behavior
+                            // First, handle the 'Any' button
+                            if (e.target.getAttribute('data-filter') === 'all') {
+                                // If 'Any' is clicked, deactivate all other buttons
+                                Array.from(group.children).forEach(button => {
+                                    button.classList.remove('active');
+                                });
+                                e.target.classList.add('active');
+                            } else {
+                                // If 'Yes' or 'No' is clicked
+                                const anyButton = group.querySelector('[data-filter="all"]');
+                                if (anyButton) {
+                                    anyButton.classList.remove('active');
                                 }
-                            });
+                                
+                                // Remove active class from all buttons first
+                                Array.from(group.children).forEach(button => {
+                                    if (button !== e.target && button !== anyButton) {
+                                        button.classList.remove('active');
+                                    }
+                                });
+                                
+                                // Toggle the clicked button
+                                e.target.classList.toggle('active');
+                                
+                                // If no button is active, activate 'Any'
+                                if (!Array.from(group.children).some(btn => btn.classList.contains('active'))) {
+                                    anyButton.classList.add('active');
+                                }
+                            }
                         } else {
-                            const anyButton = e.target.parentNode.querySelector('[data-filter="all"]');
-                            if (anyButton) {
-                                anyButton.classList.remove('active');
+                            // Original behavior for non-boolean filters
+                            e.target.classList.toggle('active');
+                            if (e.target.getAttribute('data-filter') === 'all') {
+                                Array.from(e.target.parentNode.children).forEach(sibling => {
+                                    if (sibling !== e.target) {
+                                        sibling.classList.remove('active');
+                                    }
+                                });
+                            } else {
+                                const anyButton = e.target.parentNode.querySelector('[data-filter="all"]');
+                                if (anyButton) {
+                                    anyButton.classList.remove('active');
+                                }
                             }
                         }
                         updateFilters();
@@ -1175,6 +1265,7 @@
             window.customColumns.forEach(column => {
                 const columnId = column.toLowerCase().replace(/\s+/g, '-');
                 const columnType = window.customColumnTypes[column];
+                const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[column];
                 
                 if (columnType === 'boolean') {
                     // Handle Yes/No button group filters
@@ -1189,6 +1280,20 @@
                                 return `[data-${columnId}="${val.toLowerCase()}"]`;
                             });
                             filterArray.push(mappedValues.join(', '));
+                        }
+                    }
+                } else if (specialHandling === 'buttonGroup') {
+                    // Handle special numeric fields using button groups (like Sleeps)
+                    const customFilter = document.getElementById(`${columnId}-filter`);
+                    if (customFilter) {
+                        const customValues = getActiveFilters(`${columnId}-filter`);
+                        if (customValues.length > 0 && !customValues.includes('all')) {
+                            // Create a selector that matches exact values
+                            const valueSelectors = customValues.map(val => {
+                                const numVal = parseInt(val);
+                                return `[data-${columnId}="${numVal}"]`;
+                            });
+                            filterArray.push(valueSelectors.join(', '));
                         }
                     }
                 } else if (columnType === 'text') {
@@ -1278,6 +1383,9 @@
                     if (dropdown) {
                         dropdown.value = 'all';
                     }
+                } else if (window.customColumnSpecialHandling && window.customColumnSpecialHandling[column] === 'buttonGroup') {
+                    // Special handling for button group numeric filters is already covered
+                    // by the general button reset above, but we note it here for completeness
                 }
                 // Button groups already handled above with the general button reset
             });
