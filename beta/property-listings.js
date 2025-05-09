@@ -17,6 +17,9 @@
     // Custom button text (new)
     const buttonText = metaTag.getAttribute('button-text') || 'View Home';
     
+    // Check if pricing should be shown or hidden
+    const showPricing = metaTag.getAttribute('pricing') !== 'false';
+    
     // Development logging
     console.log('📌 SquareHero.store Real Estate Listings plugin configuration:');
     console.log('- Sheet URL:', sheetUrl);
@@ -24,6 +27,7 @@
     console.log('- Category Label:', categoryLabel);
     console.log('- Tag Label:', tagLabel);
     console.log('- Button Text:', buttonText);
+    console.log('- Show Pricing:', showPricing);
 
     // Currency symbol helper
     const getCurrencySymbol = (currencyCode) => {
@@ -474,6 +478,11 @@
             console.error('Property listings container not found');
             return;
         }
+        
+        // Add pricing-hidden class to container if pricing is disabled
+        if (!showPricing) {
+            container.classList.add('pricing-hidden');
+        }
 
         const filtersContainer = document.createElement('div');
         filtersContainer.className = 'filters-container sh-filters-container';
@@ -484,7 +493,7 @@
         const hasBedrooms = propertyData.some(p => p.bedrooms > 0);
         const hasBathrooms = propertyData.some(p => p.bathrooms > 0);
         const hasAreas = propertyData.some(p => p.area > 0);
-        const hasPrices = propertyData.some(p => p.price > 0);
+        const hasPrices = showPricing && propertyData.some(p => p.price > 0);
 
         // Only add filters for attributes that exist in the data
         if (hasLocations) {
@@ -507,7 +516,7 @@
             filtersContainer.appendChild(createSliderFilter('area-slider', 'Area', 'sh-area-filter'));
         }
         
-        if (hasPrices) {
+        if (hasPrices && showPricing) {
             filtersContainer.appendChild(createSliderFilter('price-slider', 'Price', 'sh-price-filter'));
         }
         
@@ -732,7 +741,7 @@
             card.setAttribute('data-area', property.area);
         }
         
-        if (property.price > 0) {
+        if (property.price > 0 && showPricing) {
             card.setAttribute('data-price', property.price);
         }
         
@@ -783,7 +792,7 @@
             <div class="listing-content sh-listing-content">
                 <h3 class="property-title sh-property-title">${property.title}</h3>
                 ${property.location ? `<p class="property-location sh-property-location">${property.location}</p>` : ''}
-                <p class="property-price sh-property-price ${property.price === 0 ? 'no-price' : ''}">${property.price === 0 ? 'Price TBA' : `${currencySymbol}${property.price.toLocaleString()}`}</p>
+                ${showPricing ? `<p class="property-price sh-property-price ${property.price === 0 ? 'no-price' : ''}">${property.price === 0 ? 'Price TBA' : `${currencySymbol}${property.price.toLocaleString()}`}</p>` : ''}
                 <div class="property-details sh-property-details">
                     ${property.area > 0 ? `<span class="details-icon sh-area-icon">${areaSvg} <span class="sh-area-value">${property.area.toLocaleString()} ${areaUnit}</span></span>` : ''}
                     ${property.bedrooms > 0 ? `<span class="details-icon sh-beds-icon">${bedsSvg} <span class="sh-beds-value">${property.bedrooms}</span></span>` : ''}
@@ -1073,8 +1082,8 @@
                         }
                     }
                     
-                    // Apply price filter if slider exists
-                    if (priceSlider && priceSlider.noUiSlider) {
+                    // Apply price filter if slider exists and pricing is enabled
+                    if (showPricing && priceSlider && priceSlider.noUiSlider) {
                         const [minPrice, maxPrice] = priceSlider.noUiSlider.get().map(Number);
                         const cardPrice = parseFloat(card.getAttribute('data-price') || 0);
                         

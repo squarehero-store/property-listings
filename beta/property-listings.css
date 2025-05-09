@@ -467,45 +467,36 @@
 /* Specialized CSS styling for boolean filters (Yes/No toggles) */
 #propertyListingsContainer .button-group.boolean-button-group,
 .related-properties-section .button-group.boolean-button-group {
-  display: inline-flex;
-  background: hsla(var(--lightAccent-hsl), 0.3);
-  border-radius: 20px;
-  padding: 2px;
+  /* Use the same styling as regular button groups */
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 #propertyListingsContainer .boolean-button-group .filter-button,
 .related-properties-section .boolean-button-group .filter-button {
+  padding: 7px 15px;
+  border-radius: 16px;
   min-width: 60px;
-  margin: 0 2px;
 }
 
-/* Special styling for Yes/No buttons */
-#propertyListingsContainer .boolean-button-group .filter-button[data-filter="Yes"],
-.related-properties-section .boolean-button-group .filter-button[data-filter="Yes"] {
-  background-color: hsla(var(--lightAccent-hsl), 0.5);
+/* Boolean button styling - now using standard styling for consistency */
+#propertyListingsContainer .boolean-button-group .filter-button,
+.related-properties-section .boolean-button-group .filter-button {
+  background-color: hsla(var(--darkAccent-hsl), 0.1);
 }
 
-#propertyListingsContainer .boolean-button-group .filter-button[data-filter="Yes"].active,
-.related-properties-section .boolean-button-group .filter-button[data-filter="Yes"].active {
-  background-color: hsla(120, 60%, 44%, 1); /* Green color for Yes */
-}
-
-#propertyListingsContainer .boolean-button-group .filter-button[data-filter="No"],
-.related-properties-section .boolean-button-group .filter-button[data-filter="No"] {
-  background-color: hsla(var(--lightAccent-hsl), 0.5);
-}
-
-#propertyListingsContainer .boolean-button-group .filter-button[data-filter="No"].active,
-.related-properties-section .boolean-button-group .filter-button[data-filter="No"].active {
-  background-color: hsla(0, 60%, 50%, 0.8); /* Red color for No */
+#propertyListingsContainer .boolean-button-group .filter-button.active,
+.related-properties-section .boolean-button-group .filter-button.active {
+  background-color: hsla(var(--darkAccent-hsl), 1);
+  color: white;
 }
 
 /* Mobile responsiveness for boolean filters */
-@media only screen and (max-width: 500px) {
-  #propertyListingsContainer .boolean-button-group .filter-button,
-  .related-properties-section .boolean-button-group .filter-button {
-    min-width: 50px;
-    padding: 8px 10px;
-    font-size: 0.8rem;
-  }
+/* Mobile styling for standard filter buttons applies to boolean buttons too, so no special styling needed */
+
+/* Hide price filter when pricing is disabled */
+.pricing-hidden #propertyListingsContainer .sh-price-filter,
+.pricing-hidden .related-properties-section .sh-price-filter {
+  display: none !important;
 }
