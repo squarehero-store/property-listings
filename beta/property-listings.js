@@ -46,8 +46,7 @@
     const libraries = [
         'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js',
         'https://cdn.jsdelivr.net/npm/nouislider@14.6.3/distribute/nouislider.min.js',
-        'https://cdn.jsdelivr.net/npm/nouislider@14.6.3/distribute/nouislider.min.css',
-        'https://cdn.jsdelivr.net/gh/squarehero-store/property-listings@0/beta/custom-fields.css'
+        'https://cdn.jsdelivr.net/npm/nouislider@14.6.3/distribute/nouislider.min.css'
     ];
 
     function loadLibrary(url) {
