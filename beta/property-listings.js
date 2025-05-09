@@ -212,6 +212,9 @@
             const regexPattern = new RegExp('^' + url.replace(/\*/g, '.*') + '$');
             return [regexPattern, row];
         }));
+        
+        // Make sure we have the custom columns set
+        const customColumns = window.customColumns || [];
     
         return blogItems.map(item => {
             const urlId = item.urlId.toLowerCase();
@@ -222,6 +225,24 @@
             if (item.excerpt) {
                 // Remove any HTML tags and trim whitespace
                 cleanExcerpt = item.excerpt.replace(/<\/?[^>]+(>|$)/g, '').trim();
+            }
+            
+            // Process custom fields if we have a matching sheet row
+            const customFields = {};
+            if (sheetRow && customColumns.length > 0) {
+                customColumns.forEach(column => {
+                    const value = sheetRow[1][column];
+                    if (value !== undefined) {
+                        const columnType = window.customColumnTypes && window.customColumnTypes[column];
+                        if (columnType === 'boolean') {
+                            customFields[column] = value === 'Yes';
+                        } else if (columnType === 'numeric' && value) {
+                            customFields[column] = parseFloat(value.replace(/[^\d.-]/g, ''));
+                        } else {
+                            customFields[column] = value;
+                        }
+                    }
+                });
             }
             
             return {
@@ -236,6 +257,7 @@
                 bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms, 10) : 0,
                 bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms) : 0,
                 garage: sheetRow && sheetRow[1].Garage ? sheetRow[1].Garage : '',
+                customFields: customFields, // Add custom fields
                 url: item.fullUrl
             };
         });
@@ -355,6 +377,41 @@
             console.log('Sample excerpt from first item with excerpt:', 
                 blogData.items.find(item => item.excerpt && item.excerpt.trim() !== '')?.excerpt || 'None found');
         }
+
+        // Add debugging for sheet columns
+        console.log('📊 Available sheet columns:', Object.keys(sheetData[0] || {}).join(', '));
+        console.log('📋 First row sample:', sheetData[0]);
+        
+        // Identify custom columns (all columns except standard ones)
+        const standardColumns = ['Title', 'Url', 'Price', 'Area', 'Bedrooms', 'Bathrooms', 'Garage'];
+        const customColumns = Object.keys(sheetData[0] || {}).filter(column => 
+            !standardColumns.includes(column));
+        
+        console.log('✨ Custom columns detected:', customColumns.join(', '));
+        
+        // Set global custom columns for use in other functions
+        window.customColumns = customColumns;
+        
+        // Determine data types for custom columns
+        window.customColumnTypes = {};
+        customColumns.forEach(column => {
+            // Check values to determine type
+            const values = sheetData.map(row => row[column]).filter(Boolean);
+            
+            if (values.length === 0) {
+                console.log(`⚠️ No values found for column "${column}"`);
+                window.customColumnTypes[column] = 'text';
+            } else if (values.every(value => value === 'Yes' || value === 'No')) {
+                console.log(`✓ Column "${column}" appears to be boolean (Yes/No)`);
+                window.customColumnTypes[column] = 'boolean';
+            } else if (values.every(value => !isNaN(parseFloat(value)))) {
+                console.log(`🔢 Column "${column}" appears to be numeric`);
+                window.customColumnTypes[column] = 'numeric';
+            } else {
+                console.log(`📝 Column "${column}" appears to be text`);
+                window.customColumnTypes[column] = 'text';
+            }
+        });
     
         return blogData.items.map(item => {
             const urlId = item.urlId.toLowerCase();
@@ -365,6 +422,24 @@
             if (item.excerpt) {
                 // Remove any HTML tags and trim whitespace
                 cleanExcerpt = item.excerpt.replace(/<\/?[^>]+(>|$)/g, '').trim();
+            }
+            
+            // Process custom fields if we have a matching sheet row
+            const customFields = {};
+            if (sheetRow) {
+                customColumns.forEach(column => {
+                    const value = sheetRow[1][column];
+                    if (value !== undefined) {
+                        const columnType = window.customColumnTypes[column];
+                        if (columnType === 'boolean') {
+                            customFields[column] = value === 'Yes';
+                        } else if (columnType === 'numeric' && value) {
+                            customFields[column] = parseFloat(value.replace(/[^\d.-]/g, ''));
+                        } else {
+                            customFields[column] = value;
+                        }
+                    }
+                });
             }
             
             return {
@@ -379,6 +454,7 @@
                 bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms, 10) : 0,
                 bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms) : 0,
                 garage: sheetRow && sheetRow[1].Garage ? sheetRow[1].Garage : '',
+                customFields: customFields, // Add custom fields
                 url: item.fullUrl
             };
         });
