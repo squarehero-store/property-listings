@@ -423,12 +423,14 @@
     font-size: 0.9em;
 }
 
-.custom-detail-label {
+.custom-detail-label,
+.sh-custom-detail-label {
     font-weight: 600;
     color: hsla(var(--black-hsl), 0.8);
 }
 
-.custom-detail-value {
+.custom-detail-value,
+.sh-custom-detail-value {
     color: hsla(var(--black-hsl), 1);
 }
 
@@ -496,6 +498,9 @@
 
 /* Hide price filter when pricing is disabled */
 .pricing-hidden #propertyListingsContainer .sh-price-filter,
-.pricing-hidden .related-properties-section .sh-price-filter {
+.pricing-hidden .related-properties-section .sh-price-filter,
+.pricing-hidden .property-price,
+.pricing-hidden .sh-property-price,
+.pricing-hidden .current-property-details .property-price {
   display: none !important;
 }

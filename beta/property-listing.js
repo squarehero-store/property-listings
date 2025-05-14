@@ -39,7 +39,7 @@
         const customColumns = Object.keys(sheetData[0] || {}).filter(column => 
             !standardColumns.includes(column));
         
-        console.log('✨ Custom columns detected:', customColumns.join(', '));
+        console.log('✨ Custom columns detected in property-listing.js:', customColumns.join(', '));
         
         // Set global custom columns for use in other functions
         window.customColumns = customColumns;
@@ -84,12 +84,13 @@
             }
         });
 
-        return blogItems.map(item => {
+        // Process blog items with the sheet data
+        const processedItems = blogItems.map(item => {
             const urlId = item.urlId.toLowerCase();
             const sheetRow = Array.from(urlMap.entries()).find(([regexPattern, value]) => regexPattern.test(urlId));
 
             if (!sheetRow) {
-                console.warn(`No matching sheet data found for blog item: ${item.urlId}`);
+                console.warn(`⚠️ No matching sheet row found for: ${item.urlId}`);
             }
             
             // Process custom fields if we have a matching sheet row
@@ -101,14 +102,19 @@
                         const columnType = window.customColumnTypes[column];
                         if (columnType === 'boolean') {
                             customFields[column] = value === 'Yes';
+                            console.log(`🔄 Custom field "${column}" set to ${value === 'Yes' ? 'true' : 'false'}`);
                         } else if (columnType === 'numeric' && value) {
                             customFields[column] = parseFloat(value.replace(/[^\d.-]/g, ''));
+                            console.log(`🔄 Custom field "${column}" set to ${parseFloat(value.replace(/[^\d.-]/g, ''))}`);
                         } else {
                             customFields[column] = value;
+                            console.log(`🔄 Custom field "${column}" set to "${value}"`);
                         }
                     }
                 });
             }
+            
+            console.log(`📋 Processed custom fields for ${item.title}:`, customFields);
 
             return {
                 id: item.id,
@@ -127,6 +133,8 @@
                 urlId: item.urlId
             };
         });
+        
+        return processedItems;
     }
 
     function formatPrice(price) {
@@ -170,23 +178,26 @@
             console.error('Blog item title element not found');
             return;
         }
+        
+        console.log('🏠 Inserting property details for:', property.title);
+        console.log('📊 Custom fields to display:', property.customFields);
 
         const detailsContainer = document.createElement('div');
-        detailsContainer.className = 'current-property-details';
+        detailsContainer.className = 'current-property-details sh-current-property-details';
 
         // Check pricing setting from meta tag
         const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
         const showPricing = metaTag ? metaTag.getAttribute('pricing') !== 'false' : true;
 
         let detailsContent = `
-    <div class="listing-content">
-      ${property.location ? `<p class="property-location">${property.location}</p>` : ''}
-      ${showPricing ? `<p class="property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price)}</p>` : ''}
-      <div class="property-details">
-        ${property.area ? `<span class="details-icon">${svgIcons.area} ${property.area.toLocaleString()} sq ft</span>` : ''}
-        ${property.bedrooms ? `<span class="details-icon">${svgIcons.beds} ${property.bedrooms}</span>` : ''}
-        ${property.bathrooms ? `<span class="details-icon">${svgIcons.baths} ${property.bathrooms}</span>` : ''}
-        ${property.garage ? `<span class="details-icon">${svgIcons.garage} ${property.garage}</span>` : ''}
+    <div class="listing-content sh-listing-content">
+      ${property.location ? `<p class="property-location sh-property-location">${property.location}</p>` : ''}
+      ${showPricing ? `<p class="property-price sh-property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price)}</p>` : ''}
+      <div class="property-details sh-property-details">
+        ${property.area ? `<span class="details-icon sh-area-icon">${svgIcons.area} <span class="sh-area-value">${property.area.toLocaleString()} sq ft</span></span>` : ''}
+        ${property.bedrooms ? `<span class="details-icon sh-beds-icon">${svgIcons.beds} <span class="sh-beds-value">${property.bedrooms}</span></span>` : ''}
+        ${property.bathrooms ? `<span class="details-icon sh-baths-icon">${svgIcons.baths} <span class="sh-baths-value">${property.bathrooms}</span></span>` : ''}
+        ${property.garage ? `<span class="details-icon sh-garage-icon">${svgIcons.garage} <span class="sh-garage-value">${property.garage}</span></span>` : ''}
         </div>
         ${(() => {
             // Generate HTML for custom fields
@@ -195,16 +206,16 @@
             }
             
             return `
-            <div class="custom-property-details">
+            <div class="custom-property-details sh-custom-property-details">
                 ${Object.entries(property.customFields).map(([key, value]) => {
                     const columnType = window.customColumnTypes && window.customColumnTypes[key];
                     const formattedValue = columnType === 'boolean' 
                         ? (value ? 'Yes' : 'No')
                         : (columnType === 'numeric' ? value.toLocaleString() : value);
                     
-                    return `<div class="custom-detail custom-${key.toLowerCase().replace(/\s+/g, '-')}">
-                        <span class="custom-detail-label">${key}:</span>
-                        <span class="custom-detail-value">${formattedValue}</span>
+                    return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}">
+                        <span class="custom-detail-label sh-custom-detail-label">${key}:</span>
+                        <span class="custom-detail-value sh-custom-detail-value">${formattedValue}</span>
                     </div>`;
                 }).join('')}
             </div>
@@ -322,27 +333,77 @@
 
     function createPropertyCard(property) {
         const card = document.createElement('a');
-        card.className = 'property-card';
+        card.className = 'property-card sh-property-card';
         card.href = property.url;
+        
+        // Only set data attributes for properties that exist
+        if (property.location) {
+            card.setAttribute('data-location', property.location);
+        }
+        
+        if (property.category) {
+            card.setAttribute('data-category', property.category);
+        }
+        
+        if (property.bedrooms) {
+            card.setAttribute('data-bedrooms', `bed-${property.bedrooms}`);
+        }
+        
+        if (property.bathrooms) {
+            card.setAttribute('data-bathrooms', `bath-${property.bathrooms}`);
+        }
+        
+        if (property.area) {
+            card.setAttribute('data-area', property.area);
+        }
+        
+        if (property.price && showPricing) {
+            card.setAttribute('data-price', property.price);
+        }
+        
+        // Add data attributes for custom fields
+        if (property.customFields) {
+            Object.entries(property.customFields).forEach(([key, value]) => {
+                const attributeName = `data-${key.toLowerCase().replace(/\s+/g, '-')}`;
+                const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[key];
+                
+                if (columnType === 'boolean') {
+                    // For boolean fields, set to 'yes' or 'no' for easier filtering
+                    card.setAttribute(attributeName, value ? 'yes' : 'no');
+                } else if (columnType === 'numeric') {
+                    if (specialHandling === 'buttonGroup') {
+                        // For special numeric fields with button group
+                        card.setAttribute(attributeName, Math.floor(Number(value)));
+                    } else {
+                        // For standard numeric fields
+                        card.setAttribute(attributeName, value);
+                    }
+                } else {
+                    // For text fields
+                    card.setAttribute(attributeName, value);
+                }
+            });
+        }
         
         // Check pricing setting from meta tag
         const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
         const showPricing = metaTag ? metaTag.getAttribute('pricing') !== 'false' : true;
 
         let cardContent = `
-      <div class="property-image">
-        <img src="${property.imageUrl}" alt="${property.title}">
-        ${property.category ? `<span class="property-category">${property.category}</span>` : ''}
+      <div class="property-image sh-property-image">
+        <img src="${property.imageUrl}" alt="${property.title}" class="sh-property-img">
+        ${property.category ? `<span class="property-category sh-property-category">${property.category}</span>` : ''}
       </div>
-      <div class="listing-content">
-        <h3 class="property-title">${property.title}</h3>
-        ${property.location ? `<p class="property-location">${property.location}</p>` : ''}
-        ${showPricing ? `<p class="property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price)}</p>` : ''}
-        <div class="property-details">
-          ${property.area ? `<span class="details-icon">${svgIcons.area} ${property.area.toLocaleString()} sq ft</span>` : ''}
-          ${property.bedrooms ? `<span class="details-icon">${svgIcons.beds} ${property.bedrooms}</span>` : ''}
-          ${property.bathrooms ? `<span class="details-icon">${svgIcons.baths} ${property.bathrooms}</span>` : ''}
-          ${property.garage ? `<span class="details-icon">${svgIcons.garage} ${property.garage}</span>` : ''}
+      <div class="listing-content sh-listing-content">
+        <h3 class="property-title sh-property-title">${property.title}</h3>
+        ${property.location ? `<p class="property-location sh-property-location">${property.location}</p>` : ''}
+        ${showPricing ? `<p class="property-price sh-property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price)}</p>` : ''}
+        <div class="property-details sh-property-details">
+          ${property.area ? `<span class="details-icon sh-area-icon">${svgIcons.area} <span class="sh-area-value">${property.area.toLocaleString()} sq ft</span></span>` : ''}
+          ${property.bedrooms ? `<span class="details-icon sh-beds-icon">${svgIcons.beds} <span class="sh-beds-value">${property.bedrooms}</span></span>` : ''}
+          ${property.bathrooms ? `<span class="details-icon sh-baths-icon">${svgIcons.baths} <span class="sh-baths-value">${property.bathrooms}</span></span>` : ''}
+          ${property.garage ? `<span class="details-icon sh-garage-icon">${svgIcons.garage} <span class="sh-garage-value">${property.garage}</span></span>` : ''}
         </div>
         ${(() => {
             // Generate HTML for custom fields
@@ -351,22 +412,22 @@
             }
             
             return `
-            <div class="custom-property-details">
+            <div class="custom-property-details sh-custom-property-details">
                 ${Object.entries(property.customFields).map(([key, value]) => {
                     const columnType = window.customColumnTypes && window.customColumnTypes[key];
                     const formattedValue = columnType === 'boolean' 
                         ? (value ? 'Yes' : 'No')
                         : (columnType === 'numeric' ? value.toLocaleString() : value);
                     
-                    return `<div class="custom-detail custom-${key.toLowerCase().replace(/\s+/g, '-')}">
-                        <span class="custom-detail-label">${key}:</span>
-                        <span class="custom-detail-value">${formattedValue}</span>
+                    return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}">
+                        <span class="custom-detail-label sh-custom-detail-label">${key}:</span>
+                        <span class="custom-detail-value sh-custom-detail-value">${formattedValue}</span>
                     </div>`;
                 }).join('')}
             </div>
             `;
         })()}
-        <span class="sh-button">View Home</span>
+        <span class="sh-button sh-view-button">View Home</span>
       </div>
     `;
 
@@ -402,6 +463,12 @@
     // Function to add property-listings class to body
     function addPropertyListingsClass() {
         document.body.classList.add('property-listings');
+        
+        // Check if pricing is disabled and add pricing-hidden class
+        const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
+        if (metaTag && metaTag.getAttribute('pricing') === 'false') {
+            document.body.classList.add('pricing-hidden');
+        }
     }
 
     // Updated initialization function
