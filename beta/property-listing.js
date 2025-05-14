@@ -33,6 +33,56 @@
             const regexPattern = new RegExp('^' + url.replace(/\*/g, '.*') + '$');
             return [regexPattern, row];
         }));
+        
+        // Identify custom columns (all columns except standard ones)
+        const standardColumns = ['Title', 'Url', 'Price', 'Area', 'Bedrooms', 'Bathrooms', 'Garage', 'Featured'];
+        const customColumns = Object.keys(sheetData[0] || {}).filter(column => 
+            !standardColumns.includes(column));
+        
+        console.log('✨ Custom columns detected:', customColumns.join(', '));
+        
+        // Set global custom columns for use in other functions
+        window.customColumns = customColumns;
+        
+        // Determine data types for custom columns
+        window.customColumnTypes = {};
+        window.customColumnSpecialHandling = {};
+        
+        customColumns.forEach(column => {
+            // Check values to determine type
+            const values = sheetData.map(row => row[column]).filter(Boolean);
+            
+            if (values.length === 0) {
+                console.log(`⚠️ No values found for column "${column}"`);
+                window.customColumnTypes[column] = 'text';
+            } else if (values.every(value => value === 'Yes' || value === 'No')) {
+                console.log(`✓ Column "${column}" appears to be boolean (Yes/No)`);
+                window.customColumnTypes[column] = 'boolean';
+            } else if (values.every(value => !isNaN(parseFloat(value)))) {
+                console.log(`🔢 Column "${column}" appears to be numeric`);
+                window.customColumnTypes[column] = 'numeric';
+                
+                // Determine whether to use button group or slider based on the range of values
+                const numericValues = values.map(v => parseFloat(v));
+                // Find unique integer values (floor the numbers to group similar values)
+                const uniqueIntegerValues = [...new Set(numericValues.map(v => Math.floor(v)))];
+                // Sort the values to determine range
+                uniqueIntegerValues.sort((a, b) => a - b);
+                
+                // If we have a small number of distinct values (≤ 8) and a reasonably small range,
+                // use a button group instead of a slider
+                if (uniqueIntegerValues.length <= 8 && 
+                   (uniqueIntegerValues[uniqueIntegerValues.length - 1] - uniqueIntegerValues[0]) <= 10) {
+                    console.log(`👥 Column "${column}" will use button group (${uniqueIntegerValues.length} unique values) instead of slider`);
+                    window.customColumnSpecialHandling[column] = 'buttonGroup';
+                } else {
+                    console.log(`📊 Column "${column}" will use slider (${uniqueIntegerValues.length} unique values with range: ${uniqueIntegerValues[0]}-${uniqueIntegerValues[uniqueIntegerValues.length - 1]})`);
+                }
+            } else {
+                console.log(`📝 Column "${column}" appears to be text`);
+                window.customColumnTypes[column] = 'text';
+            }
+        });
 
         return blogItems.map(item => {
             const urlId = item.urlId.toLowerCase();
@@ -40,6 +90,24 @@
 
             if (!sheetRow) {
                 console.warn(`No matching sheet data found for blog item: ${item.urlId}`);
+            }
+            
+            // Process custom fields if we have a matching sheet row
+            const customFields = {};
+            if (sheetRow) {
+                customColumns.forEach(column => {
+                    const value = sheetRow[1][column];
+                    if (value !== undefined) {
+                        const columnType = window.customColumnTypes[column];
+                        if (columnType === 'boolean') {
+                            customFields[column] = value === 'Yes';
+                        } else if (columnType === 'numeric' && value) {
+                            customFields[column] = parseFloat(value.replace(/[^\d.-]/g, ''));
+                        } else {
+                            customFields[column] = value;
+                        }
+                    }
+                });
             }
 
             return {
@@ -54,6 +122,7 @@
                 bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms, 10) : null,
                 bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms) : null,
                 garage: sheetRow && sheetRow[1].Garage ? sheetRow[1].Garage : '',
+                customFields: customFields, // Add custom fields
                 url: item.fullUrl,
                 urlId: item.urlId
             };
@@ -105,16 +174,42 @@
         const detailsContainer = document.createElement('div');
         detailsContainer.className = 'current-property-details';
 
+        // Check pricing setting from meta tag
+        const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
+        const showPricing = metaTag ? metaTag.getAttribute('pricing') !== 'false' : true;
+
         let detailsContent = `
     <div class="listing-content">
       ${property.location ? `<p class="property-location">${property.location}</p>` : ''}
-      <p class="property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price)}</p>
+      ${showPricing ? `<p class="property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price)}</p>` : ''}
       <div class="property-details">
         ${property.area ? `<span class="details-icon">${svgIcons.area} ${property.area.toLocaleString()} sq ft</span>` : ''}
         ${property.bedrooms ? `<span class="details-icon">${svgIcons.beds} ${property.bedrooms}</span>` : ''}
         ${property.bathrooms ? `<span class="details-icon">${svgIcons.baths} ${property.bathrooms}</span>` : ''}
         ${property.garage ? `<span class="details-icon">${svgIcons.garage} ${property.garage}</span>` : ''}
         </div>
+        ${(() => {
+            // Generate HTML for custom fields
+            if (!property.customFields || Object.keys(property.customFields).length === 0) {
+                return '';
+            }
+            
+            return `
+            <div class="custom-property-details">
+                ${Object.entries(property.customFields).map(([key, value]) => {
+                    const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                    const formattedValue = columnType === 'boolean' 
+                        ? (value ? 'Yes' : 'No')
+                        : (columnType === 'numeric' ? value.toLocaleString() : value);
+                    
+                    return `<div class="custom-detail custom-${key.toLowerCase().replace(/\s+/g, '-')}">
+                        <span class="custom-detail-label">${key}:</span>
+                        <span class="custom-detail-value">${formattedValue}</span>
+                    </div>`;
+                }).join('')}
+            </div>
+            `;
+        })()}
       </div>
     `;
 
@@ -229,6 +324,10 @@
         const card = document.createElement('a');
         card.className = 'property-card';
         card.href = property.url;
+        
+        // Check pricing setting from meta tag
+        const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
+        const showPricing = metaTag ? metaTag.getAttribute('pricing') !== 'false' : true;
 
         let cardContent = `
       <div class="property-image">
@@ -238,13 +337,35 @@
       <div class="listing-content">
         <h3 class="property-title">${property.title}</h3>
         ${property.location ? `<p class="property-location">${property.location}</p>` : ''}
-        <p class="property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price)}</p>
+        ${showPricing ? `<p class="property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price)}</p>` : ''}
         <div class="property-details">
           ${property.area ? `<span class="details-icon">${svgIcons.area} ${property.area.toLocaleString()} sq ft</span>` : ''}
           ${property.bedrooms ? `<span class="details-icon">${svgIcons.beds} ${property.bedrooms}</span>` : ''}
           ${property.bathrooms ? `<span class="details-icon">${svgIcons.baths} ${property.bathrooms}</span>` : ''}
           ${property.garage ? `<span class="details-icon">${svgIcons.garage} ${property.garage}</span>` : ''}
         </div>
+        ${(() => {
+            // Generate HTML for custom fields
+            if (!property.customFields || Object.keys(property.customFields).length === 0) {
+                return '';
+            }
+            
+            return `
+            <div class="custom-property-details">
+                ${Object.entries(property.customFields).map(([key, value]) => {
+                    const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                    const formattedValue = columnType === 'boolean' 
+                        ? (value ? 'Yes' : 'No')
+                        : (columnType === 'numeric' ? value.toLocaleString() : value);
+                    
+                    return `<div class="custom-detail custom-${key.toLowerCase().replace(/\s+/g, '-')}">
+                        <span class="custom-detail-label">${key}:</span>
+                        <span class="custom-detail-value">${formattedValue}</span>
+                    </div>`;
+                }).join('')}
+            </div>
+            `;
+        })()}
         <span class="sh-button">View Home</span>
       </div>
     `;

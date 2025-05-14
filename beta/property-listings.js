@@ -414,10 +414,21 @@
                 console.log(`🔢 Column "${column}" appears to be numeric`);
                 window.customColumnTypes[column] = 'numeric';
                 
-                // Special handling for "Sleeps" column - use button group instead of slider
-                if (column.toLowerCase() === 'sleeps') {
-                    console.log(`👥 "Sleeps" column will use button group instead of slider`);
+                // Determine whether to use button group or slider based on the range of values
+                const numericValues = values.map(v => parseFloat(v));
+                // Find unique integer values (floor the numbers to group similar values)
+                const uniqueIntegerValues = [...new Set(numericValues.map(v => Math.floor(v)))];
+                // Sort the values to determine range
+                uniqueIntegerValues.sort((a, b) => a - b);
+                
+                // If we have a small number of distinct values (≤ 8) and a reasonably small range,
+                // use a button group instead of a slider
+                if (uniqueIntegerValues.length <= 8 && 
+                   (uniqueIntegerValues[uniqueIntegerValues.length - 1] - uniqueIntegerValues[0]) <= 10) {
+                    console.log(`👥 Column "${column}" will use button group (${uniqueIntegerValues.length} unique values) instead of slider`);
                     window.customColumnSpecialHandling[column] = 'buttonGroup';
+                } else {
+                    console.log(`📊 Column "${column}" will use slider (${uniqueIntegerValues.length} unique values with range: ${uniqueIntegerValues[0]}-${uniqueIntegerValues[uniqueIntegerValues.length - 1]})`);
                 }
             } else {
                 console.log(`📝 Column "${column}" appears to be text`);
@@ -538,8 +549,8 @@
                         const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[column];
                         
                         if (specialHandling === 'buttonGroup') {
-                            // For Sleeps, create a button group instead of slider
-                            console.log(`👥 Creating button group filter for "${column}"`);
+                            // Create a button group for numeric fields with few distinct values
+                            console.log(`👥 Creating button group filter for numeric field "${column}"`);
                             
                             // Find the unique values and sort them numerically
                             const uniqueValues = [...new Set(values.map(v => Math.floor(Number(v))))];
