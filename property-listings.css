@@ -40,15 +40,15 @@
 }
 .propertyStyles .sh-button {
   display: inline-block;
-  border: solid 2px hsla(var(--darkAccent-hsl), 1);
+  border: solid 2px #12203A;
   text-decoration: none;
   transition: background 0.3s;
   padding: 0.8125rem 1.625rem !important;
-  color: hsla(var(--darkAccent-hsl), 1);
+  color: #12203A;
 }
 .propertyStyles .sh-button:hover {
-  background: hsla(var(--darkAccent-hsl), 1);
-  color: hsla(var(--white-hsl), 1);
+  background: #12203A;
+  color: #FFFFFF;
 }
 .property-listings.view-list .collection-type-blog-basic-grid {
   display: none;
@@ -70,7 +70,7 @@
 .related-properties-section .property-card {
   box-shadow: 0 0 24px rgba(0, 0, 0, 0.15);
   overflow: hidden;
-  background: hsla(var(--white-hsl), 1);
+  background: #FFFFFF;
 }
 #propertyListingsContainer .property-card .property-image,
 .related-properties-section .property-card .property-image {
@@ -95,8 +95,8 @@
   position: absolute;
   top: 20px;
   left: 0;
-  background: hsla(var(--darkAccent-hsl), 1);
-  color: hsla(var(--white-hsl), 1);
+  background: #12203A;
+  color: #FFFFFF;
   padding: 5px 20px;
   font-size: 0.8em;
   font-weight: 600;
@@ -145,16 +145,16 @@
 #propertyListingsContainer .property-card .listing-content .sh-button,
 .related-properties-section .property-card .listing-content .sh-button {
   display: inline-block;
-  border: solid 2px hsla(var(--darkAccent-hsl), 1);
+  border: solid 2px #12203A;
   text-decoration: none;
   transition: background 0.3s;
   padding: 0.8125rem 1.625rem !important;
-  color: hsla(var(--darkAccent-hsl), 1);
+  color: #12203A;
 }
 #propertyListingsContainer .property-card .listing-content .sh-button:hover,
 .related-properties-section .property-card .listing-content .sh-button:hover {
-  background: hsla(var(--darkAccent-hsl), 1);
-  color: hsla(var(--white-hsl), 1);
+  background: #12203A;
+  color: #FFFFFF;
 }
 #propertyListingsContainer .property-card:hover .property-image img,
 .related-properties-section .property-card:hover .property-image img {
@@ -199,9 +199,9 @@
 .related-properties-section .button-group .filter-button {
   padding: 7px 15px;
   border-radius: 16px;
-  background: hsla(var(--darkAccent-hsl), 0.1);
+  background: #dedfe2;
   font-size: 0.875rem;
-  color: hsla(var(--black-hsl), 1);
+  color: #0A1221;
   font-weight: 500;
   line-height: 140%;
   border: none;
@@ -210,30 +210,30 @@
 }
 #propertyListingsContainer .button-group .filter-button.active,
 .related-properties-section .button-group .filter-button.active {
-  background-color: hsla(var(--darkAccent-hsl), 1);
+  background-color: #12203A;
   color: white;
 }
 #propertyListingsContainer .range-slider,
 .related-properties-section .range-slider {
   height: 8px;
-  background: hsla(var(--darkAccent-hsl), 1);
+  background: #12203A;
   border-radius: 4px;
   margin-top: 20px;
 }
 #propertyListingsContainer .range-slider .noUi-connects,
 .related-properties-section .range-slider .noUi-connects {
-  background: hsla(var(--lightAccent-hsl), 1);
+  background: #F5F5F5;
 }
 #propertyListingsContainer .range-slider .noUi-connects .noUi-connect,
 .related-properties-section .range-slider .noUi-connects .noUi-connect {
-  background: hsla(var(--darkAccent-hsl), 1);
+  background: #12203A;
 }
 #propertyListingsContainer .range-slider .noUi-handle,
 .related-properties-section .range-slider .noUi-handle {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: hsla(var(--darkAccent-hsl), 1);
+  background: #12203A;
   box-shadow: none;
   border: none;
   cursor: pointer;
@@ -274,13 +274,13 @@
 #propertyListingsContainer #reset-filters,
 .related-properties-section #reset-filters {
   background: none !important;
-  border: 2px solid hsla(var(--darkAccent-hsl), 1) !important;
-  color: hsla(var(--darkAccent-hsl), 1) !important;
+  border: 2px solid #12203A !important;
+  color: #12203A !important;
   min-height: 50px;
 }
 #propertyListingsContainer #reset-filters:hover,
 .related-properties-section #reset-filters:hover {
-  background: hsla(var(--darkAccent-hsl), 1) !important;
+  background: #12203A !important;
   color: white !important;
 }
 @media (max-width: 1024px) {
@@ -302,6 +302,9 @@
 .property-listings.view-item .blog-item-meta-wrapper,
 .property-listings.view-item .blog-meta-item {
   display: none;
+}
+.property-listings.view-item .content-collection {
+  padding-top: 0 !important;
 }
 .property-listings.view-item .blog-banner {
   width: 100%;
@@ -337,16 +340,16 @@
   font-size: 1rem;
   font-weight: 600;
   line-height: normal;
-  border: solid 2px hsla(var(--darkAccent-hsl), 1);
+  border: solid 2px #12203A;
   padding: var(--tertiary-button-padding-y) var(--tertiary-button-padding-x) !important;
   font-size: var(--tertiary-button-font-font-size-value) !important;
-  color: hsla(var(--darkAccent-hsl), 1);
+  color: #12203A;
   transition: background 0.3s;
 }
 .property-listings.view-item .blog-item-title .item-excerpt a:hover {
-  background: hsla(var(--darkAccent-hsl), 1);
+  background: #12203A;
   color: white;
-  border: solid 2px hsla(var(--darkAccent-hsl), 1);
+  border: solid 2px #12203A;
 }
 .property-listings.view-item .blog-item-title .current-property-details {
   order: 2;
@@ -388,21 +391,24 @@
 }
 .property-listings.view-item .blog-item-title .current-property-details .listing-content .sh-button {
   display: inline-block;
-  border: solid 2px hsla(var(--darkAccent-hsl), 1);
+  border: solid 2px #12203A;
   text-decoration: none;
   transition: background 0.3s;
   padding: 0.8125rem 1.625rem !important;
-  color: hsla(var(--darkAccent-hsl), 1);
+  color: #12203A;
 }
 .property-listings.view-item .blog-item-title .current-property-details .listing-content .sh-button:hover {
-  background: hsla(var(--darkAccent-hsl), 1);
-  color: hsla(var(--white-hsl), 1);
+  background: #12203A;
+  color: #FFFFFF;
+}
+.property-listings.view-item .sh-custom-property-details {
+  padding-bottom: 20px;
 }
 .property-listings.view-item #itemPagination {
   display: none;
 }
 .property-listings.view-item .related-properties-section {
-  background: hsla(var(--lightAccent-hsl), 1);
+  background: #F5F5F5;
   padding: 100px 8vw;
   box-sizing: border-box;
 }

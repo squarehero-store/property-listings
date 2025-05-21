@@ -39,8 +39,6 @@
         const customColumns = Object.keys(sheetData[0] || {}).filter(column => 
             !standardColumns.includes(column));
         
-        console.log('✨ Custom columns detected in property-listing.js:', customColumns.join(', '));
-        
         // Set global custom columns for use in other functions
         window.customColumns = customColumns;
         
@@ -53,13 +51,10 @@
             const values = sheetData.map(row => row[column]).filter(Boolean);
             
             if (values.length === 0) {
-                console.log(`⚠️ No values found for column "${column}"`);
                 window.customColumnTypes[column] = 'text';
             } else if (values.every(value => value === 'Yes' || value === 'No')) {
-                console.log(`✓ Column "${column}" appears to be boolean (Yes/No)`);
                 window.customColumnTypes[column] = 'boolean';
             } else if (values.every(value => !isNaN(parseFloat(value)))) {
-                console.log(`🔢 Column "${column}" appears to be numeric`);
                 window.customColumnTypes[column] = 'numeric';
                 
                 // Determine whether to use button group or slider based on the range of values
@@ -73,13 +68,9 @@
                 // use a button group instead of a slider
                 if (uniqueIntegerValues.length <= 8 && 
                    (uniqueIntegerValues[uniqueIntegerValues.length - 1] - uniqueIntegerValues[0]) <= 10) {
-                    console.log(`👥 Column "${column}" will use button group (${uniqueIntegerValues.length} unique values) instead of slider`);
                     window.customColumnSpecialHandling[column] = 'buttonGroup';
-                } else {
-                    console.log(`📊 Column "${column}" will use slider (${uniqueIntegerValues.length} unique values with range: ${uniqueIntegerValues[0]}-${uniqueIntegerValues[uniqueIntegerValues.length - 1]})`);
-                }
+                } 
             } else {
-                console.log(`📝 Column "${column}" appears to be text`);
                 window.customColumnTypes[column] = 'text';
             }
         });
@@ -102,19 +93,14 @@
                         const columnType = window.customColumnTypes[column];
                         if (columnType === 'boolean') {
                             customFields[column] = value === 'Yes';
-                            console.log(`🔄 Custom field "${column}" set to ${value === 'Yes' ? 'true' : 'false'}`);
                         } else if (columnType === 'numeric' && value) {
                             customFields[column] = parseFloat(value.replace(/[^\d.-]/g, ''));
-                            console.log(`🔄 Custom field "${column}" set to ${parseFloat(value.replace(/[^\d.-]/g, ''))}`);
                         } else {
                             customFields[column] = value;
-                            console.log(`🔄 Custom field "${column}" set to "${value}"`);
                         }
                     }
                 });
             }
-            
-            console.log(`📋 Processed custom fields for ${item.title}:`, customFields);
 
             return {
                 id: item.id,
@@ -178,9 +164,6 @@
             console.error('Blog item title element not found');
             return;
         }
-        
-        console.log('🏠 Inserting property details for:', property.title);
-        console.log('📊 Custom fields to display:', property.customFields);
 
         const detailsContainer = document.createElement('div');
         detailsContainer.className = 'current-property-details sh-current-property-details';
@@ -191,10 +174,6 @@
 
         // Check for custom fields before generating the HTML
         const hasCustomFields = property.customFields && Object.keys(property.customFields).length > 0;
-        console.log('🔍 Custom fields available:', hasCustomFields);
-        if (hasCustomFields) {
-            console.log('🔍 Custom fields keys:', Object.keys(property.customFields));
-        }
 
         let detailsContent = `
     <div class="listing-content sh-listing-content">
@@ -398,9 +377,6 @@
         
         // Check for custom fields before generating the HTML
         const hasCustomFields = property.customFields && Object.keys(property.customFields).length > 0;
-        if (hasCustomFields) {
-            console.log(`🔍 Card for "${property.title}" has custom fields:`, Object.keys(property.customFields));
-        }
 
         let cardContent = `
       <div class="property-image sh-property-image">
@@ -489,6 +465,8 @@
         setupCurrentPropertyDetails();
         addExcerpt(); // Updated function name
         setupRelatedProperties();
+        
+        console.log('🚀 SquareHero.store Real Estate Listings plugin loaded');
     }
 
     // Function to check if DOM is already loaded
