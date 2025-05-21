@@ -189,6 +189,13 @@
         const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
         const showPricing = metaTag ? metaTag.getAttribute('pricing') !== 'false' : true;
 
+        // Check for custom fields before generating the HTML
+        const hasCustomFields = property.customFields && Object.keys(property.customFields).length > 0;
+        console.log('🔍 Custom fields available:', hasCustomFields);
+        if (hasCustomFields) {
+            console.log('🔍 Custom fields keys:', Object.keys(property.customFields));
+        }
+
         let detailsContent = `
     <div class="listing-content sh-listing-content">
       ${property.location ? `<p class="property-location sh-property-location">${property.location}</p>` : ''}
@@ -198,30 +205,29 @@
         ${property.bedrooms ? `<span class="details-icon sh-beds-icon">${svgIcons.beds} <span class="sh-beds-value">${property.bedrooms}</span></span>` : ''}
         ${property.bathrooms ? `<span class="details-icon sh-baths-icon">${svgIcons.baths} <span class="sh-baths-value">${property.bathrooms}</span></span>` : ''}
         ${property.garage ? `<span class="details-icon sh-garage-icon">${svgIcons.garage} <span class="sh-garage-value">${property.garage}</span></span>` : ''}
-        </div>
-        ${(() => {
-            // Generate HTML for custom fields
-            if (!property.customFields || Object.keys(property.customFields).length === 0) {
-                return '';
-            }
+      </div>`;
+      
+        // Add custom fields outside the property-details div but still inside the listing-content div
+        if (hasCustomFields) {
+            detailsContent += `
+      <div class="custom-property-details sh-custom-property-details">
+        ${Object.entries(property.customFields).map(([key, value]) => {
+            const columnType = window.customColumnTypes && window.customColumnTypes[key];
+            const formattedValue = columnType === 'boolean' 
+                ? (value ? 'Yes' : 'No')
+                : (columnType === 'numeric' ? value.toLocaleString() : value);
             
-            return `
-            <div class="custom-property-details sh-custom-property-details">
-                ${Object.entries(property.customFields).map(([key, value]) => {
-                    const columnType = window.customColumnTypes && window.customColumnTypes[key];
-                    const formattedValue = columnType === 'boolean' 
-                        ? (value ? 'Yes' : 'No')
-                        : (columnType === 'numeric' ? value.toLocaleString() : value);
-                    
-                    return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}">
-                        <span class="custom-detail-label sh-custom-detail-label">${key}:</span>
-                        <span class="custom-detail-value sh-custom-detail-value">${formattedValue}</span>
-                    </div>`;
-                }).join('')}
-            </div>
-            `;
-        })()}
-      </div>
+            return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}">
+                <span class="custom-detail-label sh-custom-detail-label">${key}:</span>
+                <span class="custom-detail-value sh-custom-detail-value">${formattedValue}</span>
+            </div>`;
+        }).join('')}
+      </div>`;
+        }
+        
+        // Close the listing-content div
+        detailsContent += `
+    </div>
     `;
 
         detailsContainer.innerHTML = detailsContent;
@@ -389,6 +395,12 @@
         // Check pricing setting from meta tag
         const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
         const showPricing = metaTag ? metaTag.getAttribute('pricing') !== 'false' : true;
+        
+        // Check for custom fields before generating the HTML
+        const hasCustomFields = property.customFields && Object.keys(property.customFields).length > 0;
+        if (hasCustomFields) {
+            console.log(`🔍 Card for "${property.title}" has custom fields:`, Object.keys(property.customFields));
+        }
 
         let cardContent = `
       <div class="property-image sh-property-image">
@@ -404,29 +416,28 @@
           ${property.bedrooms ? `<span class="details-icon sh-beds-icon">${svgIcons.beds} <span class="sh-beds-value">${property.bedrooms}</span></span>` : ''}
           ${property.bathrooms ? `<span class="details-icon sh-baths-icon">${svgIcons.baths} <span class="sh-baths-value">${property.bathrooms}</span></span>` : ''}
           ${property.garage ? `<span class="details-icon sh-garage-icon">${svgIcons.garage} <span class="sh-garage-value">${property.garage}</span></span>` : ''}
-        </div>
-        ${(() => {
-            // Generate HTML for custom fields
-            if (!property.customFields || Object.keys(property.customFields).length === 0) {
-                return '';
-            }
-            
-            return `
-            <div class="custom-property-details sh-custom-property-details">
-                ${Object.entries(property.customFields).map(([key, value]) => {
-                    const columnType = window.customColumnTypes && window.customColumnTypes[key];
-                    const formattedValue = columnType === 'boolean' 
-                        ? (value ? 'Yes' : 'No')
-                        : (columnType === 'numeric' ? value.toLocaleString() : value);
-                    
-                    return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}">
-                        <span class="custom-detail-label sh-custom-detail-label">${key}:</span>
-                        <span class="custom-detail-value sh-custom-detail-value">${formattedValue}</span>
-                    </div>`;
-                }).join('')}
-            </div>
-            `;
-        })()}
+        </div>`;
+        
+        // Add custom fields outside the property-details div but still inside the listing-content div
+        if (hasCustomFields) {
+            cardContent += `
+        <div class="custom-property-details sh-custom-property-details">
+          ${Object.entries(property.customFields).map(([key, value]) => {
+              const columnType = window.customColumnTypes && window.customColumnTypes[key];
+              const formattedValue = columnType === 'boolean' 
+                  ? (value ? 'Yes' : 'No')
+                  : (columnType === 'numeric' ? value.toLocaleString() : value);
+              
+              return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}">
+                  <span class="custom-detail-label sh-custom-detail-label">${key}:</span>
+                  <span class="custom-detail-value sh-custom-detail-value">${formattedValue}</span>
+              </div>`;
+          }).join('')}
+        </div>`;
+        }
+        
+        // Add View Home button and close listing-content div
+        cardContent += `
         <span class="sh-button sh-view-button">View Home</span>
       </div>
     `;
