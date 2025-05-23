@@ -17,6 +17,9 @@
     // Custom button text (new)
     const buttonText = metaTag.getAttribute('button-text') || 'View Home';
     
+    // Check if pricing should be shown or hidden
+    const showPricing = metaTag.getAttribute('pricing') !== 'false';
+    
     // Development logging
     console.log('📌 SquareHero.store Real Estate Listings plugin configuration:');
     console.log('- Sheet URL:', sheetUrl);
@@ -24,6 +27,7 @@
     console.log('- Category Label:', categoryLabel);
     console.log('- Tag Label:', tagLabel);
     console.log('- Button Text:', buttonText);
+    console.log('- Show Pricing:', showPricing);
 
     // Currency symbol helper
     const getCurrencySymbol = (currencyCode) => {
@@ -212,6 +216,9 @@
             const regexPattern = new RegExp('^' + url.replace(/\*/g, '.*') + '$');
             return [regexPattern, row];
         }));
+        
+        // Make sure we have the custom columns set
+        const customColumns = window.customColumns || [];
     
         return blogItems.map(item => {
             const urlId = item.urlId.toLowerCase();
@@ -222,6 +229,24 @@
             if (item.excerpt) {
                 // Remove any HTML tags and trim whitespace
                 cleanExcerpt = item.excerpt.replace(/<\/?[^>]+(>|$)/g, '').trim();
+            }
+            
+            // Process custom fields if we have a matching sheet row
+            const customFields = {};
+            if (sheetRow && customColumns.length > 0) {
+                customColumns.forEach(column => {
+                    const value = sheetRow[1][column];
+                    if (value !== undefined) {
+                        const columnType = window.customColumnTypes && window.customColumnTypes[column];
+                        if (columnType === 'boolean') {
+                            customFields[column] = value === 'Yes';
+                        } else if (columnType === 'numeric' && value) {
+                            customFields[column] = parseFloat(value.replace(/[^\d.-]/g, ''));
+                        } else {
+                            customFields[column] = value;
+                        }
+                    }
+                });
             }
             
             return {
@@ -236,6 +261,7 @@
                 bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms, 10) : 0,
                 bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms) : 0,
                 garage: sheetRow && sheetRow[1].Garage ? sheetRow[1].Garage : '',
+                customFields: customFields, // Add custom fields
                 url: item.fullUrl
             };
         });
@@ -355,6 +381,60 @@
             console.log('Sample excerpt from first item with excerpt:', 
                 blogData.items.find(item => item.excerpt && item.excerpt.trim() !== '')?.excerpt || 'None found');
         }
+
+        // Add debugging for sheet columns
+        console.log('📊 Available sheet columns:', Object.keys(sheetData[0] || {}).join(', '));
+        console.log('📋 First row sample:', sheetData[0]);
+        
+        // Identify custom columns (all columns except standard ones)
+        const standardColumns = ['Title', 'Url', 'Price', 'Area', 'Bedrooms', 'Bathrooms', 'Garage', 'Featured'];
+        const customColumns = Object.keys(sheetData[0] || {}).filter(column => 
+            !standardColumns.includes(column));
+        
+        console.log('✨ Custom columns detected:', customColumns.join(', '));
+        
+        // Set global custom columns for use in other functions
+        window.customColumns = customColumns;
+        
+        // Determine data types for custom columns
+        window.customColumnTypes = {};
+        window.customColumnSpecialHandling = {};
+        
+        customColumns.forEach(column => {
+            // Check values to determine type
+            const values = sheetData.map(row => row[column]).filter(Boolean);
+            
+            if (values.length === 0) {
+                console.log(`⚠️ No values found for column "${column}"`);
+                window.customColumnTypes[column] = 'text';
+            } else if (values.every(value => value === 'Yes' || value === 'No')) {
+                console.log(`✓ Column "${column}" appears to be boolean (Yes/No)`);
+                window.customColumnTypes[column] = 'boolean';
+            } else if (values.every(value => !isNaN(parseFloat(value)))) {
+                console.log(`🔢 Column "${column}" appears to be numeric`);
+                window.customColumnTypes[column] = 'numeric';
+                
+                // Determine whether to use button group or slider based on the range of values
+                const numericValues = values.map(v => parseFloat(v));
+                // Find unique integer values (floor the numbers to group similar values)
+                const uniqueIntegerValues = [...new Set(numericValues.map(v => Math.floor(v)))];
+                // Sort the values to determine range
+                uniqueIntegerValues.sort((a, b) => a - b);
+                
+                // If we have a small number of distinct values (≤ 8) and a reasonably small range,
+                // use a button group instead of a slider
+                if (uniqueIntegerValues.length <= 8 && 
+                   (uniqueIntegerValues[uniqueIntegerValues.length - 1] - uniqueIntegerValues[0]) <= 10) {
+                    console.log(`👥 Column "${column}" will use button group (${uniqueIntegerValues.length} unique values) instead of slider`);
+                    window.customColumnSpecialHandling[column] = 'buttonGroup';
+                } else {
+                    console.log(`📊 Column "${column}" will use slider (${uniqueIntegerValues.length} unique values with range: ${uniqueIntegerValues[0]}-${uniqueIntegerValues[uniqueIntegerValues.length - 1]})`);
+                }
+            } else {
+                console.log(`📝 Column "${column}" appears to be text`);
+                window.customColumnTypes[column] = 'text';
+            }
+        });
     
         return blogData.items.map(item => {
             const urlId = item.urlId.toLowerCase();
@@ -365,6 +445,24 @@
             if (item.excerpt) {
                 // Remove any HTML tags and trim whitespace
                 cleanExcerpt = item.excerpt.replace(/<\/?[^>]+(>|$)/g, '').trim();
+            }
+            
+            // Process custom fields if we have a matching sheet row
+            const customFields = {};
+            if (sheetRow) {
+                customColumns.forEach(column => {
+                    const value = sheetRow[1][column];
+                    if (value !== undefined) {
+                        const columnType = window.customColumnTypes[column];
+                        if (columnType === 'boolean') {
+                            customFields[column] = value === 'Yes';
+                        } else if (columnType === 'numeric' && value) {
+                            customFields[column] = parseFloat(value.replace(/[^\d.-]/g, ''));
+                        } else {
+                            customFields[column] = value;
+                        }
+                    }
+                });
             }
             
             return {
@@ -379,6 +477,7 @@
                 bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms, 10) : 0,
                 bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms) : 0,
                 garage: sheetRow && sheetRow[1].Garage ? sheetRow[1].Garage : '',
+                customFields: customFields, // Add custom fields
                 url: item.fullUrl
             };
         });
@@ -390,6 +489,11 @@
             console.error('Property listings container not found');
             return;
         }
+        
+        // Add pricing-hidden class to container if pricing is disabled
+        if (!showPricing) {
+            container.classList.add('pricing-hidden');
+        }
 
         const filtersContainer = document.createElement('div');
         filtersContainer.className = 'filters-container sh-filters-container';
@@ -400,7 +504,7 @@
         const hasBedrooms = propertyData.some(p => p.bedrooms > 0);
         const hasBathrooms = propertyData.some(p => p.bathrooms > 0);
         const hasAreas = propertyData.some(p => p.area > 0);
-        const hasPrices = propertyData.some(p => p.price > 0);
+        const hasPrices = showPricing && propertyData.some(p => p.price > 0);
 
         // Only add filters for attributes that exist in the data
         if (hasLocations) {
@@ -423,12 +527,83 @@
             filtersContainer.appendChild(createSliderFilter('area-slider', 'Area', 'sh-area-filter'));
         }
         
-        if (hasPrices) {
+        if (hasPrices && showPricing) {
             filtersContainer.appendChild(createSliderFilter('price-slider', 'Price', 'sh-price-filter'));
+        }
+        
+        // Add filters for custom columns if they exist
+        if (window.customColumns && window.customColumns.length > 0) {
+            window.customColumns.forEach(column => {
+                const columnId = column.toLowerCase().replace(/\s+/g, '-');
+                const columnType = window.customColumnTypes[column];
+                
+                // Create a filter based on the column type
+                if (columnType === 'numeric') {
+                    // Check if there are values available for this column
+                    const values = propertyData
+                        .map(p => p.customFields[column])
+                        .filter(v => v !== undefined && !isNaN(v));
+                    
+                    if (values.length > 0) {
+                        // Check if this column has special handling
+                        const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[column];
+                        
+                        if (specialHandling === 'buttonGroup') {
+                            // Create a button group for numeric fields with few distinct values
+                            console.log(`👥 Creating button group filter for numeric field "${column}"`);
+                            
+                            // Find the unique values and sort them numerically
+                            const uniqueValues = [...new Set(values.map(v => Math.floor(Number(v))))];
+                            uniqueValues.sort((a, b) => a - b);
+                            
+                            // Create options array with "Any" and all possible values
+                            const options = ['Any', ...uniqueValues.map(v => v.toString())];
+                            
+                            filtersContainer.appendChild(createButtonGroupFilter(
+                                `${columnId}-filter`, 
+                                column, 
+                                options, 
+                                `sh-${columnId}-filter`
+                            ));
+                        } else {
+                            // Standard numeric slider filter
+                            console.log(`📊 Creating numeric slider filter for "${column}"`);
+                            filtersContainer.appendChild(createSliderFilter(`${columnId}-slider`, column, `sh-${columnId}-filter`));
+                        }
+                    }
+                } else if (columnType === 'boolean') {
+                    // For Yes/No columns, create a toggle filter
+                    console.log(`✓ Creating Yes/No toggle filter for "${column}"`);
+                    filtersContainer.appendChild(createButtonGroupFilter(`${columnId}-filter`, column, ['Any', 'Yes', 'No'], `sh-${columnId}-filter`));
+                } else {
+                    // For text columns, create a dropdown if there are fewer than 10 unique values
+                    // otherwise, text search might be more appropriate
+                    const values = new Set(propertyData
+                        .map(p => p.customFields[column])
+                        .filter(v => v !== undefined && v !== null && v !== ''));
+                    
+                    if (values.size > 0 && values.size <= 10) {
+                        console.log(`📝 Creating dropdown filter for "${column}" with ${values.size} options`);
+                        const customDropdown = createDropdownFilter(`${columnId}-filter`, column, `Any ${column}`, `sh-${columnId}-filter`);
+                        // Populate the dropdown with values
+                        const dropdown = customDropdown.querySelector(`#${columnId}-filter`);
+                        values.forEach(value => {
+                            const option = document.createElement('option');
+                            option.value = value;
+                            option.textContent = value;
+                            option.className = `sh-${columnId}-option`;
+                            dropdown.appendChild(option);
+                        });
+                        filtersContainer.appendChild(customDropdown);
+                    }
+                }
+            });
         }
 
         // Only add reset button if we have at least one filter
-        if (hasLocations || hasCategories || hasBedrooms || hasBathrooms || hasAreas || hasPrices) {
+        const hasFilters = hasLocations || hasCategories || hasBedrooms || hasBathrooms || hasAreas || hasPrices || 
+                          (window.customColumns && window.customColumns.length > 0);
+        if (hasFilters) {
             const resetButton = document.createElement('button');
             resetButton.id = 'reset-filters';
             resetButton.className = 'reset-button sh-button sh-reset-button';
@@ -480,7 +655,23 @@
 
         const buttonGroup = document.createElement('div');
         buttonGroup.id = id;
-        buttonGroup.className = `button-group ${customClass}-buttons`;
+        
+        // Check if this is a boolean filter (Yes/No)
+        const isBooleanFilter = id.includes('-filter') && 
+                               options.length === 3 && 
+                               options.includes('Any') && 
+                               options.includes('Yes') && 
+                               options.includes('No');
+        
+        // Use a special class for boolean filters to style them differently
+        buttonGroup.className = isBooleanFilter 
+            ? `button-group ${customClass}-buttons boolean-button-group` 
+            : `button-group ${customClass}-buttons`;
+            
+        // Set a data attribute to identify boolean filters
+        if (isBooleanFilter) {
+            buttonGroup.setAttribute('data-boolean-filter', 'true');
+        }
 
         options.forEach(option => {
             const button = document.createElement('button');
@@ -561,8 +752,34 @@
             card.setAttribute('data-area', property.area);
         }
         
-        if (property.price > 0) {
+        if (property.price > 0 && showPricing) {
             card.setAttribute('data-price', property.price);
+        }
+        
+        // Add data attributes for custom fields
+        if (property.customFields) {
+            Object.entries(property.customFields).forEach(([key, value]) => {
+                const attributeName = `data-${key.toLowerCase().replace(/\s+/g, '-')}`;
+                const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[key];
+                
+                if (columnType === 'boolean') {
+                    // For boolean fields, set to 'yes' or 'no' for easier filtering
+                    card.setAttribute(attributeName, value ? 'yes' : 'no');
+                } else if (columnType === 'numeric') {
+                    if (specialHandling === 'buttonGroup') {
+                        // For special numeric fields with button group (like Sleeps)
+                        // Use the integer value for exact matching
+                        card.setAttribute(attributeName, Math.floor(Number(value)));
+                    } else {
+                        // For standard numeric fields, set the raw number for range filtering
+                        card.setAttribute(attributeName, value);
+                    }
+                } else {
+                    // For text fields, set the text value
+                    card.setAttribute(attributeName, value);
+                }
+            });
         }
 
         // SVG definitions
@@ -586,13 +803,35 @@
             <div class="listing-content sh-listing-content">
                 <h3 class="property-title sh-property-title">${property.title}</h3>
                 ${property.location ? `<p class="property-location sh-property-location">${property.location}</p>` : ''}
-                <p class="property-price sh-property-price ${property.price === 0 ? 'no-price' : ''}">${property.price === 0 ? 'Price TBA' : `${currencySymbol}${property.price.toLocaleString()}`}</p>
+                ${showPricing ? `<p class="property-price sh-property-price ${property.price === 0 ? 'no-price' : ''}">${property.price === 0 ? 'Price TBA' : `${currencySymbol}${property.price.toLocaleString()}`}</p>` : ''}
                 <div class="property-details sh-property-details">
                     ${property.area > 0 ? `<span class="details-icon sh-area-icon">${areaSvg} <span class="sh-area-value">${property.area.toLocaleString()} ${areaUnit}</span></span>` : ''}
                     ${property.bedrooms > 0 ? `<span class="details-icon sh-beds-icon">${bedsSvg} <span class="sh-beds-value">${property.bedrooms}</span></span>` : ''}
                     ${property.bathrooms > 0 ? `<span class="details-icon sh-baths-icon">${bathsSvg} <span class="sh-baths-value">${formatBathrooms(property.bathrooms)}</span></span>` : ''}
                     ${property.garage ? `<span class="details-icon sh-garage-icon">${garageSvg} <span class="sh-garage-value">${property.garage}</span></span>` : ''}
                 </div>
+                ${(() => {
+                    // Generate HTML for custom fields
+                    if (!property.customFields || Object.keys(property.customFields).length === 0) {
+                        return '';
+                    }
+                    
+                    return `
+                    <div class="custom-property-details sh-custom-property-details">
+                        ${Object.entries(property.customFields).map(([key, value]) => {
+                            const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                            const formattedValue = columnType === 'boolean' 
+                                ? (value ? 'Yes' : 'No')
+                                : (columnType === 'numeric' ? value.toLocaleString() : value);
+                            
+                            return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}">
+                                <span class="custom-detail-label">${key}:</span>
+                                <span class="custom-detail-value">${formattedValue}</span>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                    `;
+                })()}
                 ${excerptHtml}
                 <span class="sh-button sh-view-button">${buttonText}</span>
             </div>
@@ -813,9 +1052,31 @@
                 const areaSlider = document.getElementById('area-slider');
                 const priceSlider = document.getElementById('price-slider');
                 const cards = state.targets;
+                
+                // Check if any sliders exist (including custom numeric sliders)
+                let hasAnySliders = areaSlider || priceSlider;
+                
+                // Get custom numeric sliders if they exist
+                const customNumericSliders = [];
+                if (window.customColumns && window.customColumns.length > 0) {
+                    window.customColumns.forEach(column => {
+                        if (window.customColumnTypes[column] === 'numeric') {
+                            const columnId = column.toLowerCase().replace(/\s+/g, '-');
+                            const slider = document.getElementById(`${columnId}-slider`);
+                            if (slider && slider.noUiSlider) {
+                                customNumericSliders.push({ 
+                                    column, 
+                                    columnId, 
+                                    slider 
+                                });
+                                hasAnySliders = true;
+                            }
+                        }
+                    });
+                }
     
                 // Only apply range filtering if sliders exist
-                if (!areaSlider && !priceSlider) return true;
+                if (!hasAnySliders) return true;
     
                 cards.forEach(card => {
                     // Default to showing card
@@ -832,8 +1093,8 @@
                         }
                     }
                     
-                    // Apply price filter if slider exists
-                    if (priceSlider && priceSlider.noUiSlider) {
+                    // Apply price filter if slider exists and pricing is enabled
+                    if (showPricing && priceSlider && priceSlider.noUiSlider) {
                         const [minPrice, maxPrice] = priceSlider.noUiSlider.get().map(Number);
                         const cardPrice = parseFloat(card.getAttribute('data-price') || 0);
                         
@@ -842,6 +1103,19 @@
                             shouldShow = shouldShow && (cardPrice >= minPrice && cardPrice <= maxPrice);
                         }
                     }
+                    
+                    // Apply custom numeric filters
+                    customNumericSliders.forEach(({ column, columnId, slider }) => {
+                        if (slider && slider.noUiSlider) {
+                            const [minValue, maxValue] = slider.noUiSlider.get().map(Number);
+                            const dataAttr = `data-${columnId}`;
+                            
+                            if (card.hasAttribute(dataAttr)) {
+                                const cardValue = parseFloat(card.getAttribute(dataAttr) || 0);
+                                shouldShow = shouldShow && (cardValue >= minValue && cardValue <= maxValue);
+                            }
+                        }
+                    });
     
                     // Only hide/show if the card is part of the current filter state
                     if (state.matching.includes(card)) {
@@ -905,17 +1179,53 @@
             document.querySelectorAll('.button-group').forEach(group => {
                 group.addEventListener('click', (e) => {
                     if (e.target.classList.contains('filter-button')) {
-                        e.target.classList.toggle('active');
-                        if (e.target.getAttribute('data-filter') === 'all') {
-                            Array.from(e.target.parentNode.children).forEach(sibling => {
-                                if (sibling !== e.target) {
-                                    sibling.classList.remove('active');
+                        const isBooleanGroup = group.getAttribute('data-boolean-filter') === 'true';
+                        
+                        if (isBooleanGroup) {
+                            // For boolean filters, implement radio-button like behavior
+                            // First, handle the 'Any' button
+                            if (e.target.getAttribute('data-filter') === 'all') {
+                                // If 'Any' is clicked, deactivate all other buttons
+                                Array.from(group.children).forEach(button => {
+                                    button.classList.remove('active');
+                                });
+                                e.target.classList.add('active');
+                            } else {
+                                // If 'Yes' or 'No' is clicked
+                                const anyButton = group.querySelector('[data-filter="all"]');
+                                if (anyButton) {
+                                    anyButton.classList.remove('active');
                                 }
-                            });
+                                
+                                // Remove active class from all buttons first
+                                Array.from(group.children).forEach(button => {
+                                    if (button !== e.target && button !== anyButton) {
+                                        button.classList.remove('active');
+                                    }
+                                });
+                                
+                                // Toggle the clicked button
+                                e.target.classList.toggle('active');
+                                
+                                // If no button is active, activate 'Any'
+                                if (!Array.from(group.children).some(btn => btn.classList.contains('active'))) {
+                                    anyButton.classList.add('active');
+                                }
+                            }
                         } else {
-                            const anyButton = e.target.parentNode.querySelector('[data-filter="all"]');
-                            if (anyButton) {
-                                anyButton.classList.remove('active');
+                            // Original behavior for non-boolean filters
+                            e.target.classList.toggle('active');
+                            if (e.target.getAttribute('data-filter') === 'all') {
+                                Array.from(e.target.parentNode.children).forEach(sibling => {
+                                    if (sibling !== e.target) {
+                                        sibling.classList.remove('active');
+                                    }
+                                });
+                            } else {
+                                const anyButton = e.target.parentNode.querySelector('[data-filter="all"]');
+                                if (anyButton) {
+                                    anyButton.classList.remove('active');
+                                }
                             }
                         }
                         updateFilters();
@@ -968,6 +1278,56 @@
             if (bathrooms.length > 0 && !bathrooms.includes('all')) {
                 filterArray.push(bathrooms.map(bath => `[data-bathrooms="${bath}"]`).join(', '));
             }
+        }
+        
+        // Handle custom column filters if they exist
+        if (window.customColumns && window.customColumns.length > 0) {
+            window.customColumns.forEach(column => {
+                const columnId = column.toLowerCase().replace(/\s+/g, '-');
+                const columnType = window.customColumnTypes[column];
+                const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[column];
+                
+                if (columnType === 'boolean') {
+                    // Handle Yes/No button group filters
+                    const customFilter = document.getElementById(`${columnId}-filter`);
+                    if (customFilter) {
+                        const customValues = getActiveFilters(`${columnId}-filter`);
+                        if (customValues.length > 0 && !customValues.includes('all')) {
+                            // Map 'Yes'/'No' to 'yes'/'no' for attribute matching
+                            const mappedValues = customValues.map(val => {
+                                if (val === 'Yes') return `[data-${columnId}="yes"]`;
+                                if (val === 'No') return `[data-${columnId}="no"]`;
+                                return `[data-${columnId}="${val.toLowerCase()}"]`;
+                            });
+                            filterArray.push(mappedValues.join(', '));
+                        }
+                    }
+                } else if (specialHandling === 'buttonGroup') {
+                    // Handle special numeric fields using button groups (like Sleeps)
+                    const customFilter = document.getElementById(`${columnId}-filter`);
+                    if (customFilter) {
+                        const customValues = getActiveFilters(`${columnId}-filter`);
+                        if (customValues.length > 0 && !customValues.includes('all')) {
+                            // Create a selector that matches exact values
+                            const valueSelectors = customValues.map(val => {
+                                const numVal = parseInt(val);
+                                return `[data-${columnId}="${numVal}"]`;
+                            });
+                            filterArray.push(valueSelectors.join(', '));
+                        }
+                    }
+                } else if (columnType === 'text') {
+                    // Handle dropdown text filters
+                    const dropdownFilter = document.getElementById(`${columnId}-filter`);
+                    if (dropdownFilter) {
+                        const value = dropdownFilter.value;
+                        if (value !== 'all') {
+                            filterArray.push(`[data-${columnId}="${value}"]`);
+                        }
+                    }
+                }
+                // Numeric filters are handled separately with sliders
+            });
         }
 
         let filterString = filterArray.length > 0 ? filterArray.join('') : 'all';
@@ -1023,6 +1383,32 @@
         
         if (priceSlider && priceSlider.noUiSlider) {
             priceSlider.noUiSlider.reset();
+        }
+        
+        // Reset custom filters if they exist
+        if (window.customColumns && window.customColumns.length > 0) {
+            window.customColumns.forEach(column => {
+                const columnId = column.toLowerCase().replace(/\s+/g, '-');
+                const columnType = window.customColumnTypes[column];
+                
+                if (columnType === 'numeric') {
+                    // Reset numeric sliders
+                    const slider = document.getElementById(`${columnId}-slider`);
+                    if (slider && slider.noUiSlider) {
+                        slider.noUiSlider.reset();
+                    }
+                } else if (columnType === 'text') {
+                    // Reset dropdown filters
+                    const dropdown = document.getElementById(`${columnId}-filter`);
+                    if (dropdown) {
+                        dropdown.value = 'all';
+                    }
+                } else if (window.customColumnSpecialHandling && window.customColumnSpecialHandling[column] === 'buttonGroup') {
+                    // Special handling for button group numeric filters is already covered
+                    // by the general button reset above, but we note it here for completeness
+                }
+                // Button groups already handled above with the general button reset
+            });
         }
         
         // Remove range-filtered class from all cards
@@ -1141,6 +1527,65 @@
             }
         }
         
+        // Check for custom column filters
+        if (window.customColumns && window.customColumns.length > 0) {
+            window.customColumns.forEach(column => {
+                const columnId = column.toLowerCase().replace(/\s+/g, '-');
+                const columnType = window.customColumnTypes[column];
+                
+                if (urlParams.has(columnId)) {
+                    // Handle text and boolean filters
+                    const value = urlParams.get(columnId);
+                    
+                    if (columnType === 'boolean') {
+                        // For Yes/No filters, select the appropriate button
+                        const filterGroup = document.getElementById(`${columnId}-filter`);
+                        if (filterGroup) {
+                            const button = filterGroup.querySelector(`.filter-button[data-filter="${value.toLowerCase()}"]`);
+                            if (button) {
+                                button.classList.add('active');
+                                filtersApplied = true;
+                                
+                                // Remove 'active' from 'Any' button
+                                const anyButton = filterGroup.querySelector('[data-filter="all"]');
+                                if (anyButton) {
+                                    anyButton.classList.remove('active');
+                                }
+                            }
+                        }
+                    } else if (columnType === 'text') {
+                        // For dropdown filters
+                        const dropdown = document.getElementById(`${columnId}-filter`);
+                        if (dropdown) {
+                            const matchingOption = Array.from(dropdown.options).find(
+                                option => option.value.toLowerCase() === value.toLowerCase()
+                            );
+                            if (matchingOption) {
+                                dropdown.value = matchingOption.value;
+                                filtersApplied = true;
+                            }
+                        }
+                    }
+                } else if (columnType === 'numeric') {
+                    // Handle numeric filters
+                    if (urlParams.has(`min-${columnId}`) || urlParams.has(`max-${columnId}`)) {
+                        const slider = document.getElementById(`${columnId}-slider`);
+                        if (slider && slider.noUiSlider) {
+                            const currentValues = slider.noUiSlider.get().map(Number);
+                            let minValue = urlParams.has(`min-${columnId}`) ? 
+                                Number(urlParams.get(`min-${columnId}`)) : currentValues[0];
+                            let maxValue = urlParams.has(`max-${columnId}`) ? 
+                                Number(urlParams.get(`max-${columnId}`)) : currentValues[1];
+                            
+                            // Update the slider with new values
+                            slider.noUiSlider.set([minValue, maxValue]);
+                            filtersApplied = true;
+                        }
+                    }
+                }
+            });
+        }
+        
         // Apply filters if any parameters were found
         if (filtersApplied && window.mixer) {
             console.log('🔍 Applying filters from URL parameters');
@@ -1224,6 +1669,56 @@
                     params.set('maxarea', maxArea);
                 }
             }
+        }
+        
+        // Add URL parameters for custom columns
+        if (window.customColumns && window.customColumns.length > 0) {
+            window.customColumns.forEach(column => {
+                const columnId = column.toLowerCase().replace(/\s+/g, '-');
+                const columnType = window.customColumnTypes[column];
+                
+                if (columnType === 'boolean') {
+                    // Add Yes/No filter parameter
+                    const activeButtons = document.querySelectorAll(`#${columnId}-filter .filter-button.active`);
+                    if (activeButtons.length === 1) {
+                        const value = activeButtons[0].textContent.toLowerCase();
+                        if (value !== 'any') {
+                            params.set(columnId, value);
+                        }
+                    }
+                } else if (columnType === 'text') {
+                    // Add text filter parameter
+                    const dropdown = document.getElementById(`${columnId}-filter`);
+                    if (dropdown && dropdown.value !== 'all') {
+                        params.set(columnId, dropdown.value);
+                    }
+                } else if (columnType === 'numeric') {
+                    // Add numeric filter parameters
+                    const slider = document.getElementById(`${columnId}-slider`);
+                    if (slider && slider.noUiSlider) {
+                        const [minValue, maxValue] = slider.noUiSlider.get().map(Number);
+                        
+                        // Get all values for this custom attribute
+                        const dataAttr = `data-${columnId}`;
+                        const values = Array.from(document.querySelectorAll(`.property-card[${dataAttr}]`))
+                            .map(card => parseFloat(card.getAttribute(dataAttr)))
+                            .filter(Boolean);
+                            
+                        if (values.length > 0) {
+                            const min = Math.min(...values);
+                            const max = Math.max(...values);
+                            
+                            // Only add if the values are different from min/max
+                            if (minValue > min) {
+                                params.set(`min-${columnId}`, minValue);
+                            }
+                            if (maxValue < max) {
+                                params.set(`max-${columnId}`, maxValue);
+                            }
+                        }
+                    }
+                }
+            });
         }
         
         // Update URL without reloading the page
