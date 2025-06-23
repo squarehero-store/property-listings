@@ -949,6 +949,52 @@
             });
         }
         
+        // Initialize custom field filters
+        if (window.customColumns && window.customColumns.length > 0) {
+            window.customColumns.forEach(column => {
+                const columnId = column.toLowerCase().replace(/\s+/g, '-');
+                const columnType = window.customColumnTypes[column];
+                const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[column];
+                
+                if (columnType === 'numeric') {
+                    // Get values for this custom numeric field
+                    const customValues = properties
+                        .map(p => p.customFields[column])
+                        .filter(v => v !== undefined && !isNaN(v) && v > 0);
+                    
+                    if (customValues.length > 0) {
+                        if (specialHandling === 'buttonGroup') {
+                            // Button group filters are already handled by the general button group logic
+                            hideUnusedCustomOptions(`${columnId}-filter`, properties, column);
+                        } else {
+                            // Initialize numeric slider
+                            const customSlider = document.getElementById(`${columnId}-slider`);
+                            if (customSlider) {
+                                const minValue = Math.min(...customValues);
+                                const maxValue = Math.max(...customValues);
+                                initializeSlider(`${columnId}-slider`, minValue, maxValue, '', () => {
+                                    if (window.mixer) window.mixer.filter(window.mixer.getState().activeFilter);
+                                });
+                            }
+                        }
+                    }
+                } else if (columnType === 'text') {
+                    // Initialize custom text dropdown if it wasn't already populated
+                    const customDropdown = document.getElementById(`${columnId}-filter`);
+                    if (customDropdown && customDropdown.children.length === 1) {
+                        // Only has the default "Any" option, so populate it
+                        const customTextValues = new Set(properties
+                            .map(p => p.customFields[column])
+                            .filter(v => v !== undefined && v !== null && v !== ''));
+                        
+                        if (customTextValues.size > 0) {
+                            populateCustomDropdown(`${columnId}-filter`, customTextValues, `sh-${columnId}-option`);
+                        }
+                    }
+                }
+            });
+        }
+        
         // Only initialize button group filters if they exist
         const bedroomsFilter = document.getElementById('bedrooms-filter');
         if (bedroomsFilter) {
@@ -1014,21 +1060,45 @@
         updateRangeDisplay([min, max]);
     }
     
-    function hideUnusedOptions(filterId, properties, propertyKey) {
+    function populateCustomDropdown(id, options, customClass) {
+        const dropdown = document.getElementById(id);
+        if (!dropdown) return;
+        
+        options.forEach(option => {
+            const optionElement = document.createElement('option');
+            // Check if value starts with a number and prefix if needed
+            const textValue = String(option);
+            optionElement.value = /^\d/.test(textValue) ? `val-${textValue}` : textValue;
+            optionElement.textContent = option;
+            optionElement.className = customClass;
+            dropdown.appendChild(optionElement);
+        });
+    }
+
+    function hideUnusedCustomOptions(filterId, properties, columnName) {
         const filterButtons = document.querySelectorAll(`#${filterId} .filter-button`);
         if (!filterButtons.length) return;
         
-        const availableValues = new Set(properties.map(p => p[propertyKey]).filter(Boolean));
+        const availableValues = new Set(properties
+            .map(p => p.customFields[columnName])
+            .filter(v => v !== undefined && !isNaN(v)));
 
         filterButtons.forEach(button => {
             const filterValue = button.getAttribute('data-filter');
             if (filterValue === 'all') return;
 
-            const numericValue = parseFloat(filterValue.split('-')[1]);
+            // Extract numeric value from the filter value
+            let numericValue;
+            if (filterValue.startsWith('val-')) {
+                numericValue = parseFloat(filterValue.replace('val-', ''));
+            } else {
+                numericValue = parseFloat(filterValue);
+            }
+            
             button.style.display = availableValues.has(numericValue) ? '' : 'none';
         });
     }
-    
+
     function initializeMixItUp() {
         // Add custom CSS for excerpt
         const excerptStyle = document.createElement('style');
@@ -1212,13 +1282,28 @@
             // Add event listeners to dropdown and button filters
             const locationFilter = document.getElementById('location-filter');
             const statusFilter = document.getElementById('status-filter');
-    
+
             if (locationFilter) {
                 locationFilter.addEventListener('change', updateFilters);
             }
             
             if (statusFilter) {
                 statusFilter.addEventListener('change', updateFilters);
+            }
+
+            // Add event listeners to custom dropdown filters
+            if (window.customColumns && window.customColumns.length > 0) {
+                window.customColumns.forEach(column => {
+                    const columnId = column.toLowerCase().replace(/\s+/g, '-');
+                    const columnType = window.customColumnTypes[column];
+                    
+                    if (columnType === 'text') {
+                        const customDropdown = document.getElementById(`${columnId}-filter`);
+                        if (customDropdown) {
+                            customDropdown.addEventListener('change', updateFilters);
+                        }
+                    }
+                });
             }
     
             document.querySelectorAll('.button-group').forEach(group => {
@@ -1525,7 +1610,7 @@
                     }
                 }
             }
-        }
+ }
         
         // Check for bathrooms filter
         if (urlParams.has('bathrooms')) {
