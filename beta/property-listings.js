@@ -508,7 +508,7 @@
 
         // Only add filters for attributes that exist in the data
         if (hasLocations) {
-            filtersContainer.appendChild(createDropdownFilter('location-filter', tagLabel, 'Any Location', 'sh-location-filter'));
+            filtersContainer.appendChild(createDropdownFilter('location-filter', tagLabel, 'All', 'sh-location-filter'));
         }
         
         if (hasCategories) {
@@ -800,7 +800,7 @@
                 <img src="${property.imageUrl}" alt="${property.title}" class="sh-property-img">
                 ${property.category ? `<span class="property-category sh-property-category">${property.category}</span>` : ''}
             </div>
-            <div class="listing-content sh-listing-content">
+            <div class="listing-content sh-property-title">
                 <h3 class="property-title sh-property-title">${property.title}</h3>
                 ${property.location ? `<p class="property-location sh-property-location">${property.location}</p>` : ''}
                 ${showPricing ? `<p class="property-price sh-property-price ${property.price === 0 ? 'no-price' : ''}">${property.price === 0 ? 'Price TBA' : `${currencySymbol}${property.price.toLocaleString()}`}</p>` : ''}
@@ -1310,8 +1310,14 @@
                         if (customValues.length > 0 && !customValues.includes('all')) {
                             // Create a selector that matches exact values
                             const valueSelectors = customValues.map(val => {
+                                // Ensure the value is properly escaped for CSS selector
                                 const numVal = parseInt(val);
-                                return `[data-${columnId}="${numVal}"]`;
+                                if (!isNaN(numVal)) {
+                                    return `[data-${columnId}="${numVal}"]`;
+                                } else {
+                                    // Fallback for non-numeric values
+                                    return `[data-${columnId}="${CSS.escape(val)}"]`;
+                                }
                             });
                             filterArray.push(valueSelectors.join(', '));
                         }
