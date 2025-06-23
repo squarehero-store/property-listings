@@ -29,17 +29,6 @@
     // Check if pricing should be shown or hidden
     const showPricing = metaTag.getAttribute('pricing') !== 'false';
     
-    // Development logging
-    console.log('📌 SquareHero.store Real Estate Listings plugin configuration:');
-    console.log('- Sheet URL:', sheetUrl);
-    console.log('- Target:', target);
-    console.log('- Category Label:', categoryLabel);
-    console.log('- Tag Label:', tagLabel);
-    console.log('- Button Text:', buttonText);
-    console.log('- Loading Label:', loadingLabel);
-    console.log('- Show Pricing:', showPricing);
-    console.log('- Item Type:', itemType);
-    console.log('- Dynamic Loading Label:', dynamicLoadingLabel);
 
     // Currency symbol helper
     const getCurrencySymbol = (currencyCode) => {
@@ -94,7 +83,6 @@
     
     // Function to fetch all properties across all pages with lazy loading
     async function fetchAllProperties(baseUrl) {
-        console.log('📋 Fetching all properties with pagination and lazy loading...');
         let allItems = [];
         let currentUrl = `${baseUrl}?format=json&nocache=${new Date().getTime()}`;
         let pageCount = 1;
@@ -108,18 +96,15 @@
             
             while (url) {
                 try {
-                    console.log(`📄 Fetching page ${page} in the background...`);
                     const response = await fetch(url);
                     const data = await response.json();
                     
                     if (!data.items || data.items.length === 0) {
-                        console.log('No items found on this page');
                         break;
                     }
                     
                     // Add the items to the global allItems array 
                     allItems.push(...data.items);
-                    console.log(`✅ Found ${data.items.length} items on page ${page}, total now: ${allItems.length}`);
                     
                     // Trigger rendering the new items
                     if (window.renderAdditionalProperties) {
@@ -138,11 +123,9 @@
                             url = nextPageUrl.toString();
                             page++;
                         } else {
-                            console.log('Missing offset value in pagination data');
                             url = null;
                         }
                     } else {
-                        console.log('No more pages available');
                         url = null;
                     }
                 } catch (error) {
@@ -150,24 +133,19 @@
                     break;
                 }
             }
-            
-            console.log(`🏁 Total properties fetched: ${allItems.length}`);
         };
         
         // First, fetch only the first page
         try {
-            console.log('📄 Fetching first page...');
             const response = await fetch(currentUrl);
             const data = await response.json();
             
             if (!data.items || data.items.length === 0) {
-                console.log('No items found on the first page');
                 return [];
             }
             
             // Store the first page items
             allItems = [...data.items];
-            console.log(`✅ Found ${data.items.length} items on page 1`);
             firstPageLoaded = true;
             firstPageData = data;
             
@@ -186,8 +164,6 @@
                         fetchRemainingPages(nextPageUrl.toString(), offset);
                     }, 100);
                 }
-            } else {
-                console.log('Only one page of results available');
             }
         } catch (error) {
             console.error('❌ Error fetching first page of properties:', error);
@@ -360,7 +336,6 @@
 
                 createFilterElements(propertyData);
                 renderPropertyListings(propertyData);
-                console.log('🚀 SquareHero.store Real Estate Listings plugin loaded');
             } catch (error) {
                 console.error('❌ Error fetching data:', error);
                 
@@ -385,25 +360,10 @@
             return [regexPattern, row];
         }));
     
-        // Debug excerpt availability
-        const hasExcerpts = blogData.items.some(item => item.excerpt && item.excerpt.trim() !== '');
-        console.log('📝 Properties with excerpts available:', hasExcerpts);
-        
-        if (hasExcerpts) {
-            console.log('Sample excerpt from first item with excerpt:', 
-                blogData.items.find(item => item.excerpt && item.excerpt.trim() !== '')?.excerpt || 'None found');
-        }
-
-        // Add debugging for sheet columns
-        console.log('📊 Available sheet columns:', Object.keys(sheetData[0] || {}).join(', '));
-        console.log('📋 First row sample:', sheetData[0]);
-        
         // Identify custom columns (all columns except standard ones)
         const standardColumns = ['Title', 'Url', 'Price', 'Area', 'Bedrooms', 'Bathrooms', 'Garage', 'Featured'];
         const customColumns = Object.keys(sheetData[0] || {}).filter(column => 
             !standardColumns.includes(column));
-        
-        console.log('✨ Custom columns detected:', customColumns.join(', '));
         
         // Set global custom columns for use in other functions
         window.customColumns = customColumns;
@@ -417,13 +377,10 @@
             const values = sheetData.map(row => row[column]).filter(Boolean);
             
             if (values.length === 0) {
-                console.log(`⚠️ No values found for column "${column}"`);
                 window.customColumnTypes[column] = 'text';
             } else if (values.every(value => value === 'Yes' || value === 'No')) {
-                console.log(`✓ Column "${column}" appears to be boolean (Yes/No)`);
                 window.customColumnTypes[column] = 'boolean';
             } else if (values.every(value => !isNaN(parseFloat(value)))) {
-                console.log(`🔢 Column "${column}" appears to be numeric`);
                 window.customColumnTypes[column] = 'numeric';
                 
                 // Determine whether to use button group or slider based on the range of values
@@ -437,13 +394,9 @@
                 // use a button group instead of a slider
                 if (uniqueIntegerValues.length <= 8 && 
                    (uniqueIntegerValues[uniqueIntegerValues.length - 1] - uniqueIntegerValues[0]) <= 10) {
-                    console.log(`👥 Column "${column}" will use button group (${uniqueIntegerValues.length} unique values) instead of slider`);
                     window.customColumnSpecialHandling[column] = 'buttonGroup';
-                } else {
-                    console.log(`📊 Column "${column}" will use slider (${uniqueIntegerValues.length} unique values with range: ${uniqueIntegerValues[0]}-${uniqueIntegerValues[uniqueIntegerValues.length - 1]})`);
                 }
             } else {
-                console.log(`📝 Column "${column}" appears to be text`);
                 window.customColumnTypes[column] = 'text';
             }
         });
