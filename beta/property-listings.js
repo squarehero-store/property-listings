@@ -17,6 +17,9 @@
     // Custom button text (new)
     const buttonText = metaTag.getAttribute('button-text') || 'View Home';
     
+    // Custom loading label text (new)
+    const loadingLabel = metaTag.getAttribute('loading-label') || 'Loading all properties...';
+    
     // Check if pricing should be shown or hidden
     const showPricing = metaTag.getAttribute('pricing') !== 'false';
     
@@ -27,6 +30,7 @@
     console.log('- Category Label:', categoryLabel);
     console.log('- Tag Label:', tagLabel);
     console.log('- Button Text:', buttonText);
+    console.log('- Loading Label:', loadingLabel);
     console.log('- Show Pricing:', showPricing);
 
     // Currency symbol helper
@@ -276,7 +280,7 @@
                 loadingIndicator.className = 'sh-loading-indicator';
                 loadingIndicator.innerHTML = `
                     <div class="sh-spinner"></div>
-                    <p>Loading all properties...</p>
+                    <p>${loadingLabel}</p>
                 `;
                 container.appendChild(loadingIndicator);
                 
@@ -1158,12 +1162,6 @@
                 });
             }
             
-            // Add reset filters link event listener
-            const resetLink = document.getElementById('reset-filters-link');
-            if (resetLink) {
-                resetLink.addEventListener('click', resetFilters);
-            }
-    
             // Add event listeners to dropdown and button filters
             const locationFilter = document.getElementById('location-filter');
             const statusFilter = document.getElementById('status-filter');
@@ -1174,6 +1172,41 @@
             
             if (statusFilter) {
                 statusFilter.addEventListener('change', updateFilters);
+            }
+            
+            // Add event listeners for custom column dropdown filters
+            if (window.customColumns && window.customColumns.length > 0) {
+                window.customColumns.forEach(column => {
+                    const columnId = column.toLowerCase().replace(/\s+/g, '-');
+                    const columnType = window.customColumnTypes[column];
+                    
+                    if (columnType === 'text') {
+                        const customDropdown = document.getElementById(`${columnId}-filter`);
+                        if (customDropdown) {
+                            customDropdown.addEventListener('change', updateFilters);
+                        }
+                    }
+                });
+            }
+            
+            // Add event listeners for custom numeric sliders
+            if (window.customColumns && window.customColumns.length > 0) {
+                window.customColumns.forEach(column => {
+                    const columnId = column.toLowerCase().replace(/\s+/g, '-');
+                    const columnType = window.customColumnTypes[column];
+                    const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[column];
+                    
+                    if (columnType === 'numeric' && specialHandling !== 'buttonGroup') {
+                        const customSlider = document.getElementById(`${columnId}-slider`);
+                        if (customSlider && customSlider.noUiSlider) {
+                            customSlider.noUiSlider.on('update', () => {
+                                if (window.mixer) {
+                                    window.mixer.filter(window.mixer.getState().activeFilter);
+                                }
+                            });
+                        }
+                    }
+                });
             }
     
             document.querySelectorAll('.button-group').forEach(group => {
