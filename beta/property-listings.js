@@ -24,7 +24,7 @@
     const showPricing = metaTag.getAttribute('pricing') !== 'false';
     
     // Development logging
-    console.log('📌 SquareHero.store Real Estate Listings plugin configuration:');
+    console.log('📌 SquareHero.store Real Estate Listings configuration:');
     console.log('- Sheet URL:', sheetUrl);
     console.log('- Target:', target);
     console.log('- Category Label:', categoryLabel);

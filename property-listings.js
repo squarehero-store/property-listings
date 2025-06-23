@@ -17,6 +17,9 @@
     // Custom button text (new)
     const buttonText = metaTag.getAttribute('button-text') || 'View Home';
     
+    // Custom loading label (new)
+    const loadingLabel = metaTag.getAttribute('loading-label') || 'Loading all properties...';
+    
     // Check if pricing should be shown or hidden
     const showPricing = metaTag.getAttribute('pricing') !== 'false';
     
@@ -27,6 +30,7 @@
     console.log('- Category Label:', categoryLabel);
     console.log('- Tag Label:', tagLabel);
     console.log('- Button Text:', buttonText);
+    console.log('- Loading Label:', loadingLabel);
     console.log('- Show Pricing:', showPricing);
 
     // Currency symbol helper
@@ -276,7 +280,7 @@
                 loadingIndicator.className = 'sh-loading-indicator';
                 loadingIndicator.innerHTML = `
                     <div class="sh-spinner"></div>
-                    <p>Loading all properties...</p>
+                    <p>${loadingLabel}</p>
                 `;
                 container.appendChild(loadingIndicator);
                 
@@ -508,7 +512,7 @@
 
         // Only add filters for attributes that exist in the data
         if (hasLocations) {
-            filtersContainer.appendChild(createDropdownFilter('location-filter', tagLabel, 'Any Location', 'sh-location-filter'));
+            filtersContainer.appendChild(createDropdownFilter('location-filter', tagLabel, 'All', 'sh-location-filter'));
         }
         
         if (hasCategories) {
@@ -589,7 +593,9 @@
                         const dropdown = customDropdown.querySelector(`#${columnId}-filter`);
                         values.forEach(value => {
                             const option = document.createElement('option');
-                            option.value = value;
+                            // Check if value starts with a number and prefix if needed
+                            const textValue = String(value);
+                            option.value = /^\d/.test(textValue) ? `val-${textValue}` : textValue;
                             option.textContent = value;
                             option.className = `sh-${columnId}-option`;
                             dropdown.appendChild(option);
@@ -677,11 +683,36 @@
             const button = document.createElement('button');
             button.className = `filter-button ${customClass}-button`;
             let filterValue = option.toLowerCase() === 'any' ? 'all' : option;
+            
             if (id === 'bedrooms-filter' && filterValue !== 'all') {
                 filterValue = `bed-${filterValue}`;
             } else if (id === 'bathrooms-filter' && filterValue !== 'all') {
                 filterValue = `bath-${filterValue}`;
+            } else if (filterValue !== 'all') {
+                // For custom fields, check if we need to add prefix for numeric values
+                const columnName = id.replace('-filter', '');
+                const isCustomField = window.customColumns && window.customColumns.some(col => 
+                    col.toLowerCase().replace(/\s+/g, '-') === columnName);
+                
+                if (isCustomField) {
+                    const originalColumn = window.customColumns.find(col => 
+                        col.toLowerCase().replace(/\s+/g, '-') === columnName);
+                    const columnType = window.customColumnTypes && window.customColumnTypes[originalColumn];
+                    const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[originalColumn];
+                    
+                    if (columnType === 'numeric' && specialHandling === 'buttonGroup') {
+                        // Add prefix for numeric button group values
+                        filterValue = `val-${filterValue}`;
+                    } else if (columnType === 'text' && /^\d/.test(filterValue)) {
+                        // Add prefix for text values that start with numbers
+                        filterValue = `val-${filterValue}`;
+                    } else if (!columnType && /^\d/.test(filterValue)) {
+                        // Add prefix for any values that start with numbers
+                        filterValue = `val-${filterValue}`;
+                    }
+                }
             }
+            
             button.setAttribute('data-filter', filterValue);
             button.textContent = option;
             buttonGroup.appendChild(button);
@@ -769,15 +800,29 @@
                 } else if (columnType === 'numeric') {
                     if (specialHandling === 'buttonGroup') {
                         // For special numeric fields with button group (like Sleeps)
-                        // Use the integer value for exact matching
-                        card.setAttribute(attributeName, Math.floor(Number(value)));
+                        // Use the integer value with a prefix to ensure valid CSS selectors
+                        const numericValue = Math.floor(Number(value));
+                        card.setAttribute(attributeName, `val-${numericValue}`);
                     } else {
                         // For standard numeric fields, set the raw number for range filtering
                         card.setAttribute(attributeName, value);
                     }
+                } else if (columnType === 'text') {
+                    // For text fields, check if value starts with a number and prefix if needed
+                    const textValue = String(value);
+                    if (/^\d/.test(textValue)) {
+                        card.setAttribute(attributeName, `val-${textValue}`);
+                    } else {
+                        card.setAttribute(attributeName, textValue);
+                    }
                 } else {
-                    // For text fields, set the text value
-                    card.setAttribute(attributeName, value);
+                    // Default case - check if value starts with a number
+                    const defaultValue = String(value);
+                    if (/^\d/.test(defaultValue)) {
+                        card.setAttribute(attributeName, `val-${defaultValue}`);
+                    } else {
+                        card.setAttribute(attributeName, defaultValue);
+                    }
                 }
             });
         }
@@ -800,7 +845,7 @@
                 <img src="${property.imageUrl}" alt="${property.title}" class="sh-property-img">
                 ${property.category ? `<span class="property-category sh-property-category">${property.category}</span>` : ''}
             </div>
-            <div class="listing-content sh-listing-content">
+            <div class="listing-content sh-property-content">
                 <h3 class="property-title sh-property-title">${property.title}</h3>
                 ${property.location ? `<p class="property-location sh-property-location">${property.location}</p>` : ''}
                 ${showPricing ? `<p class="property-price sh-property-price ${property.price === 0 ? 'no-price' : ''}">${property.price === 0 ? 'Price TBA' : `${currencySymbol}${property.price.toLocaleString()}`}</p>` : ''}
@@ -1310,8 +1355,10 @@
                         if (customValues.length > 0 && !customValues.includes('all')) {
                             // Create a selector that matches exact values
                             const valueSelectors = customValues.map(val => {
-                                const numVal = parseInt(val);
-                                return `[data-${columnId}="${numVal}"]`;
+                                // Handle prefixed values properly
+                                const attributeValue = val.startsWith('val-') ? val : 
+                                    (/^\d/.test(val) ? `val-${val}` : val);
+                                return `[data-${columnId}="${attributeValue}"]`;
                             });
                             filterArray.push(valueSelectors.join(', '));
                         }
