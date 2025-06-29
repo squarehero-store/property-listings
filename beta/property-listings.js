@@ -23,15 +23,20 @@
     // Check if pricing should be shown or hidden
     const showPricing = metaTag.getAttribute('pricing') !== 'false';
     
-    // Development logging
-    console.log('📌 SquareHero.store Real Estate Listings configuration:');
-    console.log('- Sheet URL:', sheetUrl);
-    console.log('- Target:', target);
-    console.log('- Category Label:', categoryLabel);
-    console.log('- Tag Label:', tagLabel);
-    console.log('- Button Text:', buttonText);
-    console.log('- Loading Label:', loadingLabel);
-    console.log('- Show Pricing:', showPricing);
+    // Read custom icon configurations from meta tag attributes
+    const customIcons = {};
+    Array.from(metaTag.attributes).forEach(attr => {
+        if (attr.name.startsWith('custom-icon-')) {
+            const fieldName = attr.name.replace('custom-icon-', '');
+            customIcons[fieldName] = attr.value;
+        }
+    });
+    
+    // Store custom icons globally for use in other functions
+    window.customIcons = customIcons;
+    
+
+    console.log('- Custom Icons:', customIcons);
 
     // Currency symbol helper
     const getCurrencySymbol = (currencyCode) => {
@@ -813,16 +818,55 @@
                     ${property.bedrooms > 0 ? `<span class="details-icon sh-beds-icon">${bedsSvg} <span class="sh-beds-value">${property.bedrooms}</span></span>` : ''}
                     ${property.bathrooms > 0 ? `<span class="details-icon sh-baths-icon">${bathsSvg} <span class="sh-baths-value">${formatBathrooms(property.bathrooms)}</span></span>` : ''}
                     ${property.garage ? `<span class="details-icon sh-garage-icon">${garageSvg} <span class="sh-garage-value">${property.garage}</span></span>` : ''}
+                    ${(() => {
+                        // Add custom fields with icons to the main property details
+                        if (!property.customFields || !window.customIcons) {
+                            return '';
+                        }
+                        
+                        return Object.entries(property.customFields).map(([key, value]) => {
+                            const iconUrl = window.customIcons[key.toLowerCase()];
+                            if (!iconUrl) {
+                                return ''; // Only show custom fields that have icons here
+                            }
+                            
+                            const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                            const formattedValue = columnType === 'boolean' 
+                                ? (value ? 'Yes' : 'No')
+                                : (columnType === 'numeric' ? value.toLocaleString() : value);
+                            
+                            // Handle different icon file types and add error handling
+                            const isImageIcon = iconUrl.toLowerCase().endsWith('.png') || 
+                                              iconUrl.toLowerCase().endsWith('.jpg') || 
+                                              iconUrl.toLowerCase().endsWith('.jpeg');
+                            
+                            const iconElement = isImageIcon 
+                                ? `<img src="${iconUrl}" alt="${key} icon" style="width: 20px; height: 20px; object-fit: contain;" onerror="this.style.display='none'">` 
+                                : `<img src="${iconUrl}" alt="${key} icon" style="width: 20px; height: 20px;" onerror="this.style.display='none'">`;
+                            
+                            return `<span class="details-icon sh-custom-icon sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}-icon">${iconElement} <span class="sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}-value">${formattedValue}</span></span>`;
+                        }).join('');
+                    })()}
                 </div>
                 ${(() => {
-                    // Generate HTML for custom fields
+                    // Generate HTML for custom fields WITHOUT icons (fields with icons are shown above)
                     if (!property.customFields || Object.keys(property.customFields).length === 0) {
+                        return '';
+                    }
+                    
+                    // Filter out custom fields that have icons - they're already shown in the property-details section
+                    const fieldsWithoutIcons = Object.entries(property.customFields).filter(([key, value]) => {
+                        const iconUrl = window.customIcons && window.customIcons[key.toLowerCase()];
+                        return !iconUrl; // Only include fields that don't have custom icons
+                    });
+                    
+                    if (fieldsWithoutIcons.length === 0) {
                         return '';
                     }
                     
                     return `
                     <div class="custom-property-details sh-custom-property-details">
-                        ${Object.entries(property.customFields).map(([key, value]) => {
+                        ${fieldsWithoutIcons.map(([key, value]) => {
                             const columnType = window.customColumnTypes && window.customColumnTypes[key];
                             const formattedValue = columnType === 'boolean' 
                                 ? (value ? 'Yes' : 'No')

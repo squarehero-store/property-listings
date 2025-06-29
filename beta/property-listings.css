@@ -38,6 +38,11 @@
   width: 20px;
   height: 20px;
 }
+.propertyStyles .property-details .details-icon img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
 .propertyStyles .sh-button {
   display: inline-block;
   border: solid 2px #12203A;
@@ -141,6 +146,12 @@
 .related-properties-section .property-card .listing-content .property-details .details-icon svg {
   width: 20px;
   height: 20px;
+}
+#propertyListingsContainer .property-card .listing-content .property-details .details-icon img,
+.related-properties-section .property-card .listing-content .property-details .details-icon img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
 }
 #propertyListingsContainer .property-card .listing-content .sh-button,
 .related-properties-section .property-card .listing-content .sh-button {
@@ -388,6 +399,11 @@
 .property-listings.view-item .blog-item-title .current-property-details .listing-content .property-details .details-icon svg {
   width: 20px;
   height: 20px;
+}
+.property-listings.view-item .blog-item-title .current-property-details .listing-content .property-details .details-icon img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
 }
 .property-listings.view-item .blog-item-title .current-property-details .listing-content .sh-button {
   display: inline-block;
