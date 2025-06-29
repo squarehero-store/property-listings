@@ -17,18 +17,26 @@
     // Custom button text (new)
     const buttonText = metaTag.getAttribute('button-text') || 'View Home';
     
-    // Custom loading label (new)
+    // Custom loading label text (new)
     const loadingLabel = metaTag.getAttribute('loading-label') || 'Loading all properties...';
-    
-    // Custom item type for dynamic messaging
-    const itemType = metaTag.getAttribute('item-type') || 'properties';
-    
-    // Generate dynamic loading message
-    const dynamicLoadingLabel = metaTag.getAttribute('loading-label') || `Loading all ${itemType}...`;
     
     // Check if pricing should be shown or hidden
     const showPricing = metaTag.getAttribute('pricing') !== 'false';
     
+    // Read custom icon configurations from meta tag attributes
+    const customIcons = {};
+    Array.from(metaTag.attributes).forEach(attr => {
+        if (attr.name.startsWith('custom-icon-')) {
+            const fieldName = attr.name.replace('custom-icon-', '');
+            customIcons[fieldName] = attr.value;
+        }
+    });
+    
+    // Store custom icons globally for use in other functions
+    window.customIcons = customIcons;
+    
+
+    console.log('- Custom Icons:', customIcons);
 
     // Currency symbol helper
     const getCurrencySymbol = (currencyCode) => {
@@ -83,6 +91,7 @@
     
     // Function to fetch all properties across all pages with lazy loading
     async function fetchAllProperties(baseUrl) {
+        console.log('📋 Fetching all properties with pagination and lazy loading...');
         let allItems = [];
         let currentUrl = `${baseUrl}?format=json&nocache=${new Date().getTime()}`;
         let pageCount = 1;
@@ -96,15 +105,18 @@
             
             while (url) {
                 try {
+                    console.log(`📄 Fetching page ${page} in the background...`);
                     const response = await fetch(url);
                     const data = await response.json();
                     
                     if (!data.items || data.items.length === 0) {
+                        console.log('No items found on this page');
                         break;
                     }
                     
                     // Add the items to the global allItems array 
                     allItems.push(...data.items);
+                    console.log(`✅ Found ${data.items.length} items on page ${page}, total now: ${allItems.length}`);
                     
                     // Trigger rendering the new items
                     if (window.renderAdditionalProperties) {
@@ -123,9 +135,11 @@
                             url = nextPageUrl.toString();
                             page++;
                         } else {
+                            console.log('Missing offset value in pagination data');
                             url = null;
                         }
                     } else {
+                        console.log('No more pages available');
                         url = null;
                     }
                 } catch (error) {
@@ -133,19 +147,24 @@
                     break;
                 }
             }
+            
+            console.log(`🏁 Total properties fetched: ${allItems.length}`);
         };
         
         // First, fetch only the first page
         try {
+            console.log('📄 Fetching first page...');
             const response = await fetch(currentUrl);
             const data = await response.json();
             
             if (!data.items || data.items.length === 0) {
+                console.log('No items found on the first page');
                 return [];
             }
             
             // Store the first page items
             allItems = [...data.items];
+            console.log(`✅ Found ${data.items.length} items on page 1`);
             firstPageLoaded = true;
             firstPageData = data;
             
@@ -164,6 +183,8 @@
                         fetchRemainingPages(nextPageUrl.toString(), offset);
                     }, 100);
                 }
+            } else {
+                console.log('Only one page of results available');
             }
         } catch (error) {
             console.error('❌ Error fetching first page of properties:', error);
@@ -264,7 +285,7 @@
                 loadingIndicator.className = 'sh-loading-indicator';
                 loadingIndicator.innerHTML = `
                     <div class="sh-spinner"></div>
-                    <p>${dynamicLoadingLabel}</p>
+                    <p>${loadingLabel}</p>
                 `;
                 container.appendChild(loadingIndicator);
                 
@@ -336,6 +357,7 @@
 
                 createFilterElements(propertyData);
                 renderPropertyListings(propertyData);
+                console.log('🚀 SquareHero.store Real Estate Listings plugin loaded');
             } catch (error) {
                 console.error('❌ Error fetching data:', error);
                 
@@ -345,7 +367,7 @@
                     const loadingIndicator = container.querySelector('.sh-loading-indicator');
                     if (loadingIndicator) {
                         loadingIndicator.innerHTML = `
-                            <p style="color: red">❌ Error loading ${itemType}. Please refresh and try again.</p>
+                            <p style="color: red">❌ Error loading properties. Please refresh and try again.</p>
                         `;
                     }
                 }
@@ -360,10 +382,25 @@
             return [regexPattern, row];
         }));
     
+        // Debug excerpt availability
+        const hasExcerpts = blogData.items.some(item => item.excerpt && item.excerpt.trim() !== '');
+        console.log('📝 Properties with excerpts available:', hasExcerpts);
+        
+        if (hasExcerpts) {
+            console.log('Sample excerpt from first item with excerpt:', 
+                blogData.items.find(item => item.excerpt && item.excerpt.trim() !== '')?.excerpt || 'None found');
+        }
+
+        // Add debugging for sheet columns
+        console.log('📊 Available sheet columns:', Object.keys(sheetData[0] || {}).join(', '));
+        console.log('📋 First row sample:', sheetData[0]);
+        
         // Identify custom columns (all columns except standard ones)
         const standardColumns = ['Title', 'Url', 'Price', 'Area', 'Bedrooms', 'Bathrooms', 'Garage', 'Featured'];
         const customColumns = Object.keys(sheetData[0] || {}).filter(column => 
             !standardColumns.includes(column));
+        
+        console.log('✨ Custom columns detected:', customColumns.join(', '));
         
         // Set global custom columns for use in other functions
         window.customColumns = customColumns;
@@ -377,10 +414,13 @@
             const values = sheetData.map(row => row[column]).filter(Boolean);
             
             if (values.length === 0) {
+                console.log(`⚠️ No values found for column "${column}"`);
                 window.customColumnTypes[column] = 'text';
             } else if (values.every(value => value === 'Yes' || value === 'No')) {
+                console.log(`✓ Column "${column}" appears to be boolean (Yes/No)`);
                 window.customColumnTypes[column] = 'boolean';
             } else if (values.every(value => !isNaN(parseFloat(value)))) {
+                console.log(`🔢 Column "${column}" appears to be numeric`);
                 window.customColumnTypes[column] = 'numeric';
                 
                 // Determine whether to use button group or slider based on the range of values
@@ -394,9 +434,13 @@
                 // use a button group instead of a slider
                 if (uniqueIntegerValues.length <= 8 && 
                    (uniqueIntegerValues[uniqueIntegerValues.length - 1] - uniqueIntegerValues[0]) <= 10) {
+                    console.log(`👥 Column "${column}" will use button group (${uniqueIntegerValues.length} unique values) instead of slider`);
                     window.customColumnSpecialHandling[column] = 'buttonGroup';
+                } else {
+                    console.log(`📊 Column "${column}" will use slider (${uniqueIntegerValues.length} unique values with range: ${uniqueIntegerValues[0]}-${uniqueIntegerValues[uniqueIntegerValues.length - 1]})`);
                 }
             } else {
+                console.log(`📝 Column "${column}" appears to be text`);
                 window.customColumnTypes[column] = 'text';
             }
         });
@@ -554,9 +598,7 @@
                         const dropdown = customDropdown.querySelector(`#${columnId}-filter`);
                         values.forEach(value => {
                             const option = document.createElement('option');
-                            // Check if value starts with a number and prefix if needed
-                            const textValue = String(value);
-                            option.value = /^\d/.test(textValue) ? `val-${textValue}` : textValue;
+                            option.value = value;
                             option.textContent = value;
                             option.className = `sh-${columnId}-option`;
                             dropdown.appendChild(option);
@@ -644,36 +686,11 @@
             const button = document.createElement('button');
             button.className = `filter-button ${customClass}-button`;
             let filterValue = option.toLowerCase() === 'any' ? 'all' : option;
-            
             if (id === 'bedrooms-filter' && filterValue !== 'all') {
                 filterValue = `bed-${filterValue}`;
             } else if (id === 'bathrooms-filter' && filterValue !== 'all') {
                 filterValue = `bath-${filterValue}`;
-            } else if (filterValue !== 'all') {
-                // For custom fields, check if we need to add prefix for numeric values
-                const columnName = id.replace('-filter', '');
-                const isCustomField = window.customColumns && window.customColumns.some(col => 
-                    col.toLowerCase().replace(/\s+/g, '-') === columnName);
-                
-                if (isCustomField) {
-                    const originalColumn = window.customColumns.find(col => 
-                        col.toLowerCase().replace(/\s+/g, '-') === columnName);
-                    const columnType = window.customColumnTypes && window.customColumnTypes[originalColumn];
-                    const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[originalColumn];
-                    
-                    if (columnType === 'numeric' && specialHandling === 'buttonGroup') {
-                        // Add prefix for numeric button group values
-                        filterValue = `val-${filterValue}`;
-                    } else if (columnType === 'text' && /^\d/.test(filterValue)) {
-                        // Add prefix for text values that start with numbers
-                        filterValue = `val-${filterValue}`;
-                    } else if (!columnType && /^\d/.test(filterValue)) {
-                        // Add prefix for any values that start with numbers
-                        filterValue = `val-${filterValue}`;
-                    }
-                }
             }
-            
             button.setAttribute('data-filter', filterValue);
             button.textContent = option;
             buttonGroup.appendChild(button);
@@ -761,29 +778,15 @@
                 } else if (columnType === 'numeric') {
                     if (specialHandling === 'buttonGroup') {
                         // For special numeric fields with button group (like Sleeps)
-                        // Use the integer value with a prefix to ensure valid CSS selectors
-                        const numericValue = Math.floor(Number(value));
-                        card.setAttribute(attributeName, `val-${numericValue}`);
+                        // Use the integer value for exact matching
+                        card.setAttribute(attributeName, Math.floor(Number(value)));
                     } else {
                         // For standard numeric fields, set the raw number for range filtering
                         card.setAttribute(attributeName, value);
                     }
-                } else if (columnType === 'text') {
-                    // For text fields, check if value starts with a number and prefix if needed
-                    const textValue = String(value);
-                    if (/^\d/.test(textValue)) {
-                        card.setAttribute(attributeName, `val-${textValue}`);
-                    } else {
-                        card.setAttribute(attributeName, textValue);
-                    }
                 } else {
-                    // Default case - check if value starts with a number
-                    const defaultValue = String(value);
-                    if (/^\d/.test(defaultValue)) {
-                        card.setAttribute(attributeName, `val-${defaultValue}`);
-                    } else {
-                        card.setAttribute(attributeName, defaultValue);
-                    }
+                    // For text fields, set the text value
+                    card.setAttribute(attributeName, value);
                 }
             });
         }
@@ -806,7 +809,7 @@
                 <img src="${property.imageUrl}" alt="${property.title}" class="sh-property-img">
                 ${property.category ? `<span class="property-category sh-property-category">${property.category}</span>` : ''}
             </div>
-            <div class="listing-content sh-property-content">
+            <div class="listing-content sh-property-title">
                 <h3 class="property-title sh-property-title">${property.title}</h3>
                 ${property.location ? `<p class="property-location sh-property-location">${property.location}</p>` : ''}
                 ${showPricing ? `<p class="property-price sh-property-price ${property.price === 0 ? 'no-price' : ''}">${property.price === 0 ? 'Price TBA' : `${currencySymbol}${property.price.toLocaleString()}`}</p>` : ''}
@@ -815,16 +818,55 @@
                     ${property.bedrooms > 0 ? `<span class="details-icon sh-beds-icon">${bedsSvg} <span class="sh-beds-value">${property.bedrooms}</span></span>` : ''}
                     ${property.bathrooms > 0 ? `<span class="details-icon sh-baths-icon">${bathsSvg} <span class="sh-baths-value">${formatBathrooms(property.bathrooms)}</span></span>` : ''}
                     ${property.garage ? `<span class="details-icon sh-garage-icon">${garageSvg} <span class="sh-garage-value">${property.garage}</span></span>` : ''}
+                    ${(() => {
+                        // Add custom fields with icons to the main property details
+                        if (!property.customFields || !window.customIcons) {
+                            return '';
+                        }
+                        
+                        return Object.entries(property.customFields).map(([key, value]) => {
+                            const iconUrl = window.customIcons[key.toLowerCase()];
+                            if (!iconUrl) {
+                                return ''; // Only show custom fields that have icons here
+                            }
+                            
+                            const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                            const formattedValue = columnType === 'boolean' 
+                                ? (value ? 'Yes' : 'No')
+                                : (columnType === 'numeric' ? value.toLocaleString() : value);
+                            
+                            // Handle different icon file types and add error handling
+                            const isImageIcon = iconUrl.toLowerCase().endsWith('.png') || 
+                                              iconUrl.toLowerCase().endsWith('.jpg') || 
+                                              iconUrl.toLowerCase().endsWith('.jpeg');
+                            
+                            const iconElement = isImageIcon 
+                                ? `<img src="${iconUrl}" alt="${key} icon" style="width: 20px; height: 20px; object-fit: contain;" onerror="this.style.display='none'">` 
+                                : `<img src="${iconUrl}" alt="${key} icon" style="width: 20px; height: 20px;" onerror="this.style.display='none'">`;
+                            
+                            return `<span class="details-icon sh-custom-icon sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}-icon">${iconElement} <span class="sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}-value">${formattedValue}</span></span>`;
+                        }).join('');
+                    })()}
                 </div>
                 ${(() => {
-                    // Generate HTML for custom fields
+                    // Generate HTML for custom fields WITHOUT icons (fields with icons are shown above)
                     if (!property.customFields || Object.keys(property.customFields).length === 0) {
+                        return '';
+                    }
+                    
+                    // Filter out custom fields that have icons - they're already shown in the property-details section
+                    const fieldsWithoutIcons = Object.entries(property.customFields).filter(([key, value]) => {
+                        const iconUrl = window.customIcons && window.customIcons[key.toLowerCase()];
+                        return !iconUrl; // Only include fields that don't have custom icons
+                    });
+                    
+                    if (fieldsWithoutIcons.length === 0) {
                         return '';
                     }
                     
                     return `
                     <div class="custom-property-details sh-custom-property-details">
-                        ${Object.entries(property.customFields).map(([key, value]) => {
+                        ${fieldsWithoutIcons.map(([key, value]) => {
                             const columnType = window.customColumnTypes && window.customColumnTypes[key];
                             const formattedValue = columnType === 'boolean' 
                                 ? (value ? 'Yes' : 'No')
@@ -910,52 +952,6 @@
             });
         }
         
-        // Initialize custom field filters
-        if (window.customColumns && window.customColumns.length > 0) {
-            window.customColumns.forEach(column => {
-                const columnId = column.toLowerCase().replace(/\s+/g, '-');
-                const columnType = window.customColumnTypes[column];
-                const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[column];
-                
-                if (columnType === 'numeric') {
-                    // Get values for this custom numeric field
-                    const customValues = properties
-                        .map(p => p.customFields[column])
-                        .filter(v => v !== undefined && !isNaN(v) && v > 0);
-                    
-                    if (customValues.length > 0) {
-                        if (specialHandling === 'buttonGroup') {
-                            // Button group filters are already handled by the general button group logic
-                            hideUnusedCustomOptions(`${columnId}-filter`, properties, column);
-                        } else {
-                            // Initialize numeric slider
-                            const customSlider = document.getElementById(`${columnId}-slider`);
-                            if (customSlider) {
-                                const minValue = Math.min(...customValues);
-                                const maxValue = Math.max(...customValues);
-                                initializeSlider(`${columnId}-slider`, minValue, maxValue, '', () => {
-                                    if (window.mixer) window.mixer.filter(window.mixer.getState().activeFilter);
-                                });
-                            }
-                        }
-                    }
-                } else if (columnType === 'text') {
-                    // Initialize custom text dropdown if it wasn't already populated
-                    const customDropdown = document.getElementById(`${columnId}-filter`);
-                    if (customDropdown && customDropdown.children.length === 1) {
-                        // Only has the default "Any" option, so populate it
-                        const customTextValues = new Set(properties
-                            .map(p => p.customFields[column])
-                            .filter(v => v !== undefined && v !== null && v !== ''));
-                        
-                        if (customTextValues.size > 0) {
-                            populateCustomDropdown(`${columnId}-filter`, customTextValues, `sh-${columnId}-option`);
-                        }
-                    }
-                }
-            });
-        }
-        
         // Only initialize button group filters if they exist
         const bedroomsFilter = document.getElementById('bedrooms-filter');
         if (bedroomsFilter) {
@@ -1021,45 +1017,21 @@
         updateRangeDisplay([min, max]);
     }
     
-    function populateCustomDropdown(id, options, customClass) {
-        const dropdown = document.getElementById(id);
-        if (!dropdown) return;
-        
-        options.forEach(option => {
-            const optionElement = document.createElement('option');
-            // Check if value starts with a number and prefix if needed
-            const textValue = String(option);
-            optionElement.value = /^\d/.test(textValue) ? `val-${textValue}` : textValue;
-            optionElement.textContent = option;
-            optionElement.className = customClass;
-            dropdown.appendChild(optionElement);
-        });
-    }
-
-    function hideUnusedCustomOptions(filterId, properties, columnName) {
+    function hideUnusedOptions(filterId, properties, propertyKey) {
         const filterButtons = document.querySelectorAll(`#${filterId} .filter-button`);
         if (!filterButtons.length) return;
         
-        const availableValues = new Set(properties
-            .map(p => p.customFields[columnName])
-            .filter(v => v !== undefined && !isNaN(v)));
+        const availableValues = new Set(properties.map(p => p[propertyKey]).filter(Boolean));
 
         filterButtons.forEach(button => {
             const filterValue = button.getAttribute('data-filter');
             if (filterValue === 'all') return;
 
-            // Extract numeric value from the filter value
-            let numericValue;
-            if (filterValue.startsWith('val-')) {
-                numericValue = parseFloat(filterValue.replace('val-', ''));
-            } else {
-                numericValue = parseFloat(filterValue);
-            }
-            
+            const numericValue = parseFloat(filterValue.split('-')[1]);
             button.style.display = availableValues.has(numericValue) ? '' : 'none';
         });
     }
-
+    
     function initializeMixItUp() {
         // Add custom CSS for excerpt
         const excerptStyle = document.createElement('style');
@@ -1088,9 +1060,9 @@
         noResultsMessage.className = 'no-results-message sh-no-results';
         noResultsMessage.style.display = 'none';
         noResultsMessage.innerHTML = `
-            <h3 class="sh-no-results-title">No ${itemType} found</h3>
-            <p class="sh-no-results-text">We couldn't find any ${itemType} matching your current filter criteria. 
-            Please try adjusting your filters or <a href="#" id="reset-filters-link" class="sh-reset-link">reset all filters</a> to see all available ${itemType}.</p>
+            <h3 class="sh-no-results-title">No properties found</h3>
+            <p class="sh-no-results-text">We couldn't find any properties matching your current filter criteria. 
+            Please try adjusting your filters or <a href="#" id="reset-filters-link" class="sh-reset-link">reset all filters</a> to see all available properties.</p>
         `;
         container.parentNode.insertBefore(noResultsMessage, container.nextSibling);
 
@@ -1234,16 +1206,10 @@
                 });
             }
             
-            // Add reset filters link event listener
-            const resetLink = document.getElementById('reset-filters-link');
-            if (resetLink) {
-                resetLink.addEventListener('click', resetFilters);
-            }
-    
             // Add event listeners to dropdown and button filters
             const locationFilter = document.getElementById('location-filter');
             const statusFilter = document.getElementById('status-filter');
-
+    
             if (locationFilter) {
                 locationFilter.addEventListener('change', updateFilters);
             }
@@ -1251,8 +1217,8 @@
             if (statusFilter) {
                 statusFilter.addEventListener('change', updateFilters);
             }
-
-            // Add event listeners to custom dropdown filters
+            
+            // Add event listeners for custom column dropdown filters
             if (window.customColumns && window.customColumns.length > 0) {
                 window.customColumns.forEach(column => {
                     const columnId = column.toLowerCase().replace(/\s+/g, '-');
@@ -1262,6 +1228,26 @@
                         const customDropdown = document.getElementById(`${columnId}-filter`);
                         if (customDropdown) {
                             customDropdown.addEventListener('change', updateFilters);
+                        }
+                    }
+                });
+            }
+            
+            // Add event listeners for custom numeric sliders
+            if (window.customColumns && window.customColumns.length > 0) {
+                window.customColumns.forEach(column => {
+                    const columnId = column.toLowerCase().replace(/\s+/g, '-');
+                    const columnType = window.customColumnTypes[column];
+                    const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[column];
+                    
+                    if (columnType === 'numeric' && specialHandling !== 'buttonGroup') {
+                        const customSlider = document.getElementById(`${columnId}-slider`);
+                        if (customSlider && customSlider.noUiSlider) {
+                            customSlider.noUiSlider.on('update', () => {
+                                if (window.mixer) {
+                                    window.mixer.filter(window.mixer.getState().activeFilter);
+                                }
+                            });
                         }
                     }
                 });
@@ -1401,10 +1387,14 @@
                         if (customValues.length > 0 && !customValues.includes('all')) {
                             // Create a selector that matches exact values
                             const valueSelectors = customValues.map(val => {
-                                // Handle prefixed values properly
-                                const attributeValue = val.startsWith('val-') ? val : 
-                                    (/^\d/.test(val) ? `val-${val}` : val);
-                                return `[data-${columnId}="${attributeValue}"]`;
+                                // Ensure the value is properly escaped for CSS selector
+                                const numVal = parseInt(val);
+                                if (!isNaN(numVal)) {
+                                    return `[data-${columnId}="${numVal}"]`;
+                                } else {
+                                    // Fallback for non-numeric values
+                                    return `[data-${columnId}="${CSS.escape(val)}"]`;
+                                }
                             });
                             filterArray.push(valueSelectors.join(', '));
                         }

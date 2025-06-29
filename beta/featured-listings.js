@@ -36,6 +36,23 @@
     const getAreaUnit = (isMetric) => {
         return isMetric ? 'm²' : 'sq ft';
     };
+
+    // Read custom icon configurations from meta tag attributes
+    function getCustomIcons() {
+        const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
+        if (!metaTag) return {};
+        
+        const customIcons = {};
+        Array.from(metaTag.attributes).forEach(attr => {
+            if (attr.name.startsWith('custom-icon-')) {
+                const fieldName = attr.name.replace('custom-icon-', '');
+                customIcons[fieldName] = attr.value;
+            }
+        });
+        
+        return customIcons;
+    }
+
     // Load required libraries
     const libraries = [
         'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js'
@@ -123,6 +140,33 @@
             const regexPattern = new RegExp('^' + url.replace(/\*/g, '.*') + '$');
             return [regexPattern, row];
         }));
+
+        // Identify custom columns (all columns except standard ones)
+        const standardColumns = ['Title', 'Url', 'Price', 'Area', 'Bedrooms', 'Bathrooms', 'Garage', 'Featured'];
+        const customColumns = Object.keys(sheetData[0] || {}).filter(column => 
+            !standardColumns.includes(column));
+        
+        // Set global custom columns for use in other functions
+        window.customColumns = customColumns;
+        
+        // Determine data types for custom columns
+        window.customColumnTypes = {};
+        window.customColumnSpecialHandling = {};
+        
+        customColumns.forEach(column => {
+            // Check values to determine type
+            const values = sheetData.map(row => row[column]).filter(Boolean);
+            
+            if (values.length === 0) {
+                window.customColumnTypes[column] = 'text';
+            } else if (values.every(value => value === 'Yes' || value === 'No')) {
+                window.customColumnTypes[column] = 'boolean';
+            } else if (values.every(value => !isNaN(parseFloat(value)))) {
+                window.customColumnTypes[column] = 'numeric';
+            } else {
+                window.customColumnTypes[column] = 'text';
+            }
+        });
     
         // Debug excerpt availability
         const hasExcerpts = blogData.items.some(item => item.excerpt && item.excerpt.trim() !== '');
@@ -149,6 +193,24 @@
                 cleanExcerpt = item.excerpt.replace(/<\/?[^>]+(>|$)/g, '').trim();
             }
             
+            // Process custom fields if we have a matching sheet row
+            const customFields = {};
+            if (sheetRow && customColumns.length > 0) {
+                customColumns.forEach(column => {
+                    const value = sheetRow[1][column];
+                    if (value && value.trim() !== '') {
+                        const columnType = window.customColumnTypes[column];
+                        if (columnType === 'boolean') {
+                            customFields[column] = value === 'Yes';
+                        } else if (columnType === 'numeric') {
+                            customFields[column] = parseFloat(value);
+                        } else {
+                            customFields[column] = value;
+                        }
+                    }
+                });
+            }
+            
             return {
                 id: item.id,
                 title: item.title,
@@ -161,6 +223,7 @@
                 bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms, 10) : 0,
                 bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms) : 0,
                 garage: sheetRow && sheetRow[1].Garage ? sheetRow[1].Garage : '',
+                customFields: customFields, // Add custom fields
                 featured: sheetRow && sheetRow[1].Featured ? sheetRow[1].Featured : '', // Get Featured value
                 url: item.fullUrl
             };
@@ -172,6 +235,9 @@
         const isMetric = storeSettings.measurementStandard === 2;
         const currencySymbol = getCurrencySymbol(storeSettings.selectedCurrency);
         const areaUnit = getAreaUnit(isMetric);
+
+        // Get custom icons configuration
+        const customIcons = getCustomIcons();
 
         const card = document.createElement('a');
         card.className = 'property-card sh-property-card sh-featured-card';
@@ -191,6 +257,9 @@
 
         const garageSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="18" fill="none" viewBox="0 0 20 18"><g fill="hsl(var(--black-hsl))" clip-path="url(#garageClip)"><path d="M15.908 17.09c.413-.046.717-.41.717-.826v-.788a.81.81 0 0 0 .81-.81v-3.238a.81.81 0 0 0-.81-.81h-.113l-1.122-3.77a.404.404 0 0 0-.384-.277H5.292a.404.404 0 0 0-.384.277l-1.122 3.77h-.113a.81.81 0 0 0-.81.81v3.238a.81.81 0 0 0 .81.81v.788c0 .415.304.78.717.826a.812.812 0 0 0 .9-.805v-.81h9.716v.81a.81.81 0 0 0 .902.805ZM5.896 7.785h8.506l.843 2.834H5.052l.844-2.834Zm-.917 5.764a.911.911 0 1 1-.185-1.814.911.911 0 0 1 .185 1.814Zm9.526-.814a.91.91 0 1 1 1.812-.187.91.91 0 0 1-1.812.187ZM18.24 5.92l-8.091-4.245-8.09 4.245a.85.85 0 0 1-1.15-.358l-.254-.487 9.494-4.98 9.494 4.98-.256.487a.851.851 0 0 1-1.148.358Z"/></g><defs><clipPath id="garageClip"><path fill="#fff" d="M.649.094h19v17h-19z"/></clipPath></defs></svg>`;
 
+        // Check for custom fields before generating the HTML
+        const hasCustomFields = property.customFields && Object.keys(property.customFields).length > 0;
+
         // New: Check if excerpt exists
         const excerptHtml = property.excerpt ? 
             `<p class="property-excerpt sh-property-excerpt">${property.excerpt}</p>` : '';
@@ -209,7 +278,64 @@
                     ${property.bedrooms > 0 ? `<span class="details-icon sh-beds-icon">${bedsSvg} <span class="sh-beds-value">${property.bedrooms}</span></span>` : ''}
                     ${property.bathrooms > 0 ? `<span class="details-icon sh-baths-icon">${bathsSvg} <span class="sh-baths-value">${formatBathrooms(property.bathrooms)}</span></span>` : ''}
                     ${property.garage ? `<span class="details-icon sh-garage-icon">${garageSvg} <span class="sh-garage-value">${property.garage}</span></span>` : ''}
-                </div>
+                    ${(() => {
+                        // Add custom fields with icons to the main property details
+                        if (!hasCustomFields || !customIcons) {
+                            return '';
+                        }
+                        
+                        return Object.entries(property.customFields).map(([key, value]) => {
+                            const iconUrl = customIcons[key.toLowerCase()];
+                            if (!iconUrl) {
+                                return ''; // Only show custom fields that have icons here
+                            }
+                            
+                            const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                            const formattedValue = columnType === 'boolean' 
+                                ? (value ? 'Yes' : 'No')
+                                : (columnType === 'numeric' ? value.toLocaleString() : value);
+                            
+                            // Handle different icon file types and add error handling
+                            const isImageIcon = iconUrl.toLowerCase().endsWith('.png') || 
+                                              iconUrl.toLowerCase().endsWith('.jpg') || 
+                                              iconUrl.toLowerCase().endsWith('.jpeg');
+                            
+                            const iconElement = isImageIcon 
+                                ? `<img src="${iconUrl}" alt="${key} icon" style="width: 20px; height: 20px; object-fit: contain;" onerror="this.style.display='none'">` 
+                                : `<img src="${iconUrl}" alt="${key} icon" style="width: 20px; height: 20px;" onerror="this.style.display='none'">`;
+                            
+                            return `<span class="details-icon sh-custom-icon sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}-icon">${iconElement} <span class="sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}-value">${formattedValue}</span></span>`;
+                        }).join('');
+                    })()}
+                </div>`;
+                
+        // Add custom fields WITHOUT icons (fields with icons are shown above)
+        if (hasCustomFields) {
+            // Filter out custom fields that have icons - they're already shown in the property-details section
+            const fieldsWithoutIcons = Object.entries(property.customFields).filter(([key, value]) => {
+                const iconUrl = customIcons[key.toLowerCase()];
+                return !iconUrl; // Only include fields that don't have custom icons
+            });
+            
+            if (fieldsWithoutIcons.length > 0) {
+                cardContent += `
+                <div class="custom-property-details sh-custom-property-details">
+                    ${fieldsWithoutIcons.map(([key, value]) => {
+                        const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                        const formattedValue = columnType === 'boolean' 
+                            ? (value ? 'Yes' : 'No')
+                            : (columnType === 'numeric' ? value.toLocaleString() : value);
+                        
+                        return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}">
+                            <span class="custom-detail-label sh-custom-detail-label">${key}:</span>
+                            <span class="custom-detail-value sh-custom-detail-value">${formattedValue}</span>
+                        </div>`;
+                    }).join('')}
+                </div>`;
+            }
+        }
+                
+        cardContent += `
                 ${excerptHtml}
                 <span class="sh-button sh-view-button">${buttonText}</span>
             </div>
