@@ -512,8 +512,8 @@
         filtersContainer.className = 'filters-container sh-filters-container';
 
         // Check which attributes are available in the data
-        const hasLocations = properties.some(p => p.allTags && p.allTags.length > 0);
-        const hasCategories = properties.some(p => p.allCategories && p.allCategories.length > 0);
+        const hasLocations = propertyData.some(p => p.allTags && p.allTags.length > 0);
+        const hasCategories = propertyData.some(p => p.allCategories && p.allCategories.length > 0);
         const hasBedrooms = propertyData.some(p => p.bedrooms > 0);
         const hasBathrooms = propertyData.some(p => p.bathrooms > 0);
         const hasAreas = propertyData.some(p => p.area > 0);
