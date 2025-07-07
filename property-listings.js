@@ -17,8 +17,11 @@
     // Custom button text (new)
     const buttonText = metaTag.getAttribute('button-text') || 'View Home';
     
+    // Custom item type for non-real estate uses
+    const itemType = metaTag.getAttribute('item-type') || 'properties';
+    
     // Custom loading label text (new)
-    const loadingLabel = metaTag.getAttribute('loading-label') || 'Loading all properties...';
+    const loadingLabel = metaTag.getAttribute('loading-label') || `Loading all ${itemType}...`;
     
     // Check if pricing should be shown or hidden
     const showPricing = metaTag.getAttribute('pricing') !== 'false';
@@ -262,8 +265,10 @@
                 id: item.id,
                 title: item.title,
                 location: item.tags && item.tags.length > 0 ? item.tags[0] : '',
+                allTags: item.tags || [], // Store all tags
                 imageUrl: item.assetUrl,
                 category: item.categories && item.categories.length > 0 ? item.categories[0] : '',
+                allCategories: item.categories || [], // Store all categories
                 excerpt: cleanExcerpt, // Added excerpt with HTML cleaning
                 price: sheetRow && sheetRow[1].Price ? parseFloat(sheetRow[1].Price.replace(/[$,]/g, '')) : 0,
                 area: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area, 10) : 0,
@@ -367,7 +372,7 @@
                     const loadingIndicator = container.querySelector('.sh-loading-indicator');
                     if (loadingIndicator) {
                         loadingIndicator.innerHTML = `
-                            <p style="color: red">❌ Error loading properties. Please refresh and try again.</p>
+                            <p style="color: red">❌ Error loading ${itemType}. Please refresh and try again.</p>
                         `;
                     }
                 }
@@ -478,8 +483,10 @@
                 id: item.id,
                 title: item.title,
                 location: item.tags && item.tags.length > 0 ? item.tags[0] : '',
+                allTags: item.tags || [], // Store all tags
                 imageUrl: item.assetUrl,
                 category: item.categories && item.categories.length > 0 ? item.categories[0] : '',
+                allCategories: item.categories || [], // Store all categories
                 excerpt: cleanExcerpt, // Added excerpt with HTML cleaning
                 price: sheetRow && sheetRow[1].Price ? parseFloat(sheetRow[1].Price.replace(/[$,]/g, '')) : 0,
                 area: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area, 10) : 0,
@@ -508,8 +515,8 @@
         filtersContainer.className = 'filters-container sh-filters-container';
 
         // Check which attributes are available in the data
-        const hasLocations = propertyData.some(p => p.location);
-        const hasCategories = propertyData.some(p => p.category);
+        const hasLocations = propertyData.some(p => p.allTags && p.allTags.length > 0);
+        const hasCategories = propertyData.some(p => p.allCategories && p.allCategories.length > 0);
         const hasBedrooms = propertyData.some(p => p.bedrooms > 0);
         const hasBathrooms = propertyData.some(p => p.bathrooms > 0);
         const hasAreas = propertyData.some(p => p.area > 0);
@@ -740,13 +747,18 @@
         card.className = 'property-card mix sh-property-card';
         card.href = property.url;
         
-        // Only set data attributes for properties that exist
-        if (property.location) {
-            card.setAttribute('data-location', property.location);
+        // Set data attributes for all tags (for location filtering)
+        if (property.allTags && property.allTags.length > 0) {
+            card.setAttribute('data-all-tags', property.allTags.join('|'));
+            // Keep first tag as location for backwards compatibility with existing filters
+            card.setAttribute('data-location', property.allTags[0]);
         }
         
-        if (property.category) {
-            card.setAttribute('data-category', property.category);
+        // Set data attributes for all categories (for category filtering)
+        if (property.allCategories && property.allCategories.length > 0) {
+            card.setAttribute('data-all-categories', property.allCategories.join('|'));
+            // Keep first category for backwards compatibility with existing filters
+            card.setAttribute('data-category', property.allCategories[0]);
         }
         
         if (property.bedrooms > 0) {
@@ -807,11 +819,15 @@
         let cardContent = `
             <div class="property-image sh-property-image">
                 <img src="${property.imageUrl}" alt="${property.title}" class="sh-property-img">
-                ${property.category ? `<span class="property-category sh-property-category">${property.category}</span>` : ''}
+                ${property.allCategories && property.allCategories.length > 0 ? 
+                    property.allCategories.map(category => `<span class="property-category sh-property-category">${category}</span>`).join('') : ''
+                }
             </div>
             <div class="listing-content sh-property-title">
                 <h3 class="property-title sh-property-title">${property.title}</h3>
-                ${property.location ? `<p class="property-location sh-property-location">${property.location}</p>` : ''}
+                ${property.allTags && property.allTags.length > 0 ? 
+                    `<p class="property-location sh-property-location">${property.allTags.join(', ')}</p>` : ''
+                }
                 ${showPricing ? `<p class="property-price sh-property-price ${property.price === 0 ? 'no-price' : ''}">${property.price === 0 ? 'Price TBA' : `${currencySymbol}${property.price.toLocaleString()}`}</p>` : ''}
                 <div class="property-details sh-property-details">
                     ${property.area > 0 ? `<span class="details-icon sh-area-icon">${areaSvg} <span class="sh-area-value">${property.area.toLocaleString()} ${areaUnit}</span></span>` : ''}
@@ -910,13 +926,24 @@
         });
 
         initializeFilters(properties);
-        initializeMixItUp();
+        initializeMixItUp(itemType);
     }
 
     function initializeFilters(properties) {
-        // Get unique values for dropdown filters
-        const locations = new Set(properties.map(p => p.location).filter(Boolean));
-        const categories = new Set(properties.map(p => p.category).filter(Boolean));
+        // Get unique values for dropdown filters - collect all tags and categories
+        const locations = new Set();
+        const categories = new Set();
+        
+        properties.forEach(property => {
+            // Add all tags to locations
+            if (property.allTags && property.allTags.length > 0) {
+                property.allTags.forEach(tag => locations.add(tag));
+            }
+            // Add all categories
+            if (property.allCategories && property.allCategories.length > 0) {
+                property.allCategories.forEach(category => categories.add(category));
+            }
+        });
         
         // Only fill dropdowns if they exist
         const locationFilter = document.getElementById('location-filter');
@@ -1032,7 +1059,7 @@
         });
     }
     
-    function initializeMixItUp() {
+    function initializeMixItUp(itemType = 'properties') {
         // Add custom CSS for excerpt
         const excerptStyle = document.createElement('style');
         excerptStyle.id = 'sh-excerpt-style';
@@ -1049,6 +1076,17 @@
                 -webkit-line-clamp: 3;
                 -webkit-box-orient: vertical;
             }
+            
+            /* Style for multiple categories */
+            .property-category {
+                display: inline-block;
+                margin-right: 5px;
+                margin-bottom: 3px;
+            }
+            
+            .property-category:last-child {
+                margin-right: 0;
+            }
         `;
         document.head.appendChild(excerptStyle);
 
@@ -1060,9 +1098,9 @@
         noResultsMessage.className = 'no-results-message sh-no-results';
         noResultsMessage.style.display = 'none';
         noResultsMessage.innerHTML = `
-            <h3 class="sh-no-results-title">No properties found</h3>
-            <p class="sh-no-results-text">We couldn't find any properties matching your current filter criteria. 
-            Please try adjusting your filters or <a href="#" id="reset-filters-link" class="sh-reset-link">reset all filters</a> to see all available properties.</p>
+            <h3 class="sh-no-results-title">No ${itemType} found</h3>
+            <p class="sh-no-results-text">We couldn't find any ${itemType} matching your current filter criteria. 
+            Please try adjusting your filters or <a href="#" id="reset-filters-link" class="sh-reset-link">reset all filters</a> to see all available ${itemType}.</p>
         `;
         container.parentNode.insertBefore(noResultsMessage, container.nextSibling);
 
@@ -1167,7 +1205,7 @@
     
                     // Only hide/show if the card is part of the current filter state
                     if (state.matching.includes(card)) {
-                        if (shouldShow) {
+                        if (shouldShow && !card.classList.contains('custom-filtered')) {
                             card.classList.remove('range-filtered');
                         } else {
                             card.classList.add('range-filtered');
@@ -1179,7 +1217,7 @@
                 if (!document.getElementById('range-filter-style')) {
                     const style = document.createElement('style');
                     style.id = 'range-filter-style';
-                    style.textContent = '.range-filtered { display: none !important; }';
+                    style.textContent = '.range-filtered { display: none !important; } .custom-filtered { display: none !important; }';
                     document.head.appendChild(style);
                 }
     
@@ -1324,23 +1362,45 @@
         const locationFilter = document.getElementById('location-filter');
         const statusFilter = document.getElementById('status-filter');
         
+        // Create a custom filter function for multiple tags/categories
+        const customFilterFunction = (card) => {
+            let matchesLocation = true;
+            let matchesCategory = true;
+            
+            // Check location filter (tags)
+            if (locationFilter && locationFilter.value !== 'all') {
+                const selectedLocation = locationFilter.value;
+                const allTags = card.getAttribute('data-all-tags');
+                
+                matchesLocation = allTags && allTags.split('|').includes(selectedLocation);
+            }
+            
+            // Check category filter
+            if (statusFilter && statusFilter.value !== 'all') {
+                const selectedCategory = statusFilter.value;
+                const allCategories = card.getAttribute('data-all-categories');
+                
+                matchesCategory = allCategories && allCategories.split('|').includes(selectedCategory);
+            }
+            
+            return matchesLocation && matchesCategory;
+        };
+        
+        // Apply custom filtering logic for location and category
+        const cards = document.querySelectorAll('.property-card');
+        cards.forEach(card => {
+            if (customFilterFunction(card)) {
+                card.style.display = '';
+                card.classList.remove('custom-filtered');
+            } else {
+                card.style.display = 'none';
+                card.classList.add('custom-filtered');
+            }
+        });
+        
         let filterArray = [];
 
-        // Only apply filters that exist
-        if (locationFilter) {
-            const location = locationFilter.value;
-            if (location !== 'all') {
-                filterArray.push(`[data-location="${location}"]`);
-            }
-        }
-        
-        if (statusFilter) {
-            const status = statusFilter.value;
-            if (status !== 'all') {
-                filterArray.push(`[data-category="${status}"]`);
-            }
-        }
-        
+        // Build filter array for other attributes (bedrooms, bathrooms, etc.)
         const bedroomsFilter = document.getElementById('bedrooms-filter');
         if (bedroomsFilter) {
             const bedrooms = getActiveFilters('bedrooms-filter');
@@ -1494,9 +1554,11 @@
             });
         }
         
-        // Remove range-filtered class from all cards
+        // Remove range-filtered and custom-filtered classes from all cards
         document.querySelectorAll('.property-card').forEach(card => {
             card.classList.remove('range-filtered');
+            card.classList.remove('custom-filtered');
+            card.style.display = ''; // Reset inline display style
         });
 
         // Reset the mixer
