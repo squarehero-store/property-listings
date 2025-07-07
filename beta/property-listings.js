@@ -17,8 +17,11 @@
     // Custom button text (new)
     const buttonText = metaTag.getAttribute('button-text') || 'View Home';
     
+    // Custom item type for non-real estate uses
+    const itemType = metaTag.getAttribute('item-type') || 'properties';
+    
     // Custom loading label text (new)
-    const loadingLabel = metaTag.getAttribute('loading-label') || 'Loading all properties...';
+    const loadingLabel = metaTag.getAttribute('loading-label') || `Loading all ${itemType}...`;
     
     // Check if pricing should be shown or hidden
     const showPricing = metaTag.getAttribute('pricing') !== 'false';
@@ -369,7 +372,7 @@
                     const loadingIndicator = container.querySelector('.sh-loading-indicator');
                     if (loadingIndicator) {
                         loadingIndicator.innerHTML = `
-                            <p style="color: red">❌ Error loading properties. Please refresh and try again.</p>
+                            <p style="color: red">❌ Error loading ${itemType}. Please refresh and try again.</p>
                         `;
                     }
                 }
@@ -923,7 +926,7 @@
         });
 
         initializeFilters(properties);
-        initializeMixItUp();
+        initializeMixItUp(itemType);
     }
 
     function initializeFilters(properties) {
@@ -1056,7 +1059,7 @@
         });
     }
     
-    function initializeMixItUp() {
+    function initializeMixItUp(itemType = 'properties') {
         // Add custom CSS for excerpt
         const excerptStyle = document.createElement('style');
         excerptStyle.id = 'sh-excerpt-style';
@@ -1095,9 +1098,9 @@
         noResultsMessage.className = 'no-results-message sh-no-results';
         noResultsMessage.style.display = 'none';
         noResultsMessage.innerHTML = `
-            <h3 class="sh-no-results-title">No properties found</h3>
-            <p class="sh-no-results-text">We couldn't find any properties matching your current filter criteria. 
-            Please try adjusting your filters or <a href="#" id="reset-filters-link" class="sh-reset-link">reset all filters</a> to see all available properties.</p>
+            <h3 class="sh-no-results-title">No ${itemType} found</h3>
+            <p class="sh-no-results-text">We couldn't find any ${itemType} matching your current filter criteria. 
+            Please try adjusting your filters or <a href="#" id="reset-filters-link" class="sh-reset-link">reset all filters</a> to see all available ${itemType}.</p>
         `;
         container.parentNode.insertBefore(noResultsMessage, container.nextSibling);
 
