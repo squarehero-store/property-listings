@@ -764,7 +764,7 @@
         labelContainer.appendChild(rangeDisplay);
 
         const slider = document.createElement('div');
-        slider.id = id;
+        slider.id = id; // Fix: use base id, not id + '-slider'
         slider.className = `range-slider ${customClass}-slider`;
 
         group.appendChild(labelContainer);
