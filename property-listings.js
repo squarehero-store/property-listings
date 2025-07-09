@@ -253,7 +253,7 @@
                         if (columnType === 'boolean') {
                             customFields[column] = value === 'Yes';
                         } else if (columnType === 'numeric' && value) {
-                            customFields[column] = parseFloat(value.replace(/[^\d.-]/g, ''));
+                            customFields[column] = parseFloat(value.replace(/[^ -9.-]/g, ''));
                         } else {
                             customFields[column] = value;
                         }
@@ -271,11 +271,29 @@
                 allCategories: item.categories || [], // Store all categories
                 excerpt: cleanExcerpt, // Added excerpt with HTML cleaning
                 price: sheetRow && sheetRow[1].Price ? parseFloat(sheetRow[1].Price.replace(/[$,]/g, '')) : 0,
-                area: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area, 10) : 0,
-                bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms, 10) : 0,
-                bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms) : 0,
+                area: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area.replace(/,/g, ''), 10) : 0,
+                bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms.replace(/,/g, ''), 10) : 0,
+                bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms.replace(/,/g, '')) : 0,
                 garage: sheetRow && sheetRow[1].Garage ? sheetRow[1].Garage : '',
-                customFields: customFields, // Add custom fields
+                customFields: (() => {
+                    const fields = {};
+                    if (sheetRow && customColumns.length > 0) {
+                        customColumns.forEach(column => {
+                            const value = sheetRow[1][column];
+                            if (value !== undefined) {
+                                const columnType = window.customColumnTypes && window.customColumnTypes[column];
+                                if (columnType === 'boolean') {
+                                    fields[column] = value === 'Yes';
+                                } else if (columnType === 'numeric' && value) {
+                                    fields[column] = parseFloat(value.replace(/[^ -9.-]/g, ''));
+                                } else {
+                                    fields[column] = value;
+                                }
+                            }
+                        });
+                    }
+                    return fields;
+                })(),
                 url: item.fullUrl
             };
         });
@@ -471,7 +489,7 @@
                         if (columnType === 'boolean') {
                             customFields[column] = value === 'Yes';
                         } else if (columnType === 'numeric' && value) {
-                            customFields[column] = parseFloat(value.replace(/[^\d.-]/g, ''));
+                            customFields[column] = parseFloat(value.replace(/[^ -9.-]/g, ''));
                         } else {
                             customFields[column] = value;
                         }
@@ -489,11 +507,29 @@
                 allCategories: item.categories || [], // Store all categories
                 excerpt: cleanExcerpt, // Added excerpt with HTML cleaning
                 price: sheetRow && sheetRow[1].Price ? parseFloat(sheetRow[1].Price.replace(/[$,]/g, '')) : 0,
-                area: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area, 10) : 0,
-                bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms, 10) : 0,
-                bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms) : 0,
+                area: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area.replace(/,/g, ''), 10) : 0,
+                bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms.replace(/,/g, ''), 10) : 0,
+                bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms.replace(/,/g, '')) : 0,
                 garage: sheetRow && sheetRow[1].Garage ? sheetRow[1].Garage : '',
-                customFields: customFields, // Add custom fields
+                customFields: (() => {
+                    const fields = {};
+                    if (sheetRow && customColumns.length > 0) {
+                        customColumns.forEach(column => {
+                            const value = sheetRow[1][column];
+                            if (value !== undefined) {
+                                const columnType = window.customColumnTypes && window.customColumnTypes[column];
+                                if (columnType === 'boolean') {
+                                    fields[column] = value === 'Yes';
+                                } else if (columnType === 'numeric' && value) {
+                                    fields[column] = parseFloat(value.replace(/[^ -9.-]/g, ''));
+                                } else {
+                                    fields[column] = value;
+                                }
+                            }
+                        });
+                    }
+                    return fields;
+                })(),
                 url: item.fullUrl
             };
         });
@@ -710,6 +746,7 @@
     }
 
     function createSliderFilter(id, label, customClass) {
+        console.log('[createSliderFilter] Creating slider filter:', { id, label, customClass });
         const group = document.createElement('div');
         group.className = `filter-group ${customClass}-group`;
 
@@ -734,7 +771,59 @@
         group.appendChild(labelContainer);
         group.appendChild(slider);
 
+        // Log the created DOM structure for debugging
+        setTimeout(() => {
+            const el = document.getElementById(id);
+            const rangeEl = document.getElementById(`${id}-range`);
+            console.log(`[createSliderFilter] DOM check for id="${id}":`, el, rangeEl);
+        }, 0);
+
         return group;
+    }
+    
+    function initializeSlider(id, min, max, unit, callback) {
+        console.log('[initializeSlider] Initializing slider:', { id, min, max, unit });
+        const slider = document.getElementById(id);
+        if (!slider) {
+            console.warn(`[initializeSlider] Slider element not found for id="${id}"`);
+            return;
+        }
+        const rangeDisplay = document.getElementById(`${id}-range`);
+        if (!rangeDisplay) {
+            console.warn(`[initializeSlider] Range display element not found for id="${id}-range"`);
+            return;
+        }
+        // Ensure min and max are not the same to avoid noUiSlider errors
+        if (min === max) {
+            max = min + 1;
+        }
+        noUiSlider.create(slider, {
+            start: [min, max],
+            connect: true,
+            range: { 'min': min, 'max': max },
+            format: {
+                to: value => Math.round(value),
+                from: value => Number(value)
+            }
+        });
+        function updateRangeDisplay(values) {
+            const formattedMin = unit === 'm²' || unit === 'sq ft' ?
+                `${parseInt(values[0]).toLocaleString()} ${unit}` :
+                `${unit}${parseInt(values[0]).toLocaleString()}`;
+            const formattedMax = unit === 'm²' || unit === 'sq ft' ?
+                `${parseInt(values[1]).toLocaleString()} ${unit}` :
+                `${unit}${parseInt(values[1]).toLocaleString()}`;
+            rangeDisplay.textContent = `${formattedMin} - ${formattedMax}`;
+        }
+        slider.noUiSlider.on('update', (values) => {
+            updateRangeDisplay(values);
+            if (callback) callback(values);
+        });
+        updateRangeDisplay([min, max]);
+        // Log after initialization
+        setTimeout(() => {
+            console.log(`[initializeSlider] Slider initialized for id="${id}":`, slider, slider.noUiSlider);
+        }, 0);
     }
     
     function createPropertyCard(property) {
@@ -989,6 +1078,32 @@
         if (bathroomsFilter) {
             hideUnusedOptions('bathrooms-filter', properties, 'bathrooms');
         }
+
+        // Initialize custom numeric sliders for custom columns
+        if (window.customColumns && window.customColumns.length > 0) {
+            window.customColumns.forEach(column => {
+                const columnType = window.customColumnTypes[column];
+                const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[column];
+                if (columnType === 'numeric' && specialHandling !== 'buttonGroup') {
+                    const columnId = column.toLowerCase().replace(/\s+/g, '-');
+                    const slider = document.getElementById(`${columnId}-slider`);
+                    if (slider) {
+                        // Get all values for this custom column
+                        const values = properties.map(p => p.customFields && p.customFields[column]).filter(v => v !== undefined && !isNaN(v));
+                        if (values.length > 0) {
+                            const minValue = Math.min(...values);
+                            const maxValue = Math.max(...values);
+                            // Use unit if available, otherwise empty string
+                            let unit = '';
+                            // Optionally, you can add logic to set a unit per column if needed
+                            initializeSlider(`${columnId}-slider`, minValue, maxValue, unit, () => {
+                                if (window.mixer) window.mixer.filter(window.mixer.getState().activeFilter);
+                            });
+                        }
+                    }
+                }
+            });
+        }
     }
 
     function populateDropdown(id, options, customClass) {
@@ -1005,17 +1120,21 @@
     }
 
     function initializeSlider(id, min, max, unit, callback) {
+        console.log('[initializeSlider] Initializing slider:', { id, min, max, unit });
         const slider = document.getElementById(id);
-        if (!slider) return;
-        
+        if (!slider) {
+            console.warn(`[initializeSlider] Slider element not found for id="${id}"`);
+            return;
+        }
         const rangeDisplay = document.getElementById(`${id}-range`);
-        if (!rangeDisplay) return;
-
+        if (!rangeDisplay) {
+            console.warn(`[initializeSlider] Range display element not found for id="${id}-range"`);
+            return;
+        }
         // Ensure min and max are not the same to avoid noUiSlider errors
         if (min === max) {
             max = min + 1;
         }
-
         noUiSlider.create(slider, {
             start: [min, max],
             connect: true,
@@ -1025,7 +1144,6 @@
                 from: value => Number(value)
             }
         });
-
         function updateRangeDisplay(values) {
             const formattedMin = unit === 'm²' || unit === 'sq ft' ?
                 `${parseInt(values[0]).toLocaleString()} ${unit}` :
@@ -1035,13 +1153,15 @@
                 `${unit}${parseInt(values[1]).toLocaleString()}`;
             rangeDisplay.textContent = `${formattedMin} - ${formattedMax}`;
         }
-
         slider.noUiSlider.on('update', (values) => {
             updateRangeDisplay(values);
             if (callback) callback(values);
         });
-
         updateRangeDisplay([min, max]);
+        // Log after initialization
+        setTimeout(() => {
+            console.log(`[initializeSlider] Slider initialized for id="${id}":`, slider, slider.noUiSlider);
+        }, 0);
     }
     
     function hideUnusedOptions(filterId, properties, propertyKey) {
@@ -1558,6 +1678,7 @@
         document.querySelectorAll('.property-card').forEach(card => {
             card.classList.remove('range-filtered');
             card.classList.remove('custom-filtered');
+           
             card.style.display = ''; // Reset inline display style
         });
 
