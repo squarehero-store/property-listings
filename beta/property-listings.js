@@ -746,6 +746,7 @@
     }
 
     function createSliderFilter(id, label, customClass) {
+        console.log('[createSliderFilter] Creating slider filter:', { id, label, customClass });
         const group = document.createElement('div');
         group.className = `filter-group ${customClass}-group`;
 
@@ -764,13 +765,65 @@
         labelContainer.appendChild(rangeDisplay);
 
         const slider = document.createElement('div');
-        slider.id = id; // Fix: use base id, not id + '-slider'
+        slider.id = id;
         slider.className = `range-slider ${customClass}-slider`;
 
         group.appendChild(labelContainer);
         group.appendChild(slider);
 
+        // Log the created DOM structure for debugging
+        setTimeout(() => {
+            const el = document.getElementById(id);
+            const rangeEl = document.getElementById(`${id}-range`);
+            console.log(`[createSliderFilter] DOM check for id="${id}":`, el, rangeEl);
+        }, 0);
+
         return group;
+    }
+    
+    function initializeSlider(id, min, max, unit, callback) {
+        console.log('[initializeSlider] Initializing slider:', { id, min, max, unit });
+        const slider = document.getElementById(id);
+        if (!slider) {
+            console.warn(`[initializeSlider] Slider element not found for id="${id}"`);
+            return;
+        }
+        const rangeDisplay = document.getElementById(`${id}-range`);
+        if (!rangeDisplay) {
+            console.warn(`[initializeSlider] Range display element not found for id="${id}-range"`);
+            return;
+        }
+        // Ensure min and max are not the same to avoid noUiSlider errors
+        if (min === max) {
+            max = min + 1;
+        }
+        noUiSlider.create(slider, {
+            start: [min, max],
+            connect: true,
+            range: { 'min': min, 'max': max },
+            format: {
+                to: value => Math.round(value),
+                from: value => Number(value)
+            }
+        });
+        function updateRangeDisplay(values) {
+            const formattedMin = unit === 'm²' || unit === 'sq ft' ?
+                `${parseInt(values[0]).toLocaleString()} ${unit}` :
+                `${unit}${parseInt(values[0]).toLocaleString()}`;
+            const formattedMax = unit === 'm²' || unit === 'sq ft' ?
+                `${parseInt(values[1]).toLocaleString()} ${unit}` :
+                `${unit}${parseInt(values[1]).toLocaleString()}`;
+            rangeDisplay.textContent = `${formattedMin} - ${formattedMax}`;
+        }
+        slider.noUiSlider.on('update', (values) => {
+            updateRangeDisplay(values);
+            if (callback) callback(values);
+        });
+        updateRangeDisplay([min, max]);
+        // Log after initialization
+        setTimeout(() => {
+            console.log(`[initializeSlider] Slider initialized for id="${id}":`, slider, slider.noUiSlider);
+        }, 0);
     }
     
     function createPropertyCard(property) {
@@ -1041,17 +1094,21 @@
     }
 
     function initializeSlider(id, min, max, unit, callback) {
+        console.log('[initializeSlider] Initializing slider:', { id, min, max, unit });
         const slider = document.getElementById(id);
-        if (!slider) return;
-        
+        if (!slider) {
+            console.warn(`[initializeSlider] Slider element not found for id="${id}"`);
+            return;
+        }
         const rangeDisplay = document.getElementById(`${id}-range`);
-        if (!rangeDisplay) return;
-
+        if (!rangeDisplay) {
+            console.warn(`[initializeSlider] Range display element not found for id="${id}-range"`);
+            return;
+        }
         // Ensure min and max are not the same to avoid noUiSlider errors
         if (min === max) {
             max = min + 1;
         }
-
         noUiSlider.create(slider, {
             start: [min, max],
             connect: true,
@@ -1061,7 +1118,6 @@
                 from: value => Number(value)
             }
         });
-
         function updateRangeDisplay(values) {
             const formattedMin = unit === 'm²' || unit === 'sq ft' ?
                 `${parseInt(values[0]).toLocaleString()} ${unit}` :
@@ -1071,13 +1127,15 @@
                 `${unit}${parseInt(values[1]).toLocaleString()}`;
             rangeDisplay.textContent = `${formattedMin} - ${formattedMax}`;
         }
-
         slider.noUiSlider.on('update', (values) => {
             updateRangeDisplay(values);
             if (callback) callback(values);
         });
-
         updateRangeDisplay([min, max]);
+        // Log after initialization
+        setTimeout(() => {
+            console.log(`[initializeSlider] Slider initialized for id="${id}":`, slider, slider.noUiSlider);
+        }, 0);
     }
     
     function hideUnusedOptions(filterId, properties, propertyKey) {
