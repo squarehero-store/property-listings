@@ -253,7 +253,7 @@
                         if (columnType === 'boolean') {
                             customFields[column] = value === 'Yes';
                         } else if (columnType === 'numeric' && value) {
-                            customFields[column] = parseFloat(value.replace(/[^\d.-]/g, ''));
+                            customFields[column] = parseFloat(value.replace(/[^ -9.-]/g, ''));
                         } else {
                             customFields[column] = value;
                         }
@@ -271,11 +271,29 @@
                 allCategories: item.categories || [], // Store all categories
                 excerpt: cleanExcerpt, // Added excerpt with HTML cleaning
                 price: sheetRow && sheetRow[1].Price ? parseFloat(sheetRow[1].Price.replace(/[$,]/g, '')) : 0,
-                area: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area, 10) : 0,
-                bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms, 10) : 0,
-                bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms) : 0,
+                area: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area.replace(/,/g, ''), 10) : 0,
+                bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms.replace(/,/g, ''), 10) : 0,
+                bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms.replace(/,/g, '')) : 0,
                 garage: sheetRow && sheetRow[1].Garage ? sheetRow[1].Garage : '',
-                customFields: customFields, // Add custom fields
+                customFields: (() => {
+                    const fields = {};
+                    if (sheetRow && customColumns.length > 0) {
+                        customColumns.forEach(column => {
+                            const value = sheetRow[1][column];
+                            if (value !== undefined) {
+                                const columnType = window.customColumnTypes && window.customColumnTypes[column];
+                                if (columnType === 'boolean') {
+                                    fields[column] = value === 'Yes';
+                                } else if (columnType === 'numeric' && value) {
+                                    fields[column] = parseFloat(value.replace(/[^ -9.-]/g, ''));
+                                } else {
+                                    fields[column] = value;
+                                }
+                            }
+                        });
+                    }
+                    return fields;
+                })(),
                 url: item.fullUrl
             };
         });
@@ -471,7 +489,7 @@
                         if (columnType === 'boolean') {
                             customFields[column] = value === 'Yes';
                         } else if (columnType === 'numeric' && value) {
-                            customFields[column] = parseFloat(value.replace(/[^\d.-]/g, ''));
+                            customFields[column] = parseFloat(value.replace(/[^ -9.-]/g, ''));
                         } else {
                             customFields[column] = value;
                         }
@@ -489,11 +507,29 @@
                 allCategories: item.categories || [], // Store all categories
                 excerpt: cleanExcerpt, // Added excerpt with HTML cleaning
                 price: sheetRow && sheetRow[1].Price ? parseFloat(sheetRow[1].Price.replace(/[$,]/g, '')) : 0,
-                area: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area, 10) : 0,
-                bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms, 10) : 0,
-                bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms) : 0,
+                area: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area.replace(/,/g, ''), 10) : 0,
+                bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms.replace(/,/g, ''), 10) : 0,
+                bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms.replace(/,/g, '')) : 0,
                 garage: sheetRow && sheetRow[1].Garage ? sheetRow[1].Garage : '',
-                customFields: customFields, // Add custom fields
+                customFields: (() => {
+                    const fields = {};
+                    if (sheetRow && customColumns.length > 0) {
+                        customColumns.forEach(column => {
+                            const value = sheetRow[1][column];
+                            if (value !== undefined) {
+                                const columnType = window.customColumnTypes && window.customColumnTypes[column];
+                                if (columnType === 'boolean') {
+                                    fields[column] = value === 'Yes';
+                                } else if (columnType === 'numeric' && value) {
+                                    fields[column] = parseFloat(value.replace(/[^ -9.-]/g, ''));
+                                } else {
+                                    fields[column] = value;
+                                }
+                            }
+                        });
+                    }
+                    return fields;
+                })(),
                 url: item.fullUrl
             };
         });
@@ -1558,6 +1594,7 @@
         document.querySelectorAll('.property-card').forEach(card => {
             card.classList.remove('range-filtered');
             card.classList.remove('custom-filtered');
+           
             card.style.display = ''; // Reset inline display style
         });
 
