@@ -1530,17 +1530,7 @@
             return matchesLocation && matchesCategory;
         };
         
-        // Apply custom filtering logic for location and category
-        const cards = document.querySelectorAll('.property-card');
-        cards.forEach(card => {
-            if (customFilterFunction(card)) {
-                card.style.display = '';
-                card.classList.remove('custom-filtered');
-            } else {
-                card.style.display = 'none';
-                card.classList.add('custom-filtered');
-            }
-        });
+        // Remove manual display logic; let MixItUp handle all filtering
         
         let filterGroups = [];
 
