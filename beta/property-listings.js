@@ -1474,6 +1474,15 @@
                         // Log active buttons after click
                         const activeButtons = Array.from(group.children).filter(btn => btn.classList.contains('active')).map(btn => btn.textContent);
                         console.log('[ButtonGroup] Active buttons after click:', activeButtons);
+                        // Log all property cards and their data attributes after button click
+                        document.querySelectorAll('.property-card').forEach(card => {
+                            console.log('[ButtonGroup] Card:', card,
+                                'data-bedrooms:', card.getAttribute('data-bedrooms'),
+                                'data-bathrooms:', card.getAttribute('data-bathrooms'),
+                                'data-all-tags:', card.getAttribute('data-all-tags'),
+                                'data-all-categories:', card.getAttribute('data-all-categories')
+                            );
+                        });
                         updateFilters();
                     }
                 });
@@ -1548,7 +1557,7 @@
             }
         }
         
-        // Handle custom column filters if they exist
+        // // Handle custom column filters if they exist
         if (window.customColumns && window.customColumns.length > 0) {
             window.customColumns.forEach(column => {
                 const columnId = column.toLowerCase().replace(/\s+/g, '-');
@@ -1605,7 +1614,18 @@
         }
 
         let filterString = filterArray.length > 0 ? filterArray.join('') : 'all';
-
+        console.log('[updateFilters] filterString:', filterString);
+        const matchingCards = document.querySelectorAll(filterString === 'all' ? '.property-card' : filterString);
+        console.log('[updateFilters] matchingCards:', matchingCards.length, matchingCards);
+        // Log data attributes for each card
+        document.querySelectorAll('.property-card').forEach(card => {
+            console.log('[updateFilters] Card:', card,
+                'data-bedrooms:', card.getAttribute('data-bedrooms'),
+                'data-bathrooms:', card.getAttribute('data-bathrooms'),
+                'data-all-tags:', card.getAttribute('data-all-tags'),
+                'data-all-categories:', card.getAttribute('data-all-categories')
+            );
+        });
         // Clear any existing range filters before applying new filters
         document.querySelectorAll('.property-card').forEach(card => {
             card.classList.remove('range-filtered');
