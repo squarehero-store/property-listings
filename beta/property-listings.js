@@ -727,12 +727,16 @@
 
         options.forEach(option => {
             const button = document.createElement('button');
-            button.className = `filter-button ${customClass}-button`;
-            let filterValue = option.toLowerCase() === 'any' ? 'all' : option;
-            if (id === 'bedrooms-filter' && filterValue !== 'all') {
-                filterValue = `bed-${filterValue}`;
-            } else if (id === 'bathrooms-filter' && filterValue !== 'all') {
-                filterValue = `bath-${filterValue}`;
+            button.className = 'filter-button';
+            let filterValue = 'all';
+            if (id === 'bedrooms-filter' && option.toLowerCase() !== 'any') {
+                filterValue = `bed-${option}`;
+            } else if (id === 'bathrooms-filter' && option.toLowerCase() !== 'any') {
+                filterValue = `bath-${option}`;
+            } else if (option.toLowerCase() === 'any') {
+                filterValue = 'all';
+            } else {
+                filterValue = option;
             }
             button.setAttribute('data-filter', filterValue);
             button.textContent = option;
@@ -1538,74 +1542,68 @@
             }
         });
         
-        let filterArray = [];
+        let filterGroups = [];
 
-        // Build filter array for other attributes (bedrooms, bathrooms, etc.)
+        // Bedrooms filter (OR within group)
         const bedroomsFilter = document.getElementById('bedrooms-filter');
         if (bedroomsFilter) {
             const bedrooms = getActiveFilters('bedrooms-filter');
             if (bedrooms.length > 0 && !bedrooms.includes('all')) {
-                filterArray.push(bedrooms.map(bed => `[data-bedrooms="${bed}"]`).join(', '));
+                filterGroups.push(bedrooms.map(bed => `[data-bedrooms="${bed}"]`).join(', '));
             }
         }
-        
+
+        // Bathrooms filter (OR within group)
         const bathroomsFilter = document.getElementById('bathrooms-filter');
         if (bathroomsFilter) {
             const bathrooms = getActiveFilters('bathrooms-filter');
             if (bathrooms.length > 0 && !bathrooms.includes('all')) {
-                filterArray.push(bathrooms.map(bath => `[data-bathrooms="${bath}"]`).join(', '));
+                filterGroups.push(bathrooms.map(bath => `[data-bathrooms="${bath}"]`).join(', '));
             }
         }
-        
-        // // Handle custom column filters if they exist
+
+        // Custom columns
         if (window.customColumns && window.customColumns.length > 0) {
             window.customColumns.forEach(column => {
                 const columnId = column.toLowerCase().replace(/\s+/g, '-');
                 const columnType = window.customColumnTypes[column];
                 const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[column];
-                
+
                 if (columnType === 'boolean') {
-                    // Handle Yes/No button group filters
                     const customFilter = document.getElementById(`${columnId}-filter`);
                     if (customFilter) {
                         const customValues = getActiveFilters(`${columnId}-filter`);
                         if (customValues.length > 0 && !customValues.includes('all')) {
-                            // Map 'Yes'/'No' to 'yes'/'no' for attribute matching
                             const mappedValues = customValues.map(val => {
                                 if (val === 'Yes') return `[data-${columnId}="yes"]`;
                                 if (val === 'No') return `[data-${columnId}="no"]`;
                                 return `[data-${columnId}="${val.toLowerCase()}"]`;
                             });
-                            filterArray.push(mappedValues.join(', '));
+                            filterGroups.push(mappedValues.join(', '));
                         }
                     }
                 } else if (specialHandling === 'buttonGroup') {
-                    // Handle special numeric fields using button groups (like Sleeps)
                     const customFilter = document.getElementById(`${columnId}-filter`);
                     if (customFilter) {
                         const customValues = getActiveFilters(`${columnId}-filter`);
                         if (customValues.length > 0 && !customValues.includes('all')) {
-                            // Create a selector that matches exact values
                             const valueSelectors = customValues.map(val => {
-                                // Ensure the value is properly escaped for CSS selector
                                 const numVal = parseInt(val);
                                 if (!isNaN(numVal)) {
                                     return `[data-${columnId}="${numVal}"]`;
                                 } else {
-                                    // Fallback for non-numeric values
                                     return `[data-${columnId}="${CSS.escape(val)}"]`;
                                 }
                             });
-                            filterArray.push(valueSelectors.join(', '));
+                            filterGroups.push(valueSelectors.join(', '));
                         }
                     }
                 } else if (columnType === 'text') {
-                    // Handle dropdown text filters
                     const dropdownFilter = document.getElementById(`${columnId}-filter`);
                     if (dropdownFilter) {
                         const value = dropdownFilter.value;
                         if (value !== 'all') {
-                            filterArray.push(`[data-${columnId}="${value}"]`);
+                            filterGroups.push(`[data-${columnId}="${value}"]`);
                         }
                     }
                 }
@@ -1613,11 +1611,14 @@
             });
         }
 
-        let filterString = filterArray.length > 0 ? filterArray.join('') : 'all';
+        // Build AND selector (space between groups)
+        let filterString = 'all';
+        if (filterGroups.length > 0) {
+            filterString = filterGroups.join(' ');
+        }
         console.log('[updateFilters] filterString:', filterString);
         const matchingCards = document.querySelectorAll(filterString === 'all' ? '.property-card' : filterString);
         console.log('[updateFilters] matchingCards:', matchingCards.length, matchingCards);
-        // Log data attributes for each card
         document.querySelectorAll('.property-card').forEach(card => {
             console.log('[updateFilters] Card:', card,
                 'data-bedrooms:', card.getAttribute('data-bedrooms'),
@@ -1626,16 +1627,12 @@
                 'data-all-categories:', card.getAttribute('data-all-categories')
             );
         });
-        // Clear any existing range filters before applying new filters
         document.querySelectorAll('.property-card').forEach(card => {
             card.classList.remove('range-filtered');
         });
-        
         if (window.mixer) {
             window.mixer.filter(filterString);
         }
-        
-        // Update URL parameters when filters change
         updateUrlWithFilters();
     }
 
