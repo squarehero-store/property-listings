@@ -1414,8 +1414,14 @@
             document.querySelectorAll('.button-group').forEach(group => {
                 group.addEventListener('click', (e) => {
                     if (e.target.classList.contains('filter-button')) {
+                        console.log('[ButtonGroup] Clicked:', {
+                            groupId: group.id,
+                            buttonText: e.target.textContent,
+                            filterValue: e.target.getAttribute('data-filter'),
+                            isBooleanGroup: group.getAttribute('data-boolean-filter') === 'true',
+                            buttonClasses: e.target.className
+                        });
                         const isBooleanGroup = group.getAttribute('data-boolean-filter') === 'true';
-                        
                         if (isBooleanGroup) {
                             // For boolean filters, implement radio-button like behavior
                             // First, handle the 'Any' button
@@ -1425,37 +1431,39 @@
                                     button.classList.remove('active');
                                 });
                                 e.target.classList.add('active');
+                                console.log('[ButtonGroup] Set Any active, removed active from others');
                             } else {
                                 // If 'Yes' or 'No' is clicked
                                 const anyButton = group.querySelector('[data-filter="all"]');
                                 if (anyButton) {
                                     anyButton.classList.remove('active');
                                 }
-                                
                                 // Remove active class from all buttons first
                                 Array.from(group.children).forEach(button => {
                                     if (button !== e.target && button !== anyButton) {
                                         button.classList.remove('active');
                                     }
                                 });
-                                
                                 // Toggle the clicked button
                                 e.target.classList.toggle('active');
-                                
+                                console.log('[ButtonGroup] Toggled active for', e.target.textContent, 'Active:', e.target.classList.contains('active'));
                                 // If no button is active, activate 'Any'
                                 if (!Array.from(group.children).some(btn => btn.classList.contains('active'))) {
                                     anyButton.classList.add('active');
+                                    console.log('[ButtonGroup] No button active, set Any active');
                                 }
                             }
                         } else {
                             // Original behavior for non-boolean filters
                             e.target.classList.toggle('active');
+                            console.log('[ButtonGroup] Toggled active for', e.target.textContent, 'Active:', e.target.classList.contains('active'));
                             if (e.target.getAttribute('data-filter') === 'all') {
                                 Array.from(e.target.parentNode.children).forEach(sibling => {
                                     if (sibling !== e.target) {
                                         sibling.classList.remove('active');
                                     }
                                 });
+                                console.log('[ButtonGroup] Set Any active, removed active from others');
                             } else {
                                 const anyButton = e.target.parentNode.querySelector('[data-filter="all"]');
                                 if (anyButton) {
@@ -1463,6 +1471,9 @@
                                 }
                             }
                         }
+                        // Log active buttons after click
+                        const activeButtons = Array.from(group.children).filter(btn => btn.classList.contains('active')).map(btn => btn.textContent);
+                        console.log('[ButtonGroup] Active buttons after click:', activeButtons);
                         updateFilters();
                     }
                 });
@@ -1831,21 +1842,21 @@
                                 filtersApplied = true;
                             }
                         }
-                    }
-                } else if (columnType === 'numeric') {
-                    // Handle numeric filters
-                    if (urlParams.has(`min-${columnId}`) || urlParams.has(`max-${columnId}`)) {
-                        const slider = document.getElementById(`${columnId}-slider`);
-                        if (slider && slider.noUiSlider) {
-                            const currentValues = slider.noUiSlider.get().map(Number);
-                            let minValue = urlParams.has(`min-${columnId}`) ? 
-                                Number(urlParams.get(`min-${columnId}`)) : currentValues[0];
-                            let maxValue = urlParams.has(`max-${columnId}`) ? 
-                                Number(urlParams.get(`max-${columnId}`)) : currentValues[1];
-                            
-                            // Update the slider with new values
-                            slider.noUiSlider.set([minValue, maxValue]);
-                            filtersApplied = true;
+                    } else if (columnType === 'numeric') {
+                        // Handle numeric filters
+                        if (urlParams.has(`min-${columnId}`) || urlParams.has(`max-${columnId}`)) {
+                            const slider = document.getElementById(`${columnId}-slider`);
+                            if (slider && slider.noUiSlider) {
+                                const currentValues = slider.noUiSlider.get().map(Number);
+                                let minValue = urlParams.has(`min-${columnId}`) ? 
+                                    Number(urlParams.get(`min-${columnId}`)) : currentValues[0];
+                                let maxValue = urlParams.has(`max-${columnId}`) ? 
+                                    Number(urlParams.get(`max-${columnId}`)) : currentValues[1];
+                                
+                                // Update the slider with new values
+                                slider.noUiSlider.set([minValue, maxValue]);
+                                filtersApplied = true;
+                            }
                         }
                     }
                 }
