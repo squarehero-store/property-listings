@@ -1525,7 +1525,8 @@
         if (bedroomsFilter) {
             const bedrooms = getActiveFilters('bedrooms-filter');
             if (bedrooms.length > 0 && !bedrooms.includes('all')) {
-                filterArray.push(bedrooms.map(bed => `[data-bedrooms="${bed}"]`).join(', '));
+                // Wrap in parentheses and join with comma for OR logic
+                filterArray.push('(' + bedrooms.map(bed => `[data-bedrooms="${bed}"]`).join(',') + ')');
             }
         }
         
@@ -1533,7 +1534,8 @@
         if (bathroomsFilter) {
             const bathrooms = getActiveFilters('bathrooms-filter');
             if (bathrooms.length > 0 && !bathrooms.includes('all')) {
-                filterArray.push(bathrooms.map(bath => `[data-bathrooms="${bath}"]`).join(', '));
+                // Wrap in parentheses and join with comma for OR logic
+                filterArray.push('(' + bathrooms.map(bath => `[data-bathrooms="${bath}"]`).join(',') + ')');
             }
         }
         
@@ -1556,7 +1558,8 @@
                                 if (val === 'No') return `[data-${columnId}="no"]`;
                                 return `[data-${columnId}="${val.toLowerCase()}"]`;
                             });
-                            filterArray.push(mappedValues.join(', '));
+                            // Wrap in parentheses for OR logic
+                            filterArray.push('(' + mappedValues.join(',') + ')');
                         }
                     }
                 } else if (specialHandling === 'buttonGroup') {
@@ -1576,7 +1579,8 @@
                                     return `[data-${columnId}="${CSS.escape(val)}"]`;
                                 }
                             });
-                            filterArray.push(valueSelectors.join(', '));
+                            // Wrap in parentheses for OR logic
+                            filterArray.push('(' + valueSelectors.join(',') + ')');
                         }
                     }
                 } else if (columnType === 'text') {
@@ -1831,21 +1835,21 @@
                                 filtersApplied = true;
                             }
                         }
-                    }
-                } else if (columnType === 'numeric') {
-                    // Handle numeric filters
-                    if (urlParams.has(`min-${columnId}`) || urlParams.has(`max-${columnId}`)) {
-                        const slider = document.getElementById(`${columnId}-slider`);
-                        if (slider && slider.noUiSlider) {
-                            const currentValues = slider.noUiSlider.get().map(Number);
-                            let minValue = urlParams.has(`min-${columnId}`) ? 
-                                Number(urlParams.get(`min-${columnId}`)) : currentValues[0];
-                            let maxValue = urlParams.has(`max-${columnId}`) ? 
-                                Number(urlParams.get(`max-${columnId}`)) : currentValues[1];
-                            
-                            // Update the slider with new values
-                            slider.noUiSlider.set([minValue, maxValue]);
-                            filtersApplied = true;
+                    } else if (columnType === 'numeric') {
+                        // Handle numeric filters
+                        if (urlParams.has(`min-${columnId}`) || urlParams.has(`max-${columnId}`)) {
+                            const slider = document.getElementById(`${columnId}-slider`);
+                            if (slider && slider.noUiSlider) {
+                                const currentValues = slider.noUiSlider.get().map(Number);
+                                let minValue = urlParams.has(`min-${columnId}`) ? 
+                                    Number(urlParams.get(`min-${columnId}`)) : currentValues[0];
+                                let maxValue = urlParams.has(`max-${columnId}`) ? 
+                                    Number(urlParams.get(`max-${columnId}`)) : currentValues[1];
+                                
+                                // Update the slider with new values
+                                slider.noUiSlider.set([minValue, maxValue]);
+                                filtersApplied = true;
+                            }
                         }
                     }
                 }
