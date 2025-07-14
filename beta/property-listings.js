@@ -750,7 +750,6 @@
     }
 
     function createSliderFilter(id, label, customClass) {
-        console.log('[createSliderFilter] Creating slider filter:', { id, label, customClass });
         const group = document.createElement('div');
         group.className = `filter-group ${customClass}-group`;
 
@@ -776,17 +775,12 @@
         group.appendChild(slider);
 
         // Log the created DOM structure for debugging
-        setTimeout(() => {
-            const el = document.getElementById(id);
-            const rangeEl = document.getElementById(`${id}-range`);
-            console.log(`[createSliderFilter] DOM check for id="${id}":`, el, rangeEl);
-        }, 0);
+        // Removed [createSliderFilter] logs
 
         return group;
     }
     
     function initializeSlider(id, min, max, unit, callback) {
-        console.log('[initializeSlider] Initializing slider:', { id, min, max, unit });
         const slider = document.getElementById(id);
         if (!slider) {
             console.warn(`[initializeSlider] Slider element not found for id="${id}"`);
@@ -825,9 +819,7 @@
         });
         updateRangeDisplay([min, max]);
         // Log after initialization
-        setTimeout(() => {
-            console.log(`[initializeSlider] Slider initialized for id="${id}":`, slider, slider.noUiSlider);
-        }, 0);
+        // Removed [initializeSlider] logs
     }
     
     function createPropertyCard(property) {
@@ -1418,13 +1410,7 @@
             document.querySelectorAll('.button-group').forEach(group => {
                 group.addEventListener('click', (e) => {
                     if (e.target.classList.contains('filter-button')) {
-                        console.log('[ButtonGroup] Clicked:', {
-                            groupId: group.id,
-                            buttonText: e.target.textContent,
-                            filterValue: e.target.getAttribute('data-filter'),
-                            isBooleanGroup: group.getAttribute('data-boolean-filter') === 'true',
-                            buttonClasses: e.target.className
-                        });
+                        // Removed [ButtonGroup] Clicked log
                         const isBooleanGroup = group.getAttribute('data-boolean-filter') === 'true';
                         if (isBooleanGroup) {
                             // For boolean filters, implement radio-button like behavior
@@ -1435,7 +1421,7 @@
                                     button.classList.remove('active');
                                 });
                                 e.target.classList.add('active');
-                                console.log('[ButtonGroup] Set Any active, removed active from others');
+                                // Removed [ButtonGroup] Set Any active log
                             } else {
                                 // If 'Yes' or 'No' is clicked
                                 const anyButton = group.querySelector('[data-filter="all"]');
@@ -1450,24 +1436,24 @@
                                 });
                                 // Toggle the clicked button
                                 e.target.classList.toggle('active');
-                                console.log('[ButtonGroup] Toggled active for', e.target.textContent, 'Active:', e.target.classList.contains('active'));
+                                // Removed [ButtonGroup] Toggled active log
                                 // If no button is active, activate 'Any'
                                 if (!Array.from(group.children).some(btn => btn.classList.contains('active'))) {
                                     anyButton.classList.add('active');
-                                    console.log('[ButtonGroup] No button active, set Any active');
+                                    // Removed [ButtonGroup] No button active log
                                 }
                             }
                         } else {
                             // Original behavior for non-boolean filters
                             e.target.classList.toggle('active');
-                            console.log('[ButtonGroup] Toggled active for', e.target.textContent, 'Active:', e.target.classList.contains('active'));
+                            // Removed [ButtonGroup] Toggled active log
                             if (e.target.getAttribute('data-filter') === 'all') {
                                 Array.from(e.target.parentNode.children).forEach(sibling => {
                                     if (sibling !== e.target) {
                                         sibling.classList.remove('active');
                                     }
                                 });
-                                console.log('[ButtonGroup] Set Any active, removed active from others');
+                                // Removed [ButtonGroup] Set Any active log
                             } else {
                                 const anyButton = e.target.parentNode.querySelector('[data-filter="all"]');
                                 if (anyButton) {
@@ -1476,17 +1462,7 @@
                             }
                         }
                         // Log active buttons after click
-                        const activeButtons = Array.from(group.children).filter(btn => btn.classList.contains('active')).map(btn => btn.textContent);
-                        console.log('[ButtonGroup] Active buttons after click:', activeButtons);
-                        // Log all property cards and their data attributes after button click
-                        document.querySelectorAll('.property-card').forEach(card => {
-                            console.log('[ButtonGroup] Card:', card,
-                                'data-bedrooms:', card.getAttribute('data-bedrooms'),
-                                'data-bathrooms:', card.getAttribute('data-bathrooms'),
-                                'data-all-tags:', card.getAttribute('data-all-tags'),
-                                'data-all-categories:', card.getAttribute('data-all-categories')
-                            );
-                        });
+                        // Removed [ButtonGroup] active buttons and card logs
                         updateFilters();
                     }
                 });
