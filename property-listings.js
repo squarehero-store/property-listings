@@ -727,12 +727,16 @@
 
         options.forEach(option => {
             const button = document.createElement('button');
-            button.className = `filter-button ${customClass}-button`;
-            let filterValue = option.toLowerCase() === 'any' ? 'all' : option;
-            if (id === 'bedrooms-filter' && filterValue !== 'all') {
-                filterValue = `bed-${filterValue}`;
-            } else if (id === 'bathrooms-filter' && filterValue !== 'all') {
-                filterValue = `bath-${filterValue}`;
+            button.className = 'filter-button';
+            let filterValue = 'all';
+            if (id === 'bedrooms-filter' && option.toLowerCase() !== 'any') {
+                filterValue = `bed-${option}`;
+            } else if (id === 'bathrooms-filter' && option.toLowerCase() !== 'any') {
+                filterValue = `bath-${option}`;
+            } else if (option.toLowerCase() === 'any') {
+                filterValue = 'all';
+            } else {
+                filterValue = option;
             }
             button.setAttribute('data-filter', filterValue);
             button.textContent = option;
@@ -1414,8 +1418,14 @@
             document.querySelectorAll('.button-group').forEach(group => {
                 group.addEventListener('click', (e) => {
                     if (e.target.classList.contains('filter-button')) {
+                        console.log('[ButtonGroup] Clicked:', {
+                            groupId: group.id,
+                            buttonText: e.target.textContent,
+                            filterValue: e.target.getAttribute('data-filter'),
+                            isBooleanGroup: group.getAttribute('data-boolean-filter') === 'true',
+                            buttonClasses: e.target.className
+                        });
                         const isBooleanGroup = group.getAttribute('data-boolean-filter') === 'true';
-                        
                         if (isBooleanGroup) {
                             // For boolean filters, implement radio-button like behavior
                             // First, handle the 'Any' button
@@ -1425,37 +1435,39 @@
                                     button.classList.remove('active');
                                 });
                                 e.target.classList.add('active');
+                                console.log('[ButtonGroup] Set Any active, removed active from others');
                             } else {
                                 // If 'Yes' or 'No' is clicked
                                 const anyButton = group.querySelector('[data-filter="all"]');
                                 if (anyButton) {
                                     anyButton.classList.remove('active');
                                 }
-                                
                                 // Remove active class from all buttons first
                                 Array.from(group.children).forEach(button => {
                                     if (button !== e.target && button !== anyButton) {
                                         button.classList.remove('active');
                                     }
                                 });
-                                
                                 // Toggle the clicked button
                                 e.target.classList.toggle('active');
-                                
+                                console.log('[ButtonGroup] Toggled active for', e.target.textContent, 'Active:', e.target.classList.contains('active'));
                                 // If no button is active, activate 'Any'
                                 if (!Array.from(group.children).some(btn => btn.classList.contains('active'))) {
                                     anyButton.classList.add('active');
+                                    console.log('[ButtonGroup] No button active, set Any active');
                                 }
                             }
                         } else {
                             // Original behavior for non-boolean filters
                             e.target.classList.toggle('active');
+                            console.log('[ButtonGroup] Toggled active for', e.target.textContent, 'Active:', e.target.classList.contains('active'));
                             if (e.target.getAttribute('data-filter') === 'all') {
                                 Array.from(e.target.parentNode.children).forEach(sibling => {
                                     if (sibling !== e.target) {
                                         sibling.classList.remove('active');
                                     }
                                 });
+                                console.log('[ButtonGroup] Set Any active, removed active from others');
                             } else {
                                 const anyButton = e.target.parentNode.querySelector('[data-filter="all"]');
                                 if (anyButton) {
@@ -1463,6 +1475,18 @@
                                 }
                             }
                         }
+                        // Log active buttons after click
+                        const activeButtons = Array.from(group.children).filter(btn => btn.classList.contains('active')).map(btn => btn.textContent);
+                        console.log('[ButtonGroup] Active buttons after click:', activeButtons);
+                        // Log all property cards and their data attributes after button click
+                        document.querySelectorAll('.property-card').forEach(card => {
+                            console.log('[ButtonGroup] Card:', card,
+                                'data-bedrooms:', card.getAttribute('data-bedrooms'),
+                                'data-bathrooms:', card.getAttribute('data-bathrooms'),
+                                'data-all-tags:', card.getAttribute('data-all-tags'),
+                                'data-all-categories:', card.getAttribute('data-all-categories')
+                            );
+                        });
                         updateFilters();
                     }
                 });
@@ -1506,86 +1530,70 @@
             return matchesLocation && matchesCategory;
         };
         
-        // Apply custom filtering logic for location and category
-        const cards = document.querySelectorAll('.property-card');
-        cards.forEach(card => {
-            if (customFilterFunction(card)) {
-                card.style.display = '';
-                card.classList.remove('custom-filtered');
-            } else {
-                card.style.display = 'none';
-                card.classList.add('custom-filtered');
-            }
-        });
+        // Remove manual display logic; let MixItUp handle all filtering
         
-        let filterArray = [];
+        let filterGroups = [];
 
-        // Build filter array for other attributes (bedrooms, bathrooms, etc.)
+        // Bedrooms filter (OR within group)
         const bedroomsFilter = document.getElementById('bedrooms-filter');
         if (bedroomsFilter) {
             const bedrooms = getActiveFilters('bedrooms-filter');
             if (bedrooms.length > 0 && !bedrooms.includes('all')) {
-                filterArray.push(bedrooms.map(bed => `[data-bedrooms="${bed}"]`).join(', '));
+                filterGroups.push(bedrooms.map(bed => `[data-bedrooms="${bed}"]`).join(', '));
             }
         }
-        
+
+        // Bathrooms filter (OR within group)
         const bathroomsFilter = document.getElementById('bathrooms-filter');
         if (bathroomsFilter) {
             const bathrooms = getActiveFilters('bathrooms-filter');
             if (bathrooms.length > 0 && !bathrooms.includes('all')) {
-                filterArray.push(bathrooms.map(bath => `[data-bathrooms="${bath}"]`).join(', '));
+                filterGroups.push(bathrooms.map(bath => `[data-bathrooms="${bath}"]`).join(', '));
             }
         }
-        
-        // Handle custom column filters if they exist
+
+        // Custom columns
         if (window.customColumns && window.customColumns.length > 0) {
             window.customColumns.forEach(column => {
                 const columnId = column.toLowerCase().replace(/\s+/g, '-');
                 const columnType = window.customColumnTypes[column];
                 const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[column];
-                
+
                 if (columnType === 'boolean') {
-                    // Handle Yes/No button group filters
                     const customFilter = document.getElementById(`${columnId}-filter`);
                     if (customFilter) {
                         const customValues = getActiveFilters(`${columnId}-filter`);
                         if (customValues.length > 0 && !customValues.includes('all')) {
-                            // Map 'Yes'/'No' to 'yes'/'no' for attribute matching
                             const mappedValues = customValues.map(val => {
                                 if (val === 'Yes') return `[data-${columnId}="yes"]`;
                                 if (val === 'No') return `[data-${columnId}="no"]`;
                                 return `[data-${columnId}="${val.toLowerCase()}"]`;
                             });
-                            filterArray.push(mappedValues.join(', '));
+                            filterGroups.push(mappedValues.join(', '));
                         }
                     }
                 } else if (specialHandling === 'buttonGroup') {
-                    // Handle special numeric fields using button groups (like Sleeps)
                     const customFilter = document.getElementById(`${columnId}-filter`);
                     if (customFilter) {
                         const customValues = getActiveFilters(`${columnId}-filter`);
                         if (customValues.length > 0 && !customValues.includes('all')) {
-                            // Create a selector that matches exact values
                             const valueSelectors = customValues.map(val => {
-                                // Ensure the value is properly escaped for CSS selector
                                 const numVal = parseInt(val);
                                 if (!isNaN(numVal)) {
                                     return `[data-${columnId}="${numVal}"]`;
                                 } else {
-                                    // Fallback for non-numeric values
                                     return `[data-${columnId}="${CSS.escape(val)}"]`;
                                 }
                             });
-                            filterArray.push(valueSelectors.join(', '));
+                            filterGroups.push(valueSelectors.join(', '));
                         }
                     }
                 } else if (columnType === 'text') {
-                    // Handle dropdown text filters
                     const dropdownFilter = document.getElementById(`${columnId}-filter`);
                     if (dropdownFilter) {
                         const value = dropdownFilter.value;
                         if (value !== 'all') {
-                            filterArray.push(`[data-${columnId}="${value}"]`);
+                            filterGroups.push(`[data-${columnId}="${value}"]`);
                         }
                     }
                 }
@@ -1593,18 +1601,28 @@
             });
         }
 
-        let filterString = filterArray.length > 0 ? filterArray.join('') : 'all';
-
-        // Clear any existing range filters before applying new filters
+        // Build AND selector (space between groups)
+        let filterString = 'all';
+        if (filterGroups.length > 0) {
+            filterString = filterGroups.join(' ');
+        }
+        console.log('[updateFilters] filterString:', filterString);
+        const matchingCards = document.querySelectorAll(filterString === 'all' ? '.property-card' : filterString);
+        console.log('[updateFilters] matchingCards:', matchingCards.length, matchingCards);
+        document.querySelectorAll('.property-card').forEach(card => {
+            console.log('[updateFilters] Card:', card,
+                'data-bedrooms:', card.getAttribute('data-bedrooms'),
+                'data-bathrooms:', card.getAttribute('data-bathrooms'),
+                'data-all-tags:', card.getAttribute('data-all-tags'),
+                'data-all-categories:', card.getAttribute('data-all-categories')
+            );
+        });
         document.querySelectorAll('.property-card').forEach(card => {
             card.classList.remove('range-filtered');
         });
-        
         if (window.mixer) {
             window.mixer.filter(filterString);
         }
-        
-        // Update URL parameters when filters change
         updateUrlWithFilters();
     }
 
@@ -1831,21 +1849,21 @@
                                 filtersApplied = true;
                             }
                         }
-                    }
-                } else if (columnType === 'numeric') {
-                    // Handle numeric filters
-                    if (urlParams.has(`min-${columnId}`) || urlParams.has(`max-${columnId}`)) {
-                        const slider = document.getElementById(`${columnId}-slider`);
-                        if (slider && slider.noUiSlider) {
-                            const currentValues = slider.noUiSlider.get().map(Number);
-                            let minValue = urlParams.has(`min-${columnId}`) ? 
-                                Number(urlParams.get(`min-${columnId}`)) : currentValues[0];
-                            let maxValue = urlParams.has(`max-${columnId}`) ? 
-                                Number(urlParams.get(`max-${columnId}`)) : currentValues[1];
-                            
-                            // Update the slider with new values
-                            slider.noUiSlider.set([minValue, maxValue]);
-                            filtersApplied = true;
+                    } else if (columnType === 'numeric') {
+                        // Handle numeric filters
+                        if (urlParams.has(`min-${columnId}`) || urlParams.has(`max-${columnId}`)) {
+                            const slider = document.getElementById(`${columnId}-slider`);
+                            if (slider && slider.noUiSlider) {
+                                const currentValues = slider.noUiSlider.get().map(Number);
+                                let minValue = urlParams.has(`min-${columnId}`) ? 
+                                    Number(urlParams.get(`min-${columnId}`)) : currentValues[0];
+                                let maxValue = urlParams.has(`max-${columnId}`) ? 
+                                    Number(urlParams.get(`max-${columnId}`)) : currentValues[1];
+                                
+                                // Update the slider with new values
+                                slider.noUiSlider.set([minValue, maxValue]);
+                                filtersApplied = true;
+                            }
                         }
                     }
                 }
