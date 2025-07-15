@@ -1803,10 +1803,19 @@
                 
                 let filterString = 'all';
                 if (filterGroups.length > 0) {
-                    // If we have multiple filter groups, wrap each in parentheses for AND logic
-                    // Single group doesn't need parentheses
+                    // For modern browsers, use :is() for clean selectors
+                    // For multiple groups, each element must match ALL groups (AND logic)
                     if (filterGroups.length > 1) {
-                        filterString = filterGroups.map(group => `(${group})`).join('');
+                        // Convert each group to :is() syntax for modern CSS
+                        const isSelectors = filterGroups.map(group => {
+                            // If group has commas (multiple options), wrap in :is()
+                            if (group.includes(',')) {
+                                return `:is(${group})`;
+                            } else {
+                                return group;
+                            }
+                        });
+                        filterString = isSelectors.join('');
                     } else {
                         filterString = filterGroups[0];
                     }
