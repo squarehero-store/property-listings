@@ -1758,6 +1758,27 @@
         });
         
         if (window.mixer) {
+            // Always start with building the base selector from button groups and other filters
+            let filterString = 'all';
+            if (filterGroups.length > 0) {
+                // For modern browsers, use :is() for clean selectors
+                // For multiple groups, each element must match ALL groups (AND logic)
+                if (filterGroups.length > 1) {
+                    // Convert each group to :is() syntax for modern CSS
+                    const isSelectors = filterGroups.map(group => {
+                        // If group has commas (multiple options), wrap in :is()
+                        if (group.includes(',')) {
+                            return `:is(${group})`;
+                        } else {
+                            return group;
+                        }
+                    });
+                    filterString = isSelectors.join('');
+                } else {
+                    filterString = filterGroups[0];
+                }
+            }
+
             if (locationActive || categoryActive) {
                 console.log('[updateFilters] 🎯 Building CSS selector for location/category filtering');
                 
@@ -1790,36 +1811,25 @@
                     selectorParts.push('.category-match');
                 }
                 
-                // Combine selectors - for multiple conditions, we need cards that have ALL classes
-                const finalSelector = selectorParts.length > 0 ? selectorParts.join('') : 'all';
-                console.log('[updateFilters] 🎯 Using CSS selector:', finalSelector);
+                // Combine location/category selectors with button group filters
+                let combinedSelector;
+                if (filterString === 'all') {
+                    // Only location/category filters
+                    combinedSelector = selectorParts.length > 0 ? selectorParts.join('') : 'all';
+                } else {
+                    // Combine location/category with button group filters
+                    const locationCategorySelector = selectorParts.join('');
+                    combinedSelector = locationCategorySelector + filterString;
+                }
                 
-                window.mixer.filter(finalSelector);
+                console.log('[updateFilters] 🎯 Using combined CSS selector:', combinedSelector);
+                window.mixer.filter(combinedSelector);
             } else {
                 // Clean up temporary classes when not using location/category filters
                 document.querySelectorAll('.property-card').forEach(card => {
                     card.classList.remove('location-match', 'category-match');
                 });
                 
-                let filterString = 'all';
-                if (filterGroups.length > 0) {
-                    // For modern browsers, use :is() for clean selectors
-                    // For multiple groups, each element must match ALL groups (AND logic)
-                    if (filterGroups.length > 1) {
-                        // Convert each group to :is() syntax for modern CSS
-                        const isSelectors = filterGroups.map(group => {
-                            // If group has commas (multiple options), wrap in :is()
-                            if (group.includes(',')) {
-                                return `:is(${group})`;
-                            } else {
-                                return group;
-                            }
-                        });
-                        filterString = isSelectors.join('');
-                    } else {
-                        filterString = filterGroups[0];
-                    }
-                }
                 console.log('[updateFilters] 🎯 Using filterString for MixItUp:', filterString);
                 window.mixer.filter(filterString);
             }
