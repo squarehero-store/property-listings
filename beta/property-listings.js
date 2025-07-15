@@ -1776,7 +1776,7 @@
                 window.mixer.filter(filterString);
             }
         }
-        // Log matching cards and card data for debugging
+        // Log the matching cards and card data for debugging
         if (window.mixer) {
             const matchingCards = document.querySelectorAll('.property-card');
             console.log('[updateFilters] matchingCards:', matchingCards.length, matchingCards);
