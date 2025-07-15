@@ -1759,9 +1759,14 @@
         
         if (window.mixer) {
             if (locationActive || categoryActive) {
-                console.log('[updateFilters] 🎯 Using customFilterFunction for MixItUp');
-                console.log('[updateFilters] 🔍 Available cards before filtering:', document.querySelectorAll('.property-card').length);
-                window.mixer.filter(customFilterFunction);
+                console.log('[updateFilters] 🎯 Using function-based filtering for location/category');
+                
+                // Create a MixItUp-compatible filter function
+                const mixItUpFilterFunction = function(el) {
+                    return customFilterFunction(el);
+                };
+                
+                window.mixer.filter(mixItUpFilterFunction);
             } else {
                 let filterString = 'all';
                 if (filterGroups.length > 0) {
