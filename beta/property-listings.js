@@ -1585,8 +1585,18 @@
             filterString = filterGroups.join(' ');
         }
         console.log('[updateFilters] filterString:', filterString);
-        const matchingCards = document.querySelectorAll(filterString === 'all' ? '.property-card' : filterString);
-        console.log('[updateFilters] matchingCards:', matchingCards.length, matchingCards);
+        // Only log matchingCards if filterString is a valid selector for querySelectorAll
+        if (filterString === 'all') {
+            const matchingCards = document.querySelectorAll('.property-card');
+            console.log('[updateFilters] matchingCards:', matchingCards.length, matchingCards);
+        } else if (!filterString.includes('(') && !filterString.includes(')') && !filterString.includes(',')) {
+            try {
+                const matchingCards = document.querySelectorAll(filterString);
+                console.log('[updateFilters] matchingCards:', matchingCards.length, matchingCards);
+            } catch (e) {
+                console.warn('[updateFilters] Invalid selector for querySelectorAll:', filterString);
+            }
+        }
         document.querySelectorAll('.property-card').forEach(card => {
             console.log('[updateFilters] Card:', card,
                 'data-bedrooms:', card.getAttribute('data-bedrooms'),
