@@ -1287,9 +1287,9 @@
                             totalShow: state.totalShow,
                             totalTargets: state.totalTargets,
                             activeFilter: state.activeFilter,
-                            matching: state.matching.length,
-                            hiding: state.hiding.length,
-                            showing: state.showing.length
+                            matching: state.matching ? state.matching.length : 'undefined',
+                            hiding: state.hiding ? state.hiding.length : 'undefined',
+                            showing: state.showing ? state.showing.length : 'undefined'
                         });
                         
                         if (state.totalShow === 0) {
@@ -1309,6 +1309,12 @@
                 const areaSlider = document.getElementById('area-slider');
                 const priceSlider = document.getElementById('price-slider');
                 const cards = state.targets;
+                
+                // Add safety check for state
+                if (!state || !state.targets || !Array.isArray(state.targets)) {
+                    console.warn('[filterByRanges] Invalid state object:', state);
+                    return true;
+                }
                 
                 // Check if any sliders exist (including custom numeric sliders)
                 let hasAnySliders = areaSlider || priceSlider;
@@ -1375,7 +1381,7 @@
                     });
     
                     // Only hide/show if the card is part of the current filter state
-                    if (state.matching.includes(card)) {
+                    if (state.matching && state.matching.includes(card)) {
                         if (shouldShow && !card.classList.contains('custom-filtered')) {
                             card.classList.remove('range-filtered');
                         } else {
