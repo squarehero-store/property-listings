@@ -37,9 +37,6 @@
     
     // Store custom icons globally for use in other functions
     window.customIcons = customIcons;
-    
-
-    console.log('- Custom Icons:', customIcons);
 
     // Currency symbol helper
     const getCurrencySymbol = (currencyCode) => {
@@ -94,7 +91,6 @@
     
     // Function to fetch all properties across all pages with lazy loading
     async function fetchAllProperties(baseUrl) {
-        console.log('📋 Fetching all properties with pagination and lazy loading...');
         let allItems = [];
         let currentUrl = `${baseUrl}?format=json&nocache=${new Date().getTime()}`;
         let pageCount = 1;
@@ -108,18 +104,15 @@
             
             while (url) {
                 try {
-                    console.log(`📄 Fetching page ${page} in the background...`);
                     const response = await fetch(url);
                     const data = await response.json();
                     
                     if (!data.items || data.items.length === 0) {
-                        console.log('No items found on this page');
                         break;
                     }
                     
                     // Add the items to the global allItems array 
                     allItems.push(...data.items);
-                    console.log(`✅ Found ${data.items.length} items on page ${page}, total now: ${allItems.length}`);
                     
                     // Trigger rendering the new items
                     if (window.renderAdditionalProperties) {
@@ -138,11 +131,9 @@
                             url = nextPageUrl.toString();
                             page++;
                         } else {
-                            console.log('Missing offset value in pagination data');
                             url = null;
                         }
                     } else {
-                        console.log('No more pages available');
                         url = null;
                     }
                 } catch (error) {
@@ -150,24 +141,19 @@
                     break;
                 }
             }
-            
-            console.log(`🏁 Total properties fetched: ${allItems.length}`);
         };
         
         // First, fetch only the first page
         try {
-            console.log('📄 Fetching first page...');
             const response = await fetch(currentUrl);
             const data = await response.json();
             
             if (!data.items || data.items.length === 0) {
-                console.log('No items found on the first page');
                 return [];
             }
             
             // Store the first page items
             allItems = [...data.items];
-            console.log(`✅ Found ${data.items.length} items on page 1`);
             firstPageLoaded = true;
             firstPageData = data;
             
@@ -380,7 +366,7 @@
 
                 createFilterElements(propertyData);
                 renderPropertyListings(propertyData);
-                console.log('🚀 SquareHero.store Real Estate Listings plugin loaded');
+
             } catch (error) {
                 console.error('❌ Error fetching data:', error);
                 
@@ -407,23 +393,20 @@
     
         // Debug excerpt availability
         const hasExcerpts = blogData.items.some(item => item.excerpt && item.excerpt.trim() !== '');
-        console.log('📝 Properties with excerpts available:', hasExcerpts);
+
         
         if (hasExcerpts) {
-            console.log('Sample excerpt from first item with excerpt:', 
-                blogData.items.find(item => item.excerpt && item.excerpt.trim() !== '')?.excerpt || 'None found');
+            // Properties with excerpts available
         }
 
-        // Add debugging for sheet columns
-        console.log('📊 Available sheet columns:', Object.keys(sheetData[0] || {}).join(', '));
-        console.log('📋 First row sample:', sheetData[0]);
+
         
         // Identify custom columns (all columns except standard ones)
         const standardColumns = ['Title', 'Url', 'Price', 'Area', 'Bedrooms', 'Bathrooms', 'Garage', 'Featured'];
         const customColumns = Object.keys(sheetData[0] || {}).filter(column => 
             !standardColumns.includes(column));
         
-        console.log('✨ Custom columns detected:', customColumns.join(', '));
+
         
         // Set global custom columns for use in other functions
         window.customColumns = customColumns;
@@ -437,13 +420,10 @@
             const values = sheetData.map(row => row[column]).filter(Boolean);
             
             if (values.length === 0) {
-                console.log(`⚠️ No values found for column "${column}"`);
                 window.customColumnTypes[column] = 'text';
             } else if (values.every(value => value === 'Yes' || value === 'No')) {
-                console.log(`✓ Column "${column}" appears to be boolean (Yes/No)`);
                 window.customColumnTypes[column] = 'boolean';
             } else if (values.every(value => !isNaN(parseFloat(value)))) {
-                console.log(`🔢 Column "${column}" appears to be numeric`);
                 window.customColumnTypes[column] = 'numeric';
                 
                 // Determine whether to use button group or slider based on the range of values
@@ -457,13 +437,9 @@
                 // use a button group instead of a slider
                 if (uniqueIntegerValues.length <= 8 && 
                    (uniqueIntegerValues[uniqueIntegerValues.length - 1] - uniqueIntegerValues[0]) <= 10) {
-                    console.log(`👥 Column "${column}" will use button group (${uniqueIntegerValues.length} unique values) instead of slider`);
                     window.customColumnSpecialHandling[column] = 'buttonGroup';
-                } else {
-                    console.log(`📊 Column "${column}" will use slider (${uniqueIntegerValues.length} unique values with range: ${uniqueIntegerValues[0]}-${uniqueIntegerValues[uniqueIntegerValues.length - 1]})`);
                 }
             } else {
-                console.log(`📝 Column "${column}" appears to be text`);
                 window.customColumnTypes[column] = 'text';
             }
         });
@@ -602,7 +578,7 @@
                         
                         if (specialHandling === 'buttonGroup') {
                             // Create a button group for numeric fields with few distinct values
-                            console.log(`👥 Creating button group filter for numeric field "${column}"`);
+
                             
                             // Find the unique values and sort them numerically
                             const uniqueValues = [...new Set(values.map(v => Math.floor(Number(v))))];
@@ -619,13 +595,13 @@
                             ));
                         } else {
                             // Standard numeric slider filter
-                            console.log(`📊 Creating numeric slider filter for "${column}"`);
+
                             filtersContainer.appendChild(createSliderFilter(`${columnId}-slider`, column, `sh-${columnId}-filter`));
                         }
                     }
                 } else if (columnType === 'boolean') {
                     // For Yes/No columns, create a toggle filter
-                    console.log(`✓ Creating Yes/No toggle filter for "${column}"`);
+
                     filtersContainer.appendChild(createButtonGroupFilter(`${columnId}-filter`, column, ['Any', 'Yes', 'No'], `sh-${columnId}-filter`));
                 } else {
                     // For text columns, create a dropdown if there are fewer than 10 unique values
@@ -635,7 +611,7 @@
                         .filter(v => v !== undefined && v !== null && v !== ''));
                     
                     if (values.size > 0 && values.size <= 10) {
-                        console.log(`📝 Creating dropdown filter for "${column}" with ${values.size} options`);
+
                         const customDropdown = createDropdownFilter(`${columnId}-filter`, column, `Any ${column}`, `sh-${columnId}-filter`);
                         // Populate the dropdown with values
                         const dropdown = customDropdown.querySelector(`#${columnId}-filter`);
@@ -694,6 +670,8 @@
         group.appendChild(labelElement);
         group.appendChild(select);
 
+        // Log the created DOM structure
+        console.log(`[createDropdownFilter] Created dropdown filter group:`, group);
         return group;
     }
 
@@ -750,7 +728,6 @@
     }
 
     function createSliderFilter(id, label, customClass) {
-        console.log('[createSliderFilter] Creating slider filter:', { id, label, customClass });
         const group = document.createElement('div');
         group.className = `filter-group ${customClass}-group`;
 
@@ -776,17 +753,12 @@
         group.appendChild(slider);
 
         // Log the created DOM structure for debugging
-        setTimeout(() => {
-            const el = document.getElementById(id);
-            const rangeEl = document.getElementById(`${id}-range`);
-            console.log(`[createSliderFilter] DOM check for id="${id}":`, el, rangeEl);
-        }, 0);
+        // Removed [createSliderFilter] logs
 
         return group;
     }
     
     function initializeSlider(id, min, max, unit, callback) {
-        console.log('[initializeSlider] Initializing slider:', { id, min, max, unit });
         const slider = document.getElementById(id);
         if (!slider) {
             console.warn(`[initializeSlider] Slider element not found for id="${id}"`);
@@ -825,9 +797,7 @@
         });
         updateRangeDisplay([min, max]);
         // Log after initialization
-        setTimeout(() => {
-            console.log(`[initializeSlider] Slider initialized for id="${id}":`, slider, slider.noUiSlider);
-        }, 0);
+        // Removed [initializeSlider] logs
     }
     
     function createPropertyCard(property) {
@@ -1026,7 +996,7 @@
         // Get unique values for dropdown filters - collect all tags and categories
         const locations = new Set();
         const categories = new Set();
-        
+
         properties.forEach(property => {
             // Add all tags to locations
             if (property.allTags && property.allTags.length > 0) {
@@ -1037,16 +1007,22 @@
                 property.allCategories.forEach(category => categories.add(category));
             }
         });
-        
+
+
+
         // Only fill dropdowns if they exist
         const locationFilter = document.getElementById('location-filter');
         if (locationFilter && locations.size > 0) {
             populateDropdown('location-filter', locations, 'sh-location-option');
+        } else {
+            console.warn(`[initializeFilters] Location filter not found or no locations available.`);
         }
-        
+
         const statusFilter = document.getElementById('status-filter');
         if (statusFilter && categories.size > 0) {
             populateDropdown('status-filter', categories, 'sh-status-option');
+        } else {
+            console.warn(`[initializeFilters] Status filter not found or no categories available.`);
         }
         
         // Initialize sliders only if they exist and have valid data
@@ -1112,7 +1088,10 @@
 
     function populateDropdown(id, options, customClass) {
         const dropdown = document.getElementById(id);
-        if (!dropdown) return;
+        if (!dropdown) {
+            console.warn(`[populateDropdown] ❌ Dropdown element not found for id="${id}"`);
+            return;
+        }
         
         options.forEach(option => {
             const optionElement = document.createElement('option');
@@ -1124,7 +1103,6 @@
     }
 
     function initializeSlider(id, min, max, unit, callback) {
-        console.log('[initializeSlider] Initializing slider:', { id, min, max, unit });
         const slider = document.getElementById(id);
         if (!slider) {
             console.warn(`[initializeSlider] Slider element not found for id="${id}"`);
@@ -1162,10 +1140,6 @@
             if (callback) callback(values);
         });
         updateRangeDisplay([min, max]);
-        // Log after initialization
-        setTimeout(() => {
-            console.log(`[initializeSlider] Slider initialized for id="${id}":`, slider, slider.noUiSlider);
-        }, 0);
     }
     
     function hideUnusedOptions(filterId, properties, propertyKey) {
@@ -1263,6 +1237,11 @@
                 const priceSlider = document.getElementById('price-slider');
                 const cards = state.targets;
                 
+                // Add safety check for state
+                if (!state || !state.targets || !Array.isArray(state.targets)) {
+                    return true;
+                }
+                
                 // Check if any sliders exist (including custom numeric sliders)
                 let hasAnySliders = areaSlider || priceSlider;
                 
@@ -1328,7 +1307,7 @@
                     });
     
                     // Only hide/show if the card is part of the current filter state
-                    if (state.matching.includes(card)) {
+                    if (state.matching && state.matching.includes(card)) {
                         if (shouldShow && !card.classList.contains('custom-filtered')) {
                             card.classList.remove('range-filtered');
                         } else {
@@ -1373,11 +1352,15 @@
             const statusFilter = document.getElementById('status-filter');
     
             if (locationFilter) {
-                locationFilter.addEventListener('change', updateFilters);
+                locationFilter.addEventListener('change', (e) => {
+                    updateFilters();
+                });
             }
             
             if (statusFilter) {
-                statusFilter.addEventListener('change', updateFilters);
+                statusFilter.addEventListener('change', (e) => {
+                    updateFilters();
+                });
             }
             
             // Add event listeners for custom column dropdown filters
@@ -1418,13 +1401,7 @@
             document.querySelectorAll('.button-group').forEach(group => {
                 group.addEventListener('click', (e) => {
                     if (e.target.classList.contains('filter-button')) {
-                        console.log('[ButtonGroup] Clicked:', {
-                            groupId: group.id,
-                            buttonText: e.target.textContent,
-                            filterValue: e.target.getAttribute('data-filter'),
-                            isBooleanGroup: group.getAttribute('data-boolean-filter') === 'true',
-                            buttonClasses: e.target.className
-                        });
+                        // Removed [ButtonGroup] Clicked log
                         const isBooleanGroup = group.getAttribute('data-boolean-filter') === 'true';
                         if (isBooleanGroup) {
                             // For boolean filters, implement radio-button like behavior
@@ -1435,7 +1412,7 @@
                                     button.classList.remove('active');
                                 });
                                 e.target.classList.add('active');
-                                console.log('[ButtonGroup] Set Any active, removed active from others');
+                                // Removed [ButtonGroup] Set Any active log
                             } else {
                                 // If 'Yes' or 'No' is clicked
                                 const anyButton = group.querySelector('[data-filter="all"]');
@@ -1450,24 +1427,24 @@
                                 });
                                 // Toggle the clicked button
                                 e.target.classList.toggle('active');
-                                console.log('[ButtonGroup] Toggled active for', e.target.textContent, 'Active:', e.target.classList.contains('active'));
+                                // Removed [ButtonGroup] Toggled active log
                                 // If no button is active, activate 'Any'
                                 if (!Array.from(group.children).some(btn => btn.classList.contains('active'))) {
                                     anyButton.classList.add('active');
-                                    console.log('[ButtonGroup] No button active, set Any active');
+                                    // Removed [ButtonGroup] No button active log
                                 }
                             }
                         } else {
                             // Original behavior for non-boolean filters
                             e.target.classList.toggle('active');
-                            console.log('[ButtonGroup] Toggled active for', e.target.textContent, 'Active:', e.target.classList.contains('active'));
+                            // Removed [ButtonGroup] Toggled active log
                             if (e.target.getAttribute('data-filter') === 'all') {
                                 Array.from(e.target.parentNode.children).forEach(sibling => {
                                     if (sibling !== e.target) {
                                         sibling.classList.remove('active');
                                     }
                                 });
-                                console.log('[ButtonGroup] Set Any active, removed active from others');
+                                // Removed [ButtonGroup] Set Any active log
                             } else {
                                 const anyButton = e.target.parentNode.querySelector('[data-filter="all"]');
                                 if (anyButton) {
@@ -1476,17 +1453,7 @@
                             }
                         }
                         // Log active buttons after click
-                        const activeButtons = Array.from(group.children).filter(btn => btn.classList.contains('active')).map(btn => btn.textContent);
-                        console.log('[ButtonGroup] Active buttons after click:', activeButtons);
-                        // Log all property cards and their data attributes after button click
-                        document.querySelectorAll('.property-card').forEach(card => {
-                            console.log('[ButtonGroup] Card:', card,
-                                'data-bedrooms:', card.getAttribute('data-bedrooms'),
-                                'data-bathrooms:', card.getAttribute('data-bathrooms'),
-                                'data-all-tags:', card.getAttribute('data-all-tags'),
-                                'data-all-categories:', card.getAttribute('data-all-categories')
-                            );
-                        });
+                        // Removed [ButtonGroup] active buttons and card logs
                         updateFilters();
                     }
                 });
@@ -1508,23 +1475,40 @@
         
         // Create a custom filter function for multiple tags/categories
         const customFilterFunction = (card) => {
+            // Guard: Only process DOM elements
+            if (!card || typeof card.getAttribute !== 'function') {
+                return false;
+            }
+            
             let matchesLocation = true;
             let matchesCategory = true;
             
             // Check location filter (tags)
             if (locationFilter && locationFilter.value !== 'all') {
-                const selectedLocation = locationFilter.value;
+                const selectedLocation = locationFilter.value.trim().toLowerCase();
                 const allTags = card.getAttribute('data-all-tags');
                 
-                matchesLocation = allTags && allTags.split('|').includes(selectedLocation);
+                if (allTags) {
+                    // Split by |, trim and lowercase each tag
+                    const tagList = allTags.split('|').map(tag => tag.trim().toLowerCase());
+                    matchesLocation = tagList.includes(selectedLocation);
+                } else {
+                    matchesLocation = false;
+                }
             }
             
             // Check category filter
             if (statusFilter && statusFilter.value !== 'all') {
-                const selectedCategory = statusFilter.value;
+                const selectedCategory = statusFilter.value.trim().toLowerCase();
                 const allCategories = card.getAttribute('data-all-categories');
                 
-                matchesCategory = allCategories && allCategories.split('|').includes(selectedCategory);
+                if (allCategories) {
+                    // Split by |, trim and lowercase each category
+                    const categoryList = allCategories.split('|').map(cat => cat.trim().toLowerCase());
+                    matchesCategory = categoryList.includes(selectedCategory);
+                } else {
+                    matchesCategory = false;
+                }
             }
             
             return matchesLocation && matchesCategory;
@@ -1539,7 +1523,8 @@
         if (bedroomsFilter) {
             const bedrooms = getActiveFilters('bedrooms-filter');
             if (bedrooms.length > 0 && !bedrooms.includes('all')) {
-                filterGroups.push(bedrooms.map(bed => `[data-bedrooms="${bed}"]`).join(', '));
+                const group = bedrooms.map(bed => `[data-bedrooms="${bed}"]`).join(', ');
+                filterGroups.push(group);
             }
         }
 
@@ -1548,7 +1533,8 @@
         if (bathroomsFilter) {
             const bathrooms = getActiveFilters('bathrooms-filter');
             if (bathrooms.length > 0 && !bathrooms.includes('all')) {
-                filterGroups.push(bathrooms.map(bath => `[data-bathrooms="${bath}"]`).join(', '));
+                const group = bathrooms.map(bath => `[data-bathrooms="${bath}"]`).join(', ');
+                filterGroups.push(group);
             }
         }
 
@@ -1601,28 +1587,86 @@
             });
         }
 
-        // Build AND selector (space between groups)
-        let filterString = 'all';
-        if (filterGroups.length > 0) {
-            filterString = filterGroups.join(' ');
+        // If location or category filter is active, use custom filter function for MixItUp
+        const locationActive = locationFilter && locationFilter.value !== 'all';
+        const categoryActive = statusFilter && statusFilter.value !== 'all';
+        
+        if (window.mixer) {
+            // Always start with building the base selector from button groups and other filters
+            let filterString = 'all';
+            if (filterGroups.length > 0) {
+                // For modern browsers, use :is() for clean selectors
+                // For multiple groups, each element must match ALL groups (AND logic)
+                if (filterGroups.length > 1) {
+                    // Convert each group to :is() syntax for modern CSS
+                    const isSelectors = filterGroups.map(group => {
+                        // If group has commas (multiple options), wrap in :is()
+                        if (group.includes(',')) {
+                            return `:is(${group})`;
+                        } else {
+                            return group;
+                        }
+                    });
+                    filterString = isSelectors.join('');
+                } else {
+                    filterString = filterGroups[0];
+                }
+            }
+
+            if (locationActive || categoryActive) {
+                // Build a CSS selector for MixItUp instead of using a function
+                let selectorParts = [];
+                
+                if (locationActive) {
+                    const selectedLocation = locationFilter.value;
+                    // Add a temporary class to matching cards
+                    document.querySelectorAll('.property-card').forEach(card => {
+                        card.classList.remove('location-match');
+                        const allTags = card.getAttribute('data-all-tags');
+                        if (allTags && allTags.split('|').map(tag => tag.trim()).includes(selectedLocation)) {
+                            card.classList.add('location-match');
+                        }
+                    });
+                    selectorParts.push('.location-match');
+                }
+                
+                if (categoryActive) {
+                    const selectedCategory = statusFilter.value;
+                    // Add a temporary class to matching cards
+                    document.querySelectorAll('.property-card').forEach(card => {
+                        card.classList.remove('category-match');
+                        const allCategories = card.getAttribute('data-all-categories');
+                        if (allCategories && allCategories.split('|').map(cat => cat.trim()).includes(selectedCategory)) {
+                            card.classList.add('category-match');
+                        }
+                    });
+                    selectorParts.push('.category-match');
+                }
+                
+                // Combine location/category selectors with button group filters
+                let combinedSelector;
+                if (filterString === 'all') {
+                    // Only location/category filters
+                    combinedSelector = selectorParts.length > 0 ? selectorParts.join('') : 'all';
+                } else {
+                    // Combine location/category with button group filters
+                    const locationCategorySelector = selectorParts.join('');
+                    combinedSelector = locationCategorySelector + filterString;
+                }
+                
+                window.mixer.filter(combinedSelector);
+            } else {
+                // Clean up temporary classes when not using location/category filters
+                document.querySelectorAll('.property-card').forEach(card => {
+                    card.classList.remove('location-match', 'category-match');
+                });
+                
+                window.mixer.filter(filterString);
+            }
         }
-        console.log('[updateFilters] filterString:', filterString);
-        const matchingCards = document.querySelectorAll(filterString === 'all' ? '.property-card' : filterString);
-        console.log('[updateFilters] matchingCards:', matchingCards.length, matchingCards);
-        document.querySelectorAll('.property-card').forEach(card => {
-            console.log('[updateFilters] Card:', card,
-                'data-bedrooms:', card.getAttribute('data-bedrooms'),
-                'data-bathrooms:', card.getAttribute('data-bathrooms'),
-                'data-all-tags:', card.getAttribute('data-all-tags'),
-                'data-all-categories:', card.getAttribute('data-all-categories')
-            );
-        });
         document.querySelectorAll('.property-card').forEach(card => {
             card.classList.remove('range-filtered');
         });
-        if (window.mixer) {
-            window.mixer.filter(filterString);
-        }
         updateUrlWithFilters();
     }
 
@@ -1872,7 +1916,6 @@
         
         // Apply filters if any parameters were found
         if (filtersApplied && window.mixer) {
-            console.log('🔍 Applying filters from URL parameters');
             updateFilters();
         }
     }
