@@ -1682,7 +1682,7 @@
             const bedrooms = getActiveFilters('bedrooms-filter');
             if (bedrooms.length > 0 && !bedrooms.includes('all')) {
                 const group = bedrooms.map(bed => `[data-bedrooms="${bed}"]`).join(', ');
-                filterGroups.push(bedrooms.length > 1 ? `(${group})` : group);
+                filterGroups.push(group);
             }
         }
 
@@ -1692,7 +1692,7 @@
             const bathrooms = getActiveFilters('bathrooms-filter');
             if (bathrooms.length > 0 && !bathrooms.includes('all')) {
                 const group = bathrooms.map(bath => `[data-bathrooms="${bath}"]`).join(', ');
-                filterGroups.push(bathrooms.length > 1 ? `(${group})` : group);
+                filterGroups.push(group);
             }
         }
 
@@ -1803,9 +1803,13 @@
                 
                 let filterString = 'all';
                 if (filterGroups.length > 0) {
-                    // Join without spaces for AND logic (element must have ALL attributes)
-                    // Use comma separation for OR logic within each group
-                    filterString = filterGroups.join('');
+                    // If we have multiple filter groups, wrap each in parentheses for AND logic
+                    // Single group doesn't need parentheses
+                    if (filterGroups.length > 1) {
+                        filterString = filterGroups.map(group => `(${group})`).join('');
+                    } else {
+                        filterString = filterGroups[0];
+                    }
                 }
                 console.log('[updateFilters] 🎯 Using filterString for MixItUp:', filterString);
                 window.mixer.filter(filterString);
