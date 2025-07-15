@@ -840,6 +840,12 @@
             card.setAttribute('data-all-tags', property.allTags.join('|'));
             // Keep first tag as location for backwards compatibility with existing filters
             card.setAttribute('data-location', property.allTags[0]);
+            console.log('[createPropertyCard] 🏷️ Set tags for card:', {
+                title: property.title,
+                allTags: property.allTags,
+                dataAllTags: property.allTags.join('|'),
+                dataLocation: property.allTags[0]
+            });
         }
         
         // Set data attributes for all categories (for category filtering)
@@ -847,6 +853,12 @@
             card.setAttribute('data-all-categories', property.allCategories.join('|'));
             // Keep first category for backwards compatibility with existing filters
             card.setAttribute('data-category', property.allCategories[0]);
+            console.log('[createPropertyCard] 📂 Set categories for card:', {
+                title: property.title,
+                allCategories: property.allCategories,
+                dataAllCategories: property.allCategories.join('|'),
+                dataCategory: property.allCategories[0]
+            });
         }
         
         if (property.bedrooms > 0) {
@@ -1117,19 +1129,34 @@
     function populateDropdown(id, options, customClass) {
         const dropdown = document.getElementById(id);
         if (!dropdown) {
-            console.warn(`[populateDropdown] Dropdown element not found for id="${id}"`);
+            console.warn(`[populateDropdown] ❌ Dropdown element not found for id="${id}"`);
             return;
         }
-        console.log(`[populateDropdown] Populating dropdown: id=${id}, options=`, Array.from(options), `customClass=${customClass}`);
+        console.log(`[populateDropdown] 📝 Populating dropdown:`, {
+            id,
+            options: Array.from(options),
+            customClass,
+            dropdownElement: dropdown
+        });
+        
         options.forEach(option => {
             const optionElement = document.createElement('option');
             optionElement.value = option;
             optionElement.textContent = option;
             optionElement.className = customClass;
             dropdown.appendChild(optionElement);
-            console.log(`[populateDropdown] Added option: value=${option}, class=${customClass}`);
+            console.log(`[populateDropdown] ➕ Added option:`, {
+                value: option,
+                text: option,
+                class: customClass
+            });
         });
-        console.log(`[populateDropdown] Final dropdown:`, dropdown);
+        
+        console.log(`[populateDropdown] ✅ Final dropdown state:`, {
+            id,
+            totalOptions: dropdown.options.length,
+            allOptions: Array.from(dropdown.options).map(opt => ({ value: opt.value, text: opt.textContent }))
+        });
     }
 
     function initializeSlider(id, min, max, unit, callback) {
@@ -1256,10 +1283,21 @@
                         return filterByRanges(state);
                     },
                     onMixEnd: function (state) {
+                        console.log('[MixItUp] 🎯 Mix ended:', {
+                            totalShow: state.totalShow,
+                            totalTargets: state.totalTargets,
+                            activeFilter: state.activeFilter,
+                            matching: state.matching.length,
+                            hiding: state.hiding.length,
+                            showing: state.showing.length
+                        });
+                        
                         if (state.totalShow === 0) {
+                            console.log('[MixItUp] ❌ No results found - showing no results message');
                             noResultsMessage.style.display = 'block';
                             container.style.display = 'none';
                         } else {
+                            console.log('[MixItUp] ✅ Results found - hiding no results message');
                             noResultsMessage.style.display = 'none';
                             container.style.display = 'grid';
                         }
@@ -1385,26 +1423,65 @@
                 locationFilter.addEventListener('change', (e) => {
                     const select = e.target;
                     const options = Array.from(select.options).map(opt => opt.value);
-                    // Find all property cards and log the filter comparison
                     const selected = select.value;
-                    document.querySelectorAll('.property-card').forEach(card => {
+                    
+                    console.log('[Location Dropdown] 🏷️ Changed:', {
+                        selected,
+                        allOptions: options,
+                        elementId: select.id
+                    });
+                    
+                    // Find all property cards and log the filter comparison
+                    const allCards = document.querySelectorAll('.property-card');
+                    console.log('[Location Dropdown] 🔍 Analyzing cards:', allCards.length);
+                    
+                    allCards.forEach((card, index) => {
                         const allTags = card.getAttribute('data-all-tags');
-                        console.log('[Location Dropdown] Filtering:', {
-                            selected,
+                        const cardTitle = card.querySelector('.property-title')?.textContent || `Card ${index}`;
+                        const filterResult = allTags ? allTags.split('|').includes(selected) : false;
+                        
+                        console.log(`[Location Dropdown] 🏷️ Card ${index + 1} (${cardTitle}):`, {
                             allTags,
-                            filterResult: allTags ? allTags.split('|').includes(selected) : false
+                            tagArray: allTags ? allTags.split('|') : [],
+                            selected,
+                            filterResult
                         });
                     });
-                    console.log('[Location Dropdown] Changed:', {
-                        selected,
-                        allOptions: options
-                    });
+                    
                     updateFilters();
                 });
             }
             
             if (statusFilter) {
-                statusFilter.addEventListener('change', updateFilters);
+                statusFilter.addEventListener('change', (e) => {
+                    const select = e.target;
+                    const selected = select.value;
+                    
+                    console.log('[Category Dropdown] 📂 Changed:', {
+                        selected,
+                        elementId: select.id,
+                        allOptions: Array.from(select.options).map(opt => opt.value)
+                    });
+                    
+                    // Find all property cards and log the filter comparison
+                    const allCards = document.querySelectorAll('.property-card');
+                    console.log('[Category Dropdown] 🔍 Analyzing cards:', allCards.length);
+                    
+                    allCards.forEach((card, index) => {
+                        const allCategories = card.getAttribute('data-all-categories');
+                        const cardTitle = card.querySelector('.property-title')?.textContent || `Card ${index}`;
+                        const filterResult = allCategories ? allCategories.split('|').includes(selected) : false;
+                        
+                        console.log(`[Category Dropdown] 📂 Card ${index + 1} (${cardTitle}):`, {
+                            allCategories,
+                            categoryArray: allCategories ? allCategories.split('|') : [],
+                            selected,
+                            filterResult
+                        });
+                    });
+                    
+                    updateFilters();
+                });
             }
             
             // Add event listeners for custom column dropdown filters
@@ -1520,34 +1597,73 @@
         // Create a custom filter function for multiple tags/categories
         const customFilterFunction = (card) => {
             // Guard: Only process DOM elements
-            if (!card || typeof card.getAttribute !== 'function') return false;
+            if (!card || typeof card.getAttribute !== 'function') {
+                console.log('[customFilterFunction] ❌ Invalid card element:', card);
+                return false;
+            }
+            
             let matchesLocation = true;
             let matchesCategory = true;
+            
             // Check location filter (tags)
             if (locationFilter && locationFilter.value !== 'all') {
                 const selectedLocation = locationFilter.value.trim().toLowerCase();
                 const allTags = card.getAttribute('data-all-tags');
+                console.log('[customFilterFunction] 🏷️ Location filter check:', {
+                    selectedLocation,
+                    allTags,
+                    cardElement: card.outerHTML.substring(0, 200) + '...'
+                });
+                
                 if (allTags) {
                     // Split by |, trim and lowercase each tag
                     const tagList = allTags.split('|').map(tag => tag.trim().toLowerCase());
                     matchesLocation = tagList.includes(selectedLocation);
+                    console.log('[customFilterFunction] 🏷️ Tag matching:', {
+                        tagList,
+                        selectedLocation,
+                        matchesLocation
+                    });
                 } else {
                     matchesLocation = false;
+                    console.log('[customFilterFunction] 🏷️ No tags found on card, setting matchesLocation = false');
                 }
             }
+            
             // Check category filter
             if (statusFilter && statusFilter.value !== 'all') {
                 const selectedCategory = statusFilter.value.trim().toLowerCase();
                 const allCategories = card.getAttribute('data-all-categories');
+                console.log('[customFilterFunction] 📂 Category filter check:', {
+                    selectedCategory,
+                    allCategories,
+                    cardElement: card.outerHTML.substring(0, 200) + '...'
+                });
+                
                 if (allCategories) {
                     // Split by |, trim and lowercase each category
                     const categoryList = allCategories.split('|').map(cat => cat.trim().toLowerCase());
                     matchesCategory = categoryList.includes(selectedCategory);
+                    console.log('[customFilterFunction] 📂 Category matching:', {
+                        categoryList,
+                        selectedCategory,
+                        matchesCategory
+                    });
                 } else {
                     matchesCategory = false;
+                    console.log('[customFilterFunction] 📂 No categories found on card, setting matchesCategory = false');
                 }
             }
-            return matchesLocation && matchesCategory;
+            
+            const finalResult = matchesLocation && matchesCategory;
+            console.log('[customFilterFunction] ✅ Final result:', {
+                matchesLocation,
+                matchesCategory,
+                finalResult,
+                cardTitle: card.querySelector('.property-title')?.textContent || 'Unknown'
+            });
+            
+            return finalResult;
         };
         
         // Remove manual display logic; let MixItUp handle all filtering
@@ -1626,16 +1742,26 @@
         // If location or category filter is active, use custom filter function for MixItUp
         const locationActive = locationFilter && locationFilter.value !== 'all';
         const categoryActive = statusFilter && statusFilter.value !== 'all';
+        
+        console.log('[updateFilters] 🔍 Filter state check:', {
+            locationActive,
+            categoryActive,
+            locationValue: locationFilter ? locationFilter.value : 'N/A',
+            categoryValue: statusFilter ? statusFilter.value : 'N/A',
+            filterGroups
+        });
+        
         if (window.mixer) {
             if (locationActive || categoryActive) {
+                console.log('[updateFilters] 🎯 Using customFilterFunction for MixItUp');
+                console.log('[updateFilters] 🔍 Available cards before filtering:', document.querySelectorAll('.property-card').length);
                 window.mixer.filter(customFilterFunction);
-                console.log('[updateFilters] Using customFilterFunction for MixItUp');
             } else {
                 let filterString = 'all';
                 if (filterGroups.length > 0) {
                     filterString = filterGroups.join(' ');
                 }
-                console.log('[updateFilters] filterString:', filterString);
+                console.log('[updateFilters] 🎯 Using filterString for MixItUp:', filterString);
                 window.mixer.filter(filterString);
             }
         }
