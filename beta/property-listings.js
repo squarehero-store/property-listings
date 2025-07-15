@@ -1515,7 +1515,8 @@
         if (bedroomsFilter) {
             const bedrooms = getActiveFilters('bedrooms-filter');
             if (bedrooms.length > 0 && !bedrooms.includes('all')) {
-                filterGroups.push(bedrooms.map(bed => `[data-bedrooms="${bed}"]`).join(', '));
+                const group = bedrooms.map(bed => `[data-bedrooms="${bed}"]`).join(', ');
+                filterGroups.push(bedrooms.length > 1 ? `(${group})` : group);
             }
         }
 
@@ -1524,7 +1525,8 @@
         if (bathroomsFilter) {
             const bathrooms = getActiveFilters('bathrooms-filter');
             if (bathrooms.length > 0 && !bathrooms.includes('all')) {
-                filterGroups.push(bathrooms.map(bath => `[data-bathrooms="${bath}"]`).join(', '));
+                const group = bathrooms.map(bath => `[data-bathrooms="${bath}"]`).join(', ');
+                filterGroups.push(bathrooms.length > 1 ? `(${group})` : group);
             }
         }
 
