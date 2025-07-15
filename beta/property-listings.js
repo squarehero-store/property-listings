@@ -1237,6 +1237,15 @@
         `;
         container.parentNode.insertBefore(noResultsMessage, container.nextSibling);
 
+        // Add event listener for reset filters link in no-results message
+        const resetFiltersLink = noResultsMessage.querySelector('#reset-filters-link');
+        if (resetFiltersLink) {
+            resetFiltersLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                resetFilters();
+            });
+        }
+
         try {
             window.mixer = mixitup(container, {
                 selectors: {
@@ -1523,6 +1532,10 @@
             if (!card || typeof card.getAttribute !== 'function') return false;
             let matchesLocation = true;
             let matchesCategory = true;
+            let matchesBedrooms = true;
+            let matchesBathrooms = true;
+            let matchesCustomFilters = true;
+            
             // Check location filter (tags)
             if (locationFilter && locationFilter.value !== 'all') {
                 const selectedLocation = locationFilter.value.trim().toLowerCase();
@@ -1547,7 +1560,85 @@
                     matchesCategory = false;
                 }
             }
-            return matchesLocation && matchesCategory;
+            
+            // Check bedrooms filter
+            const bedroomsFilter = document.getElementById('bedrooms-filter');
+            if (bedroomsFilter) {
+                const activeBedrooms = getActiveFilters('bedrooms-filter');
+                if (activeBedrooms.length > 0 && !activeBedrooms.includes('all')) {
+                    const cardBedrooms = card.getAttribute('data-bedrooms');
+                    matchesBedrooms = cardBedrooms && activeBedrooms.includes(cardBedrooms);
+                }
+            }
+            
+            // Check bathrooms filter
+            const bathroomsFilter = document.getElementById('bathrooms-filter');
+            if (bathroomsFilter) {
+                const activeBathrooms = getActiveFilters('bathrooms-filter');
+                if (activeBathrooms.length > 0 && !activeBathrooms.includes('all')) {
+                    const cardBathrooms = card.getAttribute('data-bathrooms');
+                    matchesBathrooms = cardBathrooms && activeBathrooms.includes(cardBathrooms);
+                }
+            }
+            
+            // Check custom column filters
+            if (window.customColumns && window.customColumns.length > 0) {
+                for (const column of window.customColumns) {
+                    const columnId = column.toLowerCase().replace(/\s+/g, '-');
+                    const columnType = window.customColumnTypes[column];
+                    const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[column];
+
+                    if (columnType === 'boolean') {
+                        const customFilter = document.getElementById(`${columnId}-filter`);
+                        if (customFilter) {
+                            const customValues = getActiveFilters(`${columnId}-filter`);
+                            if (customValues.length > 0 && !customValues.includes('all')) {
+                                const cardValue = card.getAttribute(`data-${columnId}`);
+                                const matches = customValues.some(val => {
+                                    if (val === 'Yes') return cardValue === 'yes';
+                                    if (val === 'No') return cardValue === 'no';
+                                    return cardValue === val.toLowerCase();
+                                });
+                                if (!matches) {
+                                    matchesCustomFilters = false;
+                                    break;
+                                }
+                            }
+                        }
+                    } else if (specialHandling === 'buttonGroup') {
+                        const customFilter = document.getElementById(`${columnId}-filter`);
+                        if (customFilter) {
+                            const customValues = getActiveFilters(`${columnId}-filter`);
+                            if (customValues.length > 0 && !customValues.includes('all')) {
+                                const cardValue = card.getAttribute(`data-${columnId}`);
+                                const matches = customValues.some(val => {
+                                    const numVal = parseInt(val);
+                                    if (!isNaN(numVal)) {
+                                        return cardValue === numVal.toString();
+                                    } else {
+                                        return cardValue === val;
+                                    }
+                                });
+                                if (!matches) {
+                                    matchesCustomFilters = false;
+                                    break;
+                                }
+                            }
+                        }
+                    } else if (columnType === 'text') {
+                        const dropdownFilter = document.getElementById(`${columnId}-filter`);
+                        if (dropdownFilter && dropdownFilter.value !== 'all') {
+                            const cardValue = card.getAttribute(`data-${columnId}`);
+                            if (cardValue !== dropdownFilter.value) {
+                                matchesCustomFilters = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return matchesLocation && matchesCategory && matchesBedrooms && matchesBathrooms && matchesCustomFilters;
         };
         
         // Remove manual display logic; let MixItUp handle all filtering
@@ -1623,20 +1714,19 @@
             });
         }
 
-        // If location or category filter is active, use custom filter function for MixItUp
+        // Check if any filters are active
         const locationActive = locationFilter && locationFilter.value !== 'all';
         const categoryActive = statusFilter && statusFilter.value !== 'all';
+        const buttonFiltersActive = filterGroups.length > 0;
+        const anyFiltersActive = locationActive || categoryActive || buttonFiltersActive;
+        
         if (window.mixer) {
-            if (locationActive || categoryActive) {
+            if (anyFiltersActive) {
                 window.mixer.filter(customFilterFunction);
                 console.log('[updateFilters] Using customFilterFunction for MixItUp');
             } else {
-                let filterString = 'all';
-                if (filterGroups.length > 0) {
-                    filterString = filterGroups.join(' ');
-                }
-                console.log('[updateFilters] filterString:', filterString);
-                window.mixer.filter(filterString);
+                console.log('[updateFilters] No filters active, showing all');
+                window.mixer.filter('all');
             }
         }
         // Log matching cards and card data for debugging
