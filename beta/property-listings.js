@@ -1382,7 +1382,25 @@
             const statusFilter = document.getElementById('status-filter');
     
             if (locationFilter) {
-                locationFilter.addEventListener('change', updateFilters);
+                locationFilter.addEventListener('change', (e) => {
+                    const select = e.target;
+                    const options = Array.from(select.options).map(opt => opt.value);
+                    // Find all property cards and log the filter comparison
+                    const selected = select.value;
+                    document.querySelectorAll('.property-card').forEach(card => {
+                        const allTags = card.getAttribute('data-all-tags');
+                        console.log('[Location Dropdown] Filtering:', {
+                            selected,
+                            allTags,
+                            filterResult: allTags ? allTags.split('|').includes(selected) : false
+                        });
+                    });
+                    console.log('[Location Dropdown] Changed:', {
+                        selected,
+                        allOptions: options
+                    });
+                    updateFilters();
+                });
             }
             
             if (statusFilter) {
