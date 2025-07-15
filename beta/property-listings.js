@@ -1614,38 +1614,38 @@
             });
         }
 
-        // Build AND selector (space between groups)
-        let filterString = 'all';
-        if (filterGroups.length > 0) {
-            filterString = filterGroups.join(' ');
-        }
-        console.log('[updateFilters] filterString:', filterString);
-        // Only log matchingCards if filterString is a valid selector for querySelectorAll
-        if (filterString === 'all') {
-            const matchingCards = document.querySelectorAll('.property-card');
-            console.log('[updateFilters] matchingCards:', matchingCards.length, matchingCards);
-        } else if (!filterString.includes('(') && !filterString.includes(')') && !filterString.includes(',')) {
-            try {
-                const matchingCards = document.querySelectorAll(filterString);
-                console.log('[updateFilters] matchingCards:', matchingCards.length, matchingCards);
-            } catch (e) {
-                console.warn('[updateFilters] Invalid selector for querySelectorAll:', filterString);
+        // If location or category filter is active, use custom filter function for MixItUp
+        const locationActive = locationFilter && locationFilter.value !== 'all';
+        const categoryActive = statusFilter && statusFilter.value !== 'all';
+        if (window.mixer) {
+            if (locationActive || categoryActive) {
+                window.mixer.filter(customFilterFunction);
+                console.log('[updateFilters] Using customFilterFunction for MixItUp');
+            } else {
+                let filterString = 'all';
+                if (filterGroups.length > 0) {
+                    filterString = filterGroups.join(' ');
+                }
+                console.log('[updateFilters] filterString:', filterString);
+                window.mixer.filter(filterString);
             }
         }
-        document.querySelectorAll('.property-card').forEach(card => {
-            console.log('[updateFilters] Card:', card,
-                'data-bedrooms:', card.getAttribute('data-bedrooms'),
-                'data-bathrooms:', card.getAttribute('data-bathrooms'),
-                'data-all-tags:', card.getAttribute('data-all-tags'),
-                'data-all-categories:', card.getAttribute('data-all-categories')
-            );
-        });
+        // Log matching cards and card data for debugging
+        if (window.mixer) {
+            const matchingCards = document.querySelectorAll('.property-card');
+            console.log('[updateFilters] matchingCards:', matchingCards.length, matchingCards);
+            document.querySelectorAll('.property-card').forEach(card => {
+                console.log('[updateFilters] Card:', card,
+                    'data-bedrooms:', card.getAttribute('data-bedrooms'),
+                    'data-bathrooms:', card.getAttribute('data-bathrooms'),
+                    'data-all-tags:', card.getAttribute('data-all-tags'),
+                    'data-all-categories:', card.getAttribute('data-all-categories')
+                );
+            });
+        }
         document.querySelectorAll('.property-card').forEach(card => {
             card.classList.remove('range-filtered');
         });
-        if (window.mixer) {
-            window.mixer.filter(filterString);
-        }
         updateUrlWithFilters();
     }
 
