@@ -1759,15 +1759,48 @@
         
         if (window.mixer) {
             if (locationActive || categoryActive) {
-                console.log('[updateFilters] 🎯 Using function-based filtering for location/category');
+                console.log('[updateFilters] 🎯 Building CSS selector for location/category filtering');
                 
-                // Create a MixItUp-compatible filter function
-                const mixItUpFilterFunction = function(el) {
-                    return customFilterFunction(el);
-                };
+                // Build a CSS selector for MixItUp instead of using a function
+                let selectorParts = [];
                 
-                window.mixer.filter(mixItUpFilterFunction);
+                if (locationActive) {
+                    const selectedLocation = locationFilter.value;
+                    // Add a temporary class to matching cards
+                    document.querySelectorAll('.property-card').forEach(card => {
+                        card.classList.remove('location-match');
+                        const allTags = card.getAttribute('data-all-tags');
+                        if (allTags && allTags.split('|').map(tag => tag.trim()).includes(selectedLocation)) {
+                            card.classList.add('location-match');
+                        }
+                    });
+                    selectorParts.push('.location-match');
+                }
+                
+                if (categoryActive) {
+                    const selectedCategory = statusFilter.value;
+                    // Add a temporary class to matching cards
+                    document.querySelectorAll('.property-card').forEach(card => {
+                        card.classList.remove('category-match');
+                        const allCategories = card.getAttribute('data-all-categories');
+                        if (allCategories && allCategories.split('|').map(cat => cat.trim()).includes(selectedCategory)) {
+                            card.classList.add('category-match');
+                        }
+                    });
+                    selectorParts.push('.category-match');
+                }
+                
+                // Combine selectors - for multiple conditions, we need cards that have ALL classes
+                const finalSelector = selectorParts.length > 0 ? selectorParts.join('') : 'all';
+                console.log('[updateFilters] 🎯 Using CSS selector:', finalSelector);
+                
+                window.mixer.filter(finalSelector);
             } else {
+                // Clean up temporary classes when not using location/category filters
+                document.querySelectorAll('.property-card').forEach(card => {
+                    card.classList.remove('location-match', 'category-match');
+                });
+                
                 let filterString = 'all';
                 if (filterGroups.length > 0) {
                     filterString = filterGroups.join(' ');
