@@ -1519,25 +1519,22 @@
         
         // Create a custom filter function for multiple tags/categories
         const customFilterFunction = (card) => {
+            // Guard: Only process DOM elements
+            if (!card || typeof card.getAttribute !== 'function') return false;
             let matchesLocation = true;
             let matchesCategory = true;
-            
             // Check location filter (tags)
             if (locationFilter && locationFilter.value !== 'all') {
                 const selectedLocation = locationFilter.value;
                 const allTags = card.getAttribute('data-all-tags');
-                
                 matchesLocation = allTags && allTags.split('|').includes(selectedLocation);
             }
-            
             // Check category filter
             if (statusFilter && statusFilter.value !== 'all') {
                 const selectedCategory = statusFilter.value;
                 const allCategories = card.getAttribute('data-all-categories');
-                
                 matchesCategory = allCategories && allCategories.split('|').includes(selectedCategory);
             }
-            
             return matchesLocation && matchesCategory;
         };
         
