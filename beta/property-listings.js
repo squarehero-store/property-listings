@@ -1803,7 +1803,9 @@
                 
                 let filterString = 'all';
                 if (filterGroups.length > 0) {
-                    filterString = filterGroups.join(' ');
+                    // Join without spaces for AND logic (element must have ALL attributes)
+                    // Use comma separation for OR logic within each group
+                    filterString = filterGroups.join('');
                 }
                 console.log('[updateFilters] 🎯 Using filterString for MixItUp:', filterString);
                 window.mixer.filter(filterString);
