@@ -673,6 +673,7 @@
     }
 
     function createDropdownFilter(id, label, defaultOption, customClass) {
+        console.log(`[createDropdownFilter] Creating dropdown filter: id=${id}, label=${label}, defaultOption=${defaultOption}, customClass=${customClass}`);
         const group = document.createElement('div');
         group.className = `filter-group ${customClass}-group`;
 
@@ -694,6 +695,8 @@
         group.appendChild(labelElement);
         group.appendChild(select);
 
+        // Log the created DOM structure
+        console.log(`[createDropdownFilter] Created dropdown filter group:`, group);
         return group;
     }
 
@@ -1018,7 +1021,7 @@
         // Get unique values for dropdown filters - collect all tags and categories
         const locations = new Set();
         const categories = new Set();
-        
+
         properties.forEach(property => {
             // Add all tags to locations
             if (property.allTags && property.allTags.length > 0) {
@@ -1029,16 +1032,25 @@
                 property.allCategories.forEach(category => categories.add(category));
             }
         });
-        
+
+        console.log(`[initializeFilters] Locations found:`, Array.from(locations));
+        console.log(`[initializeFilters] Categories found:`, Array.from(categories));
+
         // Only fill dropdowns if they exist
         const locationFilter = document.getElementById('location-filter');
         if (locationFilter && locations.size > 0) {
+            console.log(`[initializeFilters] Populating location dropdown with:`, Array.from(locations));
             populateDropdown('location-filter', locations, 'sh-location-option');
+        } else {
+            console.warn(`[initializeFilters] Location filter not found or no locations available.`);
         }
-        
+
         const statusFilter = document.getElementById('status-filter');
         if (statusFilter && categories.size > 0) {
+            console.log(`[initializeFilters] Populating status dropdown with:`, Array.from(categories));
             populateDropdown('status-filter', categories, 'sh-status-option');
+        } else {
+            console.warn(`[initializeFilters] Status filter not found or no categories available.`);
         }
         
         // Initialize sliders only if they exist and have valid data
@@ -1104,15 +1116,20 @@
 
     function populateDropdown(id, options, customClass) {
         const dropdown = document.getElementById(id);
-        if (!dropdown) return;
-        
+        if (!dropdown) {
+            console.warn(`[populateDropdown] Dropdown element not found for id="${id}"`);
+            return;
+        }
+        console.log(`[populateDropdown] Populating dropdown: id=${id}, options=`, Array.from(options), `customClass=${customClass}`);
         options.forEach(option => {
             const optionElement = document.createElement('option');
             optionElement.value = option;
             optionElement.textContent = option;
             optionElement.className = customClass;
             dropdown.appendChild(optionElement);
+            console.log(`[populateDropdown] Added option: value=${option}, class=${customClass}`);
         });
+        console.log(`[populateDropdown] Final dropdown:`, dropdown);
     }
 
     function initializeSlider(id, min, max, unit, callback) {
