@@ -1525,15 +1525,27 @@
             let matchesCategory = true;
             // Check location filter (tags)
             if (locationFilter && locationFilter.value !== 'all') {
-                const selectedLocation = locationFilter.value;
+                const selectedLocation = locationFilter.value.trim().toLowerCase();
                 const allTags = card.getAttribute('data-all-tags');
-                matchesLocation = allTags && allTags.split('|').includes(selectedLocation);
+                if (allTags) {
+                    // Split by |, trim and lowercase each tag
+                    const tagList = allTags.split('|').map(tag => tag.trim().toLowerCase());
+                    matchesLocation = tagList.includes(selectedLocation);
+                } else {
+                    matchesLocation = false;
+                }
             }
             // Check category filter
             if (statusFilter && statusFilter.value !== 'all') {
-                const selectedCategory = statusFilter.value;
+                const selectedCategory = statusFilter.value.trim().toLowerCase();
                 const allCategories = card.getAttribute('data-all-categories');
-                matchesCategory = allCategories && allCategories.split('|').includes(selectedCategory);
+                if (allCategories) {
+                    // Split by |, trim and lowercase each category
+                    const categoryList = allCategories.split('|').map(cat => cat.trim().toLowerCase());
+                    matchesCategory = categoryList.includes(selectedCategory);
+                } else {
+                    matchesCategory = false;
+                }
             }
             return matchesLocation && matchesCategory;
         };
