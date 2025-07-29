@@ -15,6 +15,19 @@
         return customIcons;
     }
 
+    // Currency symbol helper
+    function getCurrencySymbol(currencyCode) {
+        const symbols = {
+            USD: '$',
+            CAD: '$',
+            AUD: '$',
+            NZD: '$',
+            GBP: '£',
+            EUR: '€'
+        };
+        return symbols[currencyCode] || '$';
+    }
+
     // Helper functions for Property Data
     function parseCSV(csv) {
         const lines = csv.split('\n');
@@ -139,9 +152,9 @@
         return processedItems;
     }
 
-    function formatPrice(price) {
+    function formatPrice(price, currencySymbol = '$') {
         if (price === null) return 'Price TBA';
-        return '$' + price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        return currencySymbol + price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     }
 
     // SVG Icons remain unchanged
@@ -158,23 +171,30 @@
         if (!metaTag || metaTag.getAttribute('enabled') !== 'true') return;
 
         const sheetUrl = metaTag.getAttribute('sheet-url');
+        const target = metaTag.getAttribute('target');
         const currentPropertyJsonUrl = `${window.location.pathname}?format=json`;
+        const blogJsonUrl = `/${target}?format=json&nocache=${new Date().getTime()}`;
 
         Promise.all([
             fetch(sheetUrl).then(response => response.text()),
-            fetch(currentPropertyJsonUrl).then(response => response.json())
-        ]).then(([csvData, currentPropertyData]) => {
+            fetch(currentPropertyJsonUrl).then(response => response.json()),
+            fetch(blogJsonUrl).then(response => response.json())
+        ]).then(([csvData, currentPropertyData, websiteSettingsData]) => {
             const sheetData = parseCSV(csvData);
             const propertyData = processPropertyData(sheetData, [currentPropertyData.item]);
             const currentProperty = propertyData[0];
+            
+            // Get currency symbol from website settings
+            const storeSettings = websiteSettingsData.websiteSettings?.storeSettings || {};
+            const currencySymbol = getCurrencySymbol(storeSettings.selectedCurrency);
 
             if (currentProperty) {
-                insertCurrentPropertyDetails(currentProperty);
+                insertCurrentPropertyDetails(currentProperty, currencySymbol);
             }
         }).catch(error => console.error('Error fetching property data:', error));
     }
 
-    function insertCurrentPropertyDetails(property) {
+    function insertCurrentPropertyDetails(property, currencySymbol = '$') {
         const blogItemTitle = document.querySelector('.blog-item-title');
         if (!blogItemTitle) {
             console.error('Blog item title element not found');
@@ -197,7 +217,7 @@
         let detailsContent = `
     <div class="listing-content sh-listing-content">
       ${property.location ? `<p class="property-location sh-property-location">${property.location}</p>` : ''}
-      ${showPricing ? `<p class="property-price sh-property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price)}</p>` : ''}
+      ${showPricing ? `<p class="property-price sh-property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price, currencySymbol)}</p>` : ''}
       <div class="property-details sh-property-details">
         ${property.area ? `<span class="details-icon sh-area-icon">${svgIcons.area} <span class="sh-area-value">${property.area.toLocaleString()} sq ft</span></span>` : ''}
         ${property.bedrooms ? `<span class="details-icon sh-beds-icon">${svgIcons.beds} <span class="sh-beds-value">${property.bedrooms}</span></span>` : ''}
@@ -353,6 +373,10 @@
                 ]).then(([csvData, allPropertiesData]) => {
                     const sheetData = parseCSV(csvData);
                     const propertyData = processPropertyData(sheetData, allPropertiesData.items);
+                    
+                    // Get currency symbol from website settings
+                    const storeSettings = allPropertiesData.websiteSettings?.storeSettings || {};
+                    const currencySymbol = getCurrencySymbol(storeSettings.selectedCurrency);
 
                     let filteredProperties = propertyData.filter(property => property.urlId !== currentUrlId);
 
@@ -365,14 +389,14 @@
                     const relatedProperties = filteredProperties.slice(0, 3);
 
                     if (relatedProperties.length > 0) {
-                        renderRelatedProperties(relatedProperties, shouldFilterByTag);
+                        renderRelatedProperties(relatedProperties, shouldFilterByTag, currencySymbol);
                     }
                 }).catch(error => console.error('Error fetching data:', error));
             })
             .catch(error => console.error('Error fetching current property data:', error));
     }
 
-    function createPropertyCard(property) {
+    function createPropertyCard(property, currencySymbol = '$') {
         const card = document.createElement('a');
         card.className = 'property-card sh-property-card';
         card.href = property.url;
@@ -445,7 +469,7 @@
       <div class="listing-content sh-listing-content">
         <h3 class="property-title sh-property-title">${property.title}</h3>
         ${property.location ? `<p class="property-location sh-property-location">${property.location}</p>` : ''}
-        ${showPricing ? `<p class="property-price sh-property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price)}</p>` : ''}
+        ${showPricing ? `<p class="property-price sh-property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price, currencySymbol)}</p>` : ''}
         <div class="property-details sh-property-details">
           ${property.area ? `<span class="details-icon sh-area-icon">${svgIcons.area} <span class="sh-area-value">${property.area.toLocaleString()} sq ft</span></span>` : ''}
           ${property.bedrooms ? `<span class="details-icon sh-beds-icon">${svgIcons.beds} <span class="sh-beds-value">${property.bedrooms}</span></span>` : ''}
@@ -518,7 +542,7 @@
         return card;
     }
 
-    function renderRelatedProperties(properties, isTagFiltered) {
+    function renderRelatedProperties(properties, isTagFiltered, currencySymbol = '$') {
         const blogItemWrapper = document.querySelector('.blog-item-wrapper');
         if (!blogItemWrapper) {
             console.error('Blog item wrapper not found');
@@ -535,7 +559,7 @@
         relatedContainer.className = 'property-grid';
 
         properties.forEach(property => {
-            const card = createPropertyCard(property);
+            const card = createPropertyCard(property, currencySymbol);
             relatedContainer.appendChild(card);
         });
 
