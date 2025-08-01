@@ -1325,13 +1325,12 @@
                         }
                     });
     
-                    // Only hide/show if the card is part of the current filter state
-                    if (state.matching && state.matching.includes(card)) {
-                        if (shouldShow && !card.classList.contains('custom-filtered')) {
-                            card.classList.remove('range-filtered');
-                        } else {
-                            card.classList.add('range-filtered');
-                        }
+                    // Apply range filtering to all cards, regardless of dropdown filter state
+                    // This ensures sliders work in combination with dropdown filters
+                    if (shouldShow) {
+                        card.classList.remove('range-filtered');
+                    } else {
+                        card.classList.add('range-filtered');
                     }
                 });
     
@@ -1792,9 +1791,6 @@
                 );
             });
         }
-        document.querySelectorAll('.property-card').forEach(card => {
-            card.classList.remove('range-filtered');
-        });
         updateUrlWithFilters();
     }
 
