@@ -1250,9 +1250,10 @@
                         // Count actually visible cards (not hidden by MixItUp AND not range-filtered)
                         const actuallyVisibleCards = Array.from(container.querySelectorAll('.property-card')).filter(card => {
                             // Card must not be hidden by MixItUp and must not have range-filtered class
-                            const hiddenByMixItUp = card.style.display === 'none' || !card.offsetParent;
+                            const hiddenByMixItUp = card.style.display === 'none';
                             const hiddenByRange = card.classList.contains('range-filtered');
-                            return !hiddenByMixItUp && !hiddenByRange;
+                            const hiddenByCustom = card.classList.contains('custom-filtered');
+                            return !hiddenByMixItUp && !hiddenByRange && !hiddenByCustom;
                         });
                         
                         console.log('[MixItUp] 📊 Actual visibility check:', {
