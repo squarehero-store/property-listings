@@ -640,6 +640,16 @@
                                options.includes('Any') && 
                                options.includes('Yes') && 
                                options.includes('No');
+                               
+        console.log(`[createButtonGroupFilter] 🔍 Boolean filter detection for "${id}":`, {
+            id,
+            options,
+            optionsLength: options.length,
+            hasAny: options.includes('Any'),
+            hasYes: options.includes('Yes'),
+            hasNo: options.includes('No'),
+            isBooleanFilter
+        });
         
         // Use a special class for boolean filters to style them differently
         buttonGroup.className = isBooleanFilter 
@@ -1487,8 +1497,19 @@
             document.querySelectorAll('.button-group').forEach(group => {
                 group.addEventListener('click', (e) => {
                     if (e.target.classList.contains('filter-button')) {
-                        // Removed [ButtonGroup] Clicked log
+                        const groupId = group.id;
+                        const buttonText = e.target.textContent;
+                        const dataFilter = e.target.getAttribute('data-filter');
                         const isBooleanGroup = group.getAttribute('data-boolean-filter') === 'true';
+                        
+                        console.log(`[ButtonGroup] 🔘 Button clicked:`, {
+                            groupId,
+                            buttonText,
+                            dataFilter,
+                            isBooleanGroup,
+                            isCustomBoolean: groupId.includes('swimming-pool') || groupId.includes('pool')
+                        });
+                        
                         if (isBooleanGroup) {
                             // For boolean filters, implement radio-button like behavior
                             // First, handle the 'Any' button
@@ -1677,12 +1698,30 @@
                     const customFilter = document.getElementById(`${columnId}-filter`);
                     if (customFilter) {
                         const customValues = getActiveFilters(`${columnId}-filter`);
+                        console.log(`[updateFilters] 🔘 Boolean filter "${column}" (${columnId}):`, {
+                            customValues,
+                            filterId: `${columnId}-filter`,
+                            activeButtons: Array.from(document.querySelectorAll(`#${columnId}-filter .filter-button.active`)).map(btn => ({
+                                text: btn.textContent,
+                                dataFilter: btn.getAttribute('data-filter')
+                            }))
+                        });
+                        
                         if (customValues.length > 0 && !customValues.includes('all')) {
                             const mappedValues = customValues.map(val => {
-                                if (val === 'Yes') return `[data-${columnId}="yes"]`;
-                                if (val === 'No') return `[data-${columnId}="no"]`;
-                                return `[data-${columnId}="${val.toLowerCase()}"]`;
+                                let selector;
+                                if (val === 'Yes') {
+                                    selector = `[data-${columnId}="yes"]`;
+                                } else if (val === 'No') {
+                                    selector = `[data-${columnId}="no"]`;
+                                } else {
+                                    selector = `[data-${columnId}="${val.toLowerCase()}"]`;
+                                }
+                                console.log(`[updateFilters] 🎯 Mapping boolean value "${val}" to selector "${selector}"`);
+                                return selector;
                             });
+                            
+                            console.log(`[updateFilters] 📋 Adding boolean filter group for ${column}:`, mappedValues.join(', '));
                             filterGroups.push(mappedValues.join(', '));
                         }
                     }
@@ -1731,22 +1770,68 @@
             // Always start with building the base selector from button groups and other filters
             let filterString = 'all';
             if (filterGroups.length > 0) {
+                console.log('[updateFilters] 🔧 Building filter string from groups:', filterGroups);
+                
                 // For modern browsers, use :is() for clean selectors
                 // For multiple groups, each element must match ALL groups (AND logic)
                 if (filterGroups.length > 1) {
-                    // Convert each group to :is() syntax for modern CSS
-                    const isSelectors = filterGroups.map(group => {
-                        // If group has commas (multiple options), wrap in :is()
-                        if (group.includes(',')) {
-                            return `:is(${group})`;
-                        } else {
-                            return group;
+                    // Check if the browser supports :is() syntax
+                    try {
+                        document.querySelector(':is(div)');
+                        // Convert each group to :is() syntax for modern CSS
+                        const isSelectors = filterGroups.map(group => {
+                            // If group has commas (multiple options), wrap in :is()
+                            if (group.includes(',')) {
+                                return `:is(${group})`;
+                            } else {
+                                return group;
+                            }
+                        });
+                        filterString = isSelectors.join('');
+                        console.log('[updateFilters] ✅ Using modern :is() syntax:', filterString);
+                    } catch (e) {
+                        // Fallback for older browsers - use the first filter group only
+                        console.warn('[updateFilters] ⚠️ Browser does not support :is(), using fallback');
+                        filterString = filterGroups[0];
+                        
+                        // Apply additional filter groups manually using classes
+                        if (filterGroups.length > 1) {
+                            document.querySelectorAll('.property-card').forEach(card => {
+                                card.classList.remove('custom-filtered');
+                                let matches = true;
+                                
+                                // Check each filter group
+                                for (let i = 1; i < filterGroups.length; i++) {
+                                    const group = filterGroups[i];
+                                    const selectors = group.split(',').map(s => s.trim());
+                                    const groupMatches = selectors.some(selector => {
+                                        try {
+                                            return card.matches(selector);
+                                        } catch (e) {
+                                            console.warn('[updateFilters] Invalid selector:', selector);
+                                            return false;
+                                        }
+                                    });
+                                    if (!groupMatches) {
+                                        matches = false;
+                                        break;
+                                    }
+                                }
+                                
+                                if (!matches) {
+                                    card.classList.add('custom-filtered');
+                                }
+                            });
                         }
-                    });
-                    filterString = isSelectors.join('');
+                    }
                 } else {
                     filterString = filterGroups[0];
                 }
+            } else {
+                // Remove any custom filtering classes when no button filters are active
+                document.querySelectorAll('.property-card').forEach(card => {
+                    card.classList.remove('custom-filtered');
+                });
             }
 
             if (locationActive || categoryActive) {
@@ -1793,6 +1878,16 @@
                 }
                 
                 console.log('[updateFilters] 🎯 Using combined CSS selector:', combinedSelector);
+                
+                // Debug: Show which cards should match this selector
+                const matchingCards = document.querySelectorAll(combinedSelector);
+                console.log(`[updateFilters] 📊 Selector "${combinedSelector}" matches ${matchingCards.length} cards:`, 
+                    Array.from(matchingCards).map(card => ({
+                        title: card.querySelector('.property-title')?.textContent,
+                        dataAttribs: Array.from(card.attributes).filter(attr => attr.name.startsWith('data-')).map(attr => `${attr.name}="${attr.value}"`).join(' ')
+                    }))
+                );
+                
                 window.mixer.filter(combinedSelector);
             } else {
                 // Clean up temporary classes when not using location/category filters
