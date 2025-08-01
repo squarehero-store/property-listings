@@ -1259,7 +1259,7 @@
                         } else {
                             console.log('[MixItUp] ✅ Results found - hiding no results message');
                             noResultsMessage.style.display = 'none';
-                            container.style.display = 'grid';
+                            container.style.display = ''; // Reset to default instead of setting to 'grid'
                         }
                     }
                 }
@@ -1545,6 +1545,17 @@
                 });
             });
             
+            // Add event listener for reset filters link in no results message
+            setTimeout(() => {
+                const resetLink = document.getElementById('reset-filters-link');
+                if (resetLink) {
+                    resetLink.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        resetFilters();
+                    });
+                }
+            }, 100);
+            
             // Apply initial filter
             window.mixer.filter('all');
             
@@ -1821,21 +1832,26 @@
     }
 
     function resetFilters() {
+        console.log('[resetFilters] 🔄 Resetting all filters...');
+        
         // Only reset filters that exist
         const locationFilter = document.getElementById('location-filter');
         if (locationFilter) {
             locationFilter.value = 'all';
+            console.log('[resetFilters] ✅ Reset location filter');
         }
         
         const statusFilter = document.getElementById('status-filter');
         if (statusFilter) {
             statusFilter.value = 'all';
+            console.log('[resetFilters] ✅ Reset status filter');
         }
         
         // Clear all active button states
         document.querySelectorAll('.button-group .filter-button').forEach(button => {
             button.classList.remove('active');
         });
+        console.log('[resetFilters] ✅ Reset button groups');
         
         const areaSlider = document.getElementById('area-slider');
         const priceSlider = document.getElementById('price-slider');
@@ -1843,10 +1859,12 @@
         // Reset sliders if they exist
         if (areaSlider && areaSlider.noUiSlider) {
             areaSlider.noUiSlider.reset();
+            console.log('[resetFilters] ✅ Reset area slider');
         }
         
         if (priceSlider && priceSlider.noUiSlider) {
             priceSlider.noUiSlider.reset();
+            console.log('[resetFilters] ✅ Reset price slider');
         }
         
         // Reset custom filters if they exist
@@ -1882,11 +1900,27 @@
            
             card.style.display = ''; // Reset inline display style
         });
+        console.log('[resetFilters] ✅ Reset card classes and display styles');
 
         // Reset the mixer
         if (window.mixer) {
             window.mixer.filter('all');
+            console.log('[resetFilters] ✅ Reset MixItUp filter to "all"');
         }
+        
+        // Ensure no results message is hidden and container is visible
+        const noResultsMessage = document.getElementById('no-results-message');
+        const container = document.getElementById('property-grid');
+        if (noResultsMessage) {
+            noResultsMessage.style.display = 'none';
+            console.log('[resetFilters] ✅ Hidden no results message');
+        }
+        if (container) {
+            container.style.display = ''; // Reset to default
+            console.log('[resetFilters] ✅ Reset container display');
+        }
+        
+        console.log('[resetFilters] 🎉 All filters reset successfully!');
         
         // Clear URL parameters
         history.pushState(null, '', window.location.pathname);
