@@ -285,7 +285,9 @@
                         }
                         
                         return Object.entries(property.customFields).map(([key, value]) => {
-                            const iconUrl = customIcons[key.toLowerCase()];
+                            // Normalize the field name to match the icon key format
+                            const normalizedKey = key.toLowerCase().replace(/\s+/g, '-');
+                            const iconUrl = customIcons[normalizedKey] || customIcons[normalizedKey + '-icon'];
                             if (!iconUrl) {
                                 return ''; // Only show custom fields that have icons here
                             }
@@ -313,7 +315,9 @@
         if (hasCustomFields) {
             // Filter out custom fields that have icons - they're already shown in the property-details section
             const fieldsWithoutIcons = Object.entries(property.customFields).filter(([key, value]) => {
-                const iconUrl = customIcons[key.toLowerCase()];
+                // Normalize the field name to match the icon key format
+                const normalizedKey = key.toLowerCase().replace(/\s+/g, '-');
+                const iconUrl = customIcons[normalizedKey] || customIcons[normalizedKey + '-icon'];
                 return !iconUrl; // Only include fields that don't have custom icons
             });
             
