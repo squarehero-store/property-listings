@@ -37,9 +37,6 @@
     
     // Store custom icons globally for use in other functions
     window.customIcons = customIcons;
-    
-
-    console.log('- Custom Icons:', customIcons);
 
     // Currency symbol helper
     const getCurrencySymbol = (currencyCode) => {
@@ -94,7 +91,6 @@
     
     // Function to fetch all properties across all pages - now fetches ALL pages before returning
     async function fetchAllProperties(baseUrl) {
-        console.log('📋 Fetching all properties across all pages...');
         let allItems = [];
         let currentUrl = `${baseUrl}?format=json&nocache=${new Date().getTime()}`;
         let page = 1;
@@ -102,18 +98,15 @@
         try {
             // Fetch all pages sequentially to ensure we have everything for filters
             while (currentUrl) {
-                console.log(`📄 Fetching page ${page}...`);
                 const response = await fetch(currentUrl);
                 const data = await response.json();
                 
                 if (!data.items || data.items.length === 0) {
-                    console.log(`No items found on page ${page}`);
                     break;
                 }
                 
                 // Add the items to the allItems array 
                 allItems.push(...data.items);
-                console.log(`✅ Found ${data.items.length} items on page ${page}, total now: ${allItems.length}`);
                 
                 // Check for pagination
                 if (data.pagination && data.pagination.nextPage) {
@@ -127,11 +120,9 @@
                         currentUrl = nextPageUrl.toString();
                         page++;
                     } else {
-                        console.log('Missing offset value in pagination data');
                         currentUrl = null;
                     }
                 } else {
-                    console.log('No more pages available');
                     currentUrl = null;
                 }
             }
@@ -139,7 +130,6 @@
             console.error('❌ Error fetching properties:', error);
         }
         
-        console.log(`🏁 Total properties fetched: ${allItems.length}`);
         return allItems;
     }
 
@@ -302,7 +292,6 @@
 
                 createFilterElements(propertyData);
                 renderPropertyListings(propertyData);
-                console.log('🚀 SquareHero.store Real Estate Listings plugin loaded');
             } catch (error) {
                 console.error('❌ Error fetching data:', error);
                 
@@ -329,23 +318,17 @@
     
         // Debug excerpt availability
         const hasExcerpts = blogData.items.some(item => item.excerpt && item.excerpt.trim() !== '');
-        console.log('📝 Properties with excerpts available:', hasExcerpts);
         
         if (hasExcerpts) {
-            console.log('Sample excerpt from first item with excerpt:', 
-                blogData.items.find(item => item.excerpt && item.excerpt.trim() !== '')?.excerpt || 'None found');
+            // Sample excerpt processing removed for production
         }
 
         // Add debugging for sheet columns
-        console.log('📊 Available sheet columns:', Object.keys(sheetData[0] || {}).join(', '));
-        console.log('📋 First row sample:', sheetData[0]);
         
         // Identify custom columns (all columns except standard ones)
         const standardColumns = ['Title', 'Url', 'Price', 'Area', 'Bedrooms', 'Bathrooms', 'Garage', 'Featured'];
         const customColumns = Object.keys(sheetData[0] || {}).filter(column => 
             !standardColumns.includes(column));
-        
-        console.log('✨ Custom columns detected:', customColumns.join(', '));
         
         // Set global custom columns for use in other functions
         window.customColumns = customColumns;
@@ -360,13 +343,10 @@
             const nonEmptyValues = allValues.filter(value => value && value.toString().trim() !== '');
             
             if (nonEmptyValues.length === 0) {
-                console.log(`⚠️ No values found for column "${column}"`);
                 window.customColumnTypes[column] = 'text';
             } else if (nonEmptyValues.every(value => value === 'Yes' || value === 'No')) {
-                console.log(`✓ Column "${column}" appears to be boolean (Yes/No)`);
                 window.customColumnTypes[column] = 'boolean';
             } else if (nonEmptyValues.every(value => !isNaN(parseFloat(value.replace(/[$,]/g, ''))))) {
-                console.log(`🔢 Column "${column}" appears to be numeric`);
                 window.customColumnTypes[column] = 'numeric';
                 
                 // Determine whether to use button group or slider based on the range of values
@@ -380,13 +360,11 @@
                 // use a button group instead of a slider
                 if (uniqueIntegerValues.length <= 8 && 
                    (uniqueIntegerValues[uniqueIntegerValues.length - 1] - uniqueIntegerValues[0]) <= 10) {
-                    console.log(`👥 Column "${column}" will use button group (${uniqueIntegerValues.length} unique values) instead of slider`);
                     window.customColumnSpecialHandling[column] = 'buttonGroup';
                 } else {
-                    console.log(`📊 Column "${column}" will use slider (${uniqueIntegerValues.length} unique values with range: ${uniqueIntegerValues[0]}-${uniqueIntegerValues[uniqueIntegerValues.length - 1]})`);
+                    // Use slider for larger ranges
                 }
             } else {
-                console.log(`📝 Column "${column}" appears to be text`);
                 window.customColumnTypes[column] = 'text';
             }
         });
@@ -525,7 +503,6 @@
                         
                         if (specialHandling === 'buttonGroup') {
                             // Create a button group for numeric fields with few distinct values
-                            console.log(`👥 Creating button group filter for numeric field "${column}"`);
                             
                             // Find the unique values and sort them numerically
                             const uniqueValues = [...new Set(values.map(v => Math.floor(Number(v))))];
@@ -542,13 +519,11 @@
                             ));
                         } else {
                             // Standard numeric slider filter
-                            console.log(`📊 Creating numeric slider filter for "${column}"`);
                             filtersContainer.appendChild(createSliderFilter(`${columnId}-slider`, column, `sh-${columnId}-filter`));
                         }
                     }
                 } else if (columnType === 'boolean') {
                     // For Yes/No columns, create a toggle filter
-                    console.log(`✓ Creating Yes/No toggle filter for "${column}"`);
                     filtersContainer.appendChild(createButtonGroupFilter(`${columnId}-filter`, column, ['Any', 'Yes', 'No'], `sh-${columnId}-filter`));
                 } else {
                     // For text columns, create a dropdown if there are fewer than 10 unique values
@@ -558,7 +533,6 @@
                         .filter(v => v !== undefined && v !== null && v !== ''));
                     
                     if (values.size > 0 && values.size <= 10) {
-                        console.log(`📝 Creating dropdown filter for "${column}" with ${values.size} options`);
                         const customDropdown = createDropdownFilter(`${columnId}-filter`, column, `Any ${column}`, `sh-${columnId}-filter`);
                         // Populate the dropdown with values
                         const dropdown = customDropdown.querySelector(`#${columnId}-filter`);
@@ -596,7 +570,6 @@
     }
 
     function createDropdownFilter(id, label, defaultOption, customClass) {
-        console.log(`[createDropdownFilter] Creating dropdown filter: id=${id}, label=${label}, defaultOption=${defaultOption}, customClass=${customClass}`);
         const group = document.createElement('div');
         group.className = `filter-group ${customClass}-group`;
 
@@ -618,8 +591,6 @@
         group.appendChild(labelElement);
         group.appendChild(select);
 
-        // Log the created DOM structure
-        console.log(`[createDropdownFilter] Created dropdown filter group:`, group);
         return group;
     }
 
@@ -709,12 +680,10 @@
     function initializeSlider(id, min, max, unit, callback) {
         const slider = document.getElementById(id);
         if (!slider) {
-            console.warn(`[initializeSlider] Slider element not found for id="${id}"`);
             return;
         }
         const rangeDisplay = document.getElementById(`${id}-range`);
         if (!rangeDisplay) {
-            console.warn(`[initializeSlider] Range display element not found for id="${id}-range"`);
             return;
         }
         // Ensure min and max are not the same to avoid noUiSlider errors
@@ -744,8 +713,6 @@
             if (callback) callback(values);
         });
         updateRangeDisplay([min, max]);
-        // Log after initialization
-        // Removed [initializeSlider] logs
     }
     
     function createPropertyCard(property) {
@@ -1035,7 +1002,6 @@
                                 // This is a currency field - use the site's currency symbol
                                 const currencySymbol = getCurrencySymbol(window.storeSettings?.selectedCurrency);
                                 unit = currencySymbol;
-                                console.log(`💰 Custom field "${column}" detected as currency field, using ${currencySymbol}`);
                             }
                             
                             initializeSlider(`${columnId}-slider`, minValue, maxValue, unit, () => {
@@ -1099,10 +1065,6 @@
             if (callback) callback(values);
         });
         updateRangeDisplay([min, max]);
-        // Log after initialization
-        setTimeout(() => {
-            console.log(`[initializeSlider] Slider initialized for id="${id}":`, slider, slider.noUiSlider);
-        }, 0);
     }
     
     function hideUnusedOptions(filterId, properties, propertyKey) {
@@ -1211,7 +1173,6 @@
                 
                 // Add safety check for state
                 if (!state || !state.targets || !Array.isArray(state.targets)) {
-                    console.warn('[filterByRanges] Invalid state object:', state);
                     return true;
                 }
                 
@@ -1329,29 +1290,6 @@
                     const options = Array.from(select.options).map(opt => opt.value);
                     const selected = select.value;
                     
-                    console.log('[Location Dropdown] 🏷️ Changed:', {
-                        selected,
-                        allOptions: options,
-                        elementId: select.id
-                    });
-                    
-                    // Find all property cards and log the filter comparison
-                    const allCards = document.querySelectorAll('.property-card');
-                    console.log('[Location Dropdown] 🔍 Analyzing cards:', allCards.length);
-                    
-                    allCards.forEach((card, index) => {
-                        const allTags = card.getAttribute('data-all-tags');
-                        const cardTitle = card.querySelector('.property-title')?.textContent || `Card ${index}`;
-                        const filterResult = allTags ? allTags.split('|').includes(selected) : false;
-                        
-                        console.log(`[Location Dropdown] 🏷️ Card ${index + 1} (${cardTitle}):`, {
-                            allTags,
-                            tagArray: allTags ? allTags.split('|') : [],
-                            selected,
-                            filterResult
-                        });
-                    });
-                    
                     updateFilters();
                 });
             }
@@ -1360,29 +1298,6 @@
                 statusFilter.addEventListener('change', (e) => {
                     const select = e.target;
                     const selected = select.value;
-                    
-                    console.log('[Category Dropdown] 📂 Changed:', {
-                        selected,
-                        elementId: select.id,
-                        allOptions: Array.from(select.options).map(opt => opt.value)
-                    });
-                    
-                    // Find all property cards and log the filter comparison
-                    const allCards = document.querySelectorAll('.property-card');
-                    console.log('[Category Dropdown] 🔍 Analyzing cards:', allCards.length);
-                    
-                    allCards.forEach((card, index) => {
-                        const allCategories = card.getAttribute('data-all-categories');
-                        const cardTitle = card.querySelector('.property-title')?.textContent || `Card ${index}`;
-                        const filterResult = allCategories ? allCategories.split('|').includes(selected) : false;
-                        
-                        console.log(`[Category Dropdown] 📂 Card ${index + 1} (${cardTitle}):`, {
-                            allCategories,
-                            categoryArray: allCategories ? allCategories.split('|') : [],
-                            selected,
-                            filterResult
-                        });
-                    });
                     
                     updateFilters();
                 });
@@ -1526,24 +1441,13 @@
             if (locationFilter && locationFilter.value !== 'all') {
                 const selectedLocation = locationFilter.value.trim().toLowerCase();
                 const allTags = card.getAttribute('data-all-tags');
-                console.log('[customFilterFunction] 🏷️ Location filter check:', {
-                    selectedLocation,
-                    allTags,
-                    cardElement: card.outerHTML.substring(0, 200) + '...'
-                });
                 
                 if (allTags) {
                     // Split by |, trim and lowercase each tag
                     const tagList = allTags.split('|').map(tag => tag.trim().toLowerCase());
                     matchesLocation = tagList.includes(selectedLocation);
-                    console.log('[customFilterFunction] 🏷️ Tag matching:', {
-                        tagList,
-                        selectedLocation,
-                        matchesLocation
-                    });
                 } else {
                     matchesLocation = false;
-                    console.log('[customFilterFunction] 🏷️ No tags found on card, setting matchesLocation = false');
                 }
             }
             
@@ -1551,34 +1455,17 @@
             if (statusFilter && statusFilter.value !== 'all') {
                 const selectedCategory = statusFilter.value.trim().toLowerCase();
                 const allCategories = card.getAttribute('data-all-categories');
-                console.log('[customFilterFunction] 📂 Category filter check:', {
-                    selectedCategory,
-                    allCategories,
-                    cardElement: card.outerHTML.substring(0, 200) + '...'
-                });
                 
                 if (allCategories) {
                     // Split by |, trim and lowercase each category
                     const categoryList = allCategories.split('|').map(cat => cat.trim().toLowerCase());
                     matchesCategory = categoryList.includes(selectedCategory);
-                    console.log('[customFilterFunction] 📂 Category matching:', {
-                        categoryList,
-                        selectedCategory,
-                        matchesCategory
-                    });
                 } else {
                     matchesCategory = false;
-                    console.log('[customFilterFunction] 📂 No categories found on card, setting matchesCategory = false');
                 }
             }
             
             const finalResult = matchesLocation && matchesCategory;
-            console.log('[customFilterFunction] ✅ Final result:', {
-                matchesLocation,
-                matchesCategory,
-                finalResult,
-                cardTitle: card.querySelector('.property-title')?.textContent || 'Unknown'
-            });
             
             return finalResult;
         };
@@ -2041,7 +1928,6 @@
         
         // Apply filters if any parameters were found
         if (filtersApplied && window.mixer) {
-            console.log('🔍 Applying filters from URL parameters');
             updateFilters();
         }
     }
