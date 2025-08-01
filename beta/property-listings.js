@@ -640,16 +640,6 @@
                                options.includes('Any') && 
                                options.includes('Yes') && 
                                options.includes('No');
-                               
-        console.log(`[createButtonGroupFilter] 🔍 Boolean filter detection for "${id}":`, {
-            id,
-            options,
-            optionsLength: options.length,
-            hasAny: options.includes('Any'),
-            hasYes: options.includes('Yes'),
-            hasNo: options.includes('No'),
-            isBooleanFilter
-        });
         
         // Use a special class for boolean filters to style them differently
         buttonGroup.className = isBooleanFilter 
@@ -768,17 +758,11 @@
         card.className = 'property-card mix sh-property-card';
         card.href = property.url;
         
-        // Set data attributes for all tags (for location filtering)
+            // Set data attributes for all tags (for location filtering)
         if (property.allTags && property.allTags.length > 0) {
             card.setAttribute('data-all-tags', property.allTags.join('|'));
             // Keep first tag as location for backwards compatibility with existing filters
             card.setAttribute('data-location', property.allTags[0]);
-            console.log('[createPropertyCard] 🏷️ Set tags for card:', {
-                title: property.title,
-                allTags: property.allTags,
-                dataAllTags: property.allTags.join('|'),
-                dataLocation: property.allTags[0]
-            });
         }
         
         // Set data attributes for all categories (for category filtering)
@@ -786,15 +770,7 @@
             card.setAttribute('data-all-categories', property.allCategories.join('|'));
             // Keep first category for backwards compatibility with existing filters
             card.setAttribute('data-category', property.allCategories[0]);
-            console.log('[createPropertyCard] 📂 Set categories for card:', {
-                title: property.title,
-                allCategories: property.allCategories,
-                dataAllCategories: property.allCategories.join('|'),
-                dataCategory: property.allCategories[0]
-            });
-        }
-        
-        if (property.bedrooms > 0) {
+        }        if (property.bedrooms > 0) {
             card.setAttribute('data-bedrooms', `bed-${property.bedrooms}`);
         }
         
@@ -982,24 +958,15 @@
             }
         });
 
-        console.log(`[initializeFilters] Locations found:`, Array.from(locations));
-        console.log(`[initializeFilters] Categories found:`, Array.from(categories));
-
         // Only fill dropdowns if they exist
         const locationFilter = document.getElementById('location-filter');
         if (locationFilter && locations.size > 0) {
-            console.log(`[initializeFilters] Populating location dropdown with:`, Array.from(locations));
             populateDropdown('location-filter', locations, 'sh-location-option');
-        } else {
-            console.warn(`[initializeFilters] Location filter not found or no locations available.`);
         }
 
         const statusFilter = document.getElementById('status-filter');
         if (statusFilter && categories.size > 0) {
-            console.log(`[initializeFilters] Populating status dropdown with:`, Array.from(categories));
             populateDropdown('status-filter', categories, 'sh-status-option');
-        } else {
-            console.warn(`[initializeFilters] Status filter not found or no categories available.`);
         }
         
         // Initialize sliders only if they exist and have valid data
@@ -1084,15 +1051,8 @@
     function populateDropdown(id, options, customClass) {
         const dropdown = document.getElementById(id);
         if (!dropdown) {
-            console.warn(`[populateDropdown] ❌ Dropdown element not found for id="${id}"`);
             return;
         }
-        console.log(`[populateDropdown] 📝 Populating dropdown:`, {
-            id,
-            options: Array.from(options),
-            customClass,
-            dropdownElement: dropdown
-        });
         
         options.forEach(option => {
             const optionElement = document.createElement('option');
@@ -1100,30 +1060,16 @@
             optionElement.textContent = option;
             optionElement.className = customClass;
             dropdown.appendChild(optionElement);
-            console.log(`[populateDropdown] ➕ Added option:`, {
-                value: option,
-                text: option,
-                class: customClass
-            });
-        });
-        
-        console.log(`[populateDropdown] ✅ Final dropdown state:`, {
-            id,
-            totalOptions: dropdown.options.length,
-            allOptions: Array.from(dropdown.options).map(opt => ({ value: opt.value, text: opt.textContent }))
         });
     }
 
     function initializeSlider(id, min, max, unit, callback) {
-        console.log('[initializeSlider] Initializing slider:', { id, min, max, unit });
         const slider = document.getElementById(id);
         if (!slider) {
-            console.warn(`[initializeSlider] Slider element not found for id="${id}"`);
             return;
         }
         const rangeDisplay = document.getElementById(`${id}-range`);
         if (!rangeDisplay) {
-            console.warn(`[initializeSlider] Range display element not found for id="${id}-range"`);
             return;
         }
         // Ensure min and max are not the same to avoid noUiSlider errors
@@ -1238,15 +1184,6 @@
                         return filterByRanges(state);
                     },
                     onMixEnd: function (state) {
-                        console.log('[MixItUp] 🎯 Mix ended:', {
-                            totalShow: state.totalShow,
-                            totalTargets: state.totalTargets,
-                            activeFilter: state.activeFilter,
-                            matching: state.matching ? state.matching.length : 'undefined',
-                            hiding: state.hiding ? state.hiding.length : 'undefined',
-                            showing: state.showing ? state.showing.length : 'undefined'
-                        });
-                        
                         // Count actually visible cards (not hidden by MixItUp AND not range-filtered)
                         const actuallyVisibleCards = Array.from(container.querySelectorAll('.property-card')).filter(card => {
                             // Card must not be hidden by MixItUp and must not have range-filtered class
@@ -1256,19 +1193,10 @@
                             return !hiddenByMixItUp && !hiddenByRange && !hiddenByCustom;
                         });
                         
-                        console.log('[MixItUp] 📊 Actual visibility check:', {
-                            totalCards: container.querySelectorAll('.property-card').length,
-                            mixItUpTotalShow: state.totalShow,
-                            actuallyVisibleCards: actuallyVisibleCards.length,
-                            rangeFilteredCards: container.querySelectorAll('.property-card.range-filtered').length
-                        });
-                        
                         if (actuallyVisibleCards.length === 0) {
-                            console.log('[MixItUp] ❌ No results found - showing no results message');
                             noResultsMessage.style.display = 'block';
                             container.style.display = 'none';
                         } else {
-                            console.log('[MixItUp] ✅ Results found - hiding no results message');
                             noResultsMessage.style.display = 'none';
                             container.style.display = ''; // Reset to default instead of setting to 'grid'
                         }
@@ -1503,14 +1431,6 @@
                         const dataFilter = e.target.getAttribute('data-filter');
                         const isBooleanGroup = group.getAttribute('data-boolean-filter') === 'true';
                         
-                        console.log(`[ButtonGroup] 🔘 Button clicked:`, {
-                            groupId,
-                            buttonText,
-                            dataFilter,
-                            isBooleanGroup,
-                            isCustomBoolean: groupId.includes('swimming-pool') || groupId.includes('pool')
-                        });
-                        
                         if (isBooleanGroup) {
                             // For boolean filters, implement radio-button like behavior
                             // First, handle the 'Any' button
@@ -1596,7 +1516,6 @@
         const customFilterFunction = (card) => {
             // Guard: Only process DOM elements
             if (!card || typeof card.getAttribute !== 'function') {
-                console.log('[customFilterFunction] ❌ Invalid card element:', card);
                 return false;
             }
             
@@ -1699,14 +1618,6 @@
                     const customFilter = document.getElementById(`${columnId}-filter`);
                     if (customFilter) {
                         const customValues = getActiveFilters(`${columnId}-filter`);
-                        console.log(`[updateFilters] 🔘 Boolean filter "${column}" (${columnId}):`, {
-                            customValues,
-                            filterId: `${columnId}-filter`,
-                            activeButtons: Array.from(document.querySelectorAll(`#${columnId}-filter .filter-button.active`)).map(btn => ({
-                                text: btn.textContent,
-                                dataFilter: btn.getAttribute('data-filter')
-                            }))
-                        });
                         
                         if (customValues.length > 0 && !customValues.includes('all')) {
                             const mappedValues = customValues.map(val => {
@@ -1718,11 +1629,9 @@
                                 } else {
                                     selector = `[data-${columnId}="${val.toLowerCase()}"]`;
                                 }
-                                console.log(`[updateFilters] 🎯 Mapping boolean value "${val}" to selector "${selector}"`);
                                 return selector;
                             });
                             
-                            console.log(`[updateFilters] 📋 Adding boolean filter group for ${column}:`, mappedValues.join(', '));
                             filterGroups.push(mappedValues.join(', '));
                         }
                     }
@@ -1759,20 +1668,10 @@
         const locationActive = locationFilter && locationFilter.value !== 'all';
         const categoryActive = statusFilter && statusFilter.value !== 'all';
         
-        console.log('[updateFilters] 🔍 Filter state check:', {
-            locationActive,
-            categoryActive,
-            locationValue: locationFilter ? locationFilter.value : 'N/A',
-            categoryValue: statusFilter ? statusFilter.value : 'N/A',
-            filterGroups
-        });
-        
         if (window.mixer) {
             // Always start with building the base selector from button groups and other filters
             let filterString = 'all';
             if (filterGroups.length > 0) {
-                console.log('[updateFilters] 🔧 Building filter string from groups:', filterGroups);
-                
                 // For modern browsers, use :is() for clean selectors
                 // For multiple groups, each element must match ALL groups (AND logic)
                 if (filterGroups.length > 1) {
@@ -1789,10 +1688,8 @@
                             }
                         });
                         filterString = isSelectors.join('');
-                        console.log('[updateFilters] ✅ Using modern :is() syntax:', filterString);
                     } catch (e) {
                         // Fallback for older browsers - use the first filter group only
-                        console.warn('[updateFilters] ⚠️ Browser does not support :is(), using fallback');
                         filterString = filterGroups[0];
                         
                         // Apply additional filter groups manually using classes
@@ -1809,7 +1706,6 @@
                                         try {
                                             return card.matches(selector);
                                         } catch (e) {
-                                            console.warn('[updateFilters] Invalid selector:', selector);
                                             return false;
                                         }
                                     });
@@ -1836,8 +1732,6 @@
             }
 
             if (locationActive || categoryActive) {
-                console.log('[updateFilters] 🎯 Building CSS selector for location/category filtering');
-                
                 // Build a CSS selector for MixItUp instead of using a function
                 let selectorParts = [];
                 
@@ -1878,17 +1772,6 @@
                     combinedSelector = locationCategorySelector + filterString;
                 }
                 
-                console.log('[updateFilters] 🎯 Using combined CSS selector:', combinedSelector);
-                
-                // Debug: Show which cards should match this selector
-                const matchingCards = document.querySelectorAll(combinedSelector);
-                console.log(`[updateFilters] 📊 Selector "${combinedSelector}" matches ${matchingCards.length} cards:`, 
-                    Array.from(matchingCards).map(card => ({
-                        title: card.querySelector('.property-title')?.textContent,
-                        dataAttribs: Array.from(card.attributes).filter(attr => attr.name.startsWith('data-')).map(attr => `${attr.name}="${attr.value}"`).join(' ')
-                    }))
-                );
-                
                 window.mixer.filter(combinedSelector);
             } else {
                 // Clean up temporary classes when not using location/category filters
@@ -1896,22 +1779,8 @@
                     card.classList.remove('location-match', 'category-match');
                 });
                 
-                console.log('[updateFilters] 🎯 Using filterString for MixItUp:', filterString);
                 window.mixer.filter(filterString);
             }
-        }
-        // Log the matching cards and card data for debugging
-        if (window.mixer) {
-            const matchingCards = document.querySelectorAll('.property-card');
-            console.log('[updateFilters] matchingCards:', matchingCards.length, matchingCards);
-            document.querySelectorAll('.property-card').forEach(card => {
-                console.log('[updateFilters] Card:', card,
-                    'data-bedrooms:', card.getAttribute('data-bedrooms'),
-                    'data-bathrooms:', card.getAttribute('data-bathrooms'),
-                    'data-all-tags:', card.getAttribute('data-all-tags'),
-                    'data-all-categories:', card.getAttribute('data-all-categories')
-                );
-            });
         }
         updateUrlWithFilters();
     }
@@ -1928,26 +1797,21 @@
     }
 
     function resetFilters() {
-        console.log('[resetFilters] 🔄 Resetting all filters...');
-        
         // Only reset filters that exist
         const locationFilter = document.getElementById('location-filter');
         if (locationFilter) {
             locationFilter.value = 'all';
-            console.log('[resetFilters] ✅ Reset location filter');
         }
         
         const statusFilter = document.getElementById('status-filter');
         if (statusFilter) {
             statusFilter.value = 'all';
-            console.log('[resetFilters] ✅ Reset status filter');
         }
         
         // Clear all active button states
         document.querySelectorAll('.button-group .filter-button').forEach(button => {
             button.classList.remove('active');
         });
-        console.log('[resetFilters] ✅ Reset button groups');
         
         const areaSlider = document.getElementById('area-slider');
         const priceSlider = document.getElementById('price-slider');
@@ -1955,12 +1819,10 @@
         // Reset sliders if they exist
         if (areaSlider && areaSlider.noUiSlider) {
             areaSlider.noUiSlider.reset();
-            console.log('[resetFilters] ✅ Reset area slider');
         }
         
         if (priceSlider && priceSlider.noUiSlider) {
             priceSlider.noUiSlider.reset();
-            console.log('[resetFilters] ✅ Reset price slider');
         }
         
         // Reset custom filters if they exist
@@ -1996,12 +1858,10 @@
            
             card.style.display = ''; // Reset inline display style
         });
-        console.log('[resetFilters] ✅ Reset card classes and display styles');
 
         // Reset the mixer
         if (window.mixer) {
             window.mixer.filter('all');
-            console.log('[resetFilters] ✅ Reset MixItUp filter to "all"');
         }
         
         // Ensure no results message is hidden and container is visible
@@ -2009,14 +1869,10 @@
         const container = document.getElementById('property-grid');
         if (noResultsMessage) {
             noResultsMessage.style.display = 'none';
-            console.log('[resetFilters] ✅ Hidden no results message');
         }
         if (container) {
             container.style.display = ''; // Reset to default
-            console.log('[resetFilters] ✅ Reset container display');
         }
-        
-        console.log('[resetFilters] 🎉 All filters reset successfully!');
         
         // Clear URL parameters
         history.pushState(null, '', window.location.pathname);
