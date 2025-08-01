@@ -1040,9 +1040,27 @@
                         if (values.length > 0) {
                             const minValue = Math.min(...values);
                             const maxValue = Math.max(...values);
-                            // Use unit if available, otherwise empty string
+                            
+                            // Detect if this field contains currency values by checking original raw data
                             let unit = '';
-                            // Optionally, you can add logic to set a unit per column if needed
+                            const rawValues = window.propertySheetData
+                                .map(row => row[column])
+                                .filter(value => value && value.toString().trim() !== '');
+                            
+                            // Check if any of the raw values contain currency symbols
+                            const hasCurrencySymbols = rawValues.some(value => 
+                                value.toString().includes('$') || 
+                                value.toString().includes('£') || 
+                                value.toString().includes('€')
+                            );
+                            
+                            if (hasCurrencySymbols) {
+                                // This is a currency field - use the site's currency symbol
+                                const currencySymbol = getCurrencySymbol(window.storeSettings?.selectedCurrency);
+                                unit = currencySymbol;
+                                console.log(`💰 Custom field "${column}" detected as currency field, using ${currencySymbol}`);
+                            }
+                            
                             initializeSlider(`${columnId}-slider`, minValue, maxValue, unit, () => {
                                 if (window.mixer) window.mixer.filter(window.mixer.getState().activeFilter);
                             });
