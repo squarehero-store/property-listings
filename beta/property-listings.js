@@ -1237,7 +1237,22 @@
                             showing: state.showing ? state.showing.length : 'undefined'
                         });
                         
-                        if (state.totalShow === 0) {
+                        // Count actually visible cards (not hidden by MixItUp AND not range-filtered)
+                        const actuallyVisibleCards = Array.from(container.querySelectorAll('.property-card')).filter(card => {
+                            // Card must not be hidden by MixItUp and must not have range-filtered class
+                            const hiddenByMixItUp = card.style.display === 'none' || !card.offsetParent;
+                            const hiddenByRange = card.classList.contains('range-filtered');
+                            return !hiddenByMixItUp && !hiddenByRange;
+                        });
+                        
+                        console.log('[MixItUp] 📊 Actual visibility check:', {
+                            totalCards: container.querySelectorAll('.property-card').length,
+                            mixItUpTotalShow: state.totalShow,
+                            actuallyVisibleCards: actuallyVisibleCards.length,
+                            rangeFilteredCards: container.querySelectorAll('.property-card.range-filtered').length
+                        });
+                        
+                        if (actuallyVisibleCards.length === 0) {
                             console.log('[MixItUp] ❌ No results found - showing no results message');
                             noResultsMessage.style.display = 'block';
                             container.style.display = 'none';
