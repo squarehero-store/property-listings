@@ -164,7 +164,7 @@
                         const columnType = window.customColumnTypes && window.customColumnTypes[column];
                         if (columnType === 'boolean') {
                             customFields[column] = value === 'Yes';
-                        } else if (columnType === 'numeric' && value) {
+                        } else if ((columnType === 'numeric' || columnType === 'currency') && value) {
                             customFields[column] = parseFloat(value.replace(/[$,]/g, ''));
                         } else {
                             customFields[column] = value;
@@ -348,7 +348,14 @@
             } else if (nonEmptyValues.every(value => value === 'Yes' || value === 'No')) {
                 window.customColumnTypes[column] = 'boolean';
             } else if (nonEmptyValues.every(value => !isNaN(parseFloat(value.replace(/[$,]/g, ''))))) {
-                window.customColumnTypes[column] = 'numeric';
+                // Check if this is a currency field (contains $ symbols)
+                const hasCurrencySymbols = nonEmptyValues.some(value => value.toString().includes('$'));
+                
+                if (hasCurrencySymbols) {
+                    window.customColumnTypes[column] = 'currency';
+                } else {
+                    window.customColumnTypes[column] = 'numeric';
+                }
                 
                 // Determine whether to use button group or slider based on the range of values
                 const numericValues = nonEmptyValues.map(v => parseFloat(v.replace(/[$,]/g, '')));
@@ -834,7 +841,8 @@
                             
                             const formattedValue = columnType === 'boolean' 
                                 ? (value ? 'Yes' : 'No')
-                                : (columnType === 'numeric' ? value.toLocaleString() : value);
+                                : (columnType === 'currency' ? `$${value.toLocaleString()}` 
+                                    : (columnType === 'numeric' ? value.toLocaleString() : value));
                             
                             // Handle different icon file types and add error handling
                             const isImageIcon = iconUrl.toLowerCase().endsWith('.png') || 
@@ -880,7 +888,8 @@
                             const columnType = window.customColumnTypes && window.customColumnTypes[key];
                             const formattedValue = columnType === 'boolean' 
                                 ? (value ? 'Yes' : 'No')
-                                : (columnType === 'numeric' ? value.toLocaleString() : value);
+                                : (columnType === 'currency' ? `$${value.toLocaleString()}` 
+                                    : (columnType === 'numeric' ? value.toLocaleString() : value));
                             
                             return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}">
                                 <span class="custom-detail-label">${key}:</span>
@@ -913,8 +922,8 @@
         
         if (columnType === 'boolean') {
             return true; // Always show boolean values (Yes/No)
-        } else if (columnType === 'numeric') {
-            return value > 0; // Only show numeric values greater than 0
+        } else if (columnType === 'numeric' || columnType === 'currency') {
+            return value > 0; // Only show numeric/currency values greater than 0
         } else {
             // For text fields, check if not empty
             return value !== '' && value.toString().trim() !== '';

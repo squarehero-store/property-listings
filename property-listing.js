@@ -83,24 +83,32 @@
                 window.customColumnTypes[column] = 'text';
             } else if (values.every(value => value === 'Yes' || value === 'No')) {
                 window.customColumnTypes[column] = 'boolean';
-            } else if (values.every(value => !isNaN(parseFloat(value)))) {
-                window.customColumnTypes[column] = 'numeric';
-                
-                // Determine whether to use button group or slider based on the range of values
-                const numericValues = values.map(v => parseFloat(v));
-                // Find unique integer values (floor the numbers to group similar values)
-                const uniqueIntegerValues = [...new Set(numericValues.map(v => Math.floor(v)))];
-                // Sort the values to determine range
-                uniqueIntegerValues.sort((a, b) => a - b);
-                
-                // If we have a small number of distinct values (≤ 8) and a reasonably small range,
-                // use a button group instead of a slider
-                if (uniqueIntegerValues.length <= 8 && 
-                   (uniqueIntegerValues[uniqueIntegerValues.length - 1] - uniqueIntegerValues[0]) <= 10) {
-                    window.customColumnSpecialHandling[column] = 'buttonGroup';
-                } 
             } else {
-                window.customColumnTypes[column] = 'text';
+                // Check if any values contain currency symbols
+                const nonEmptyValues = values.filter(value => value !== undefined && value !== null && value.toString().trim() !== '');
+                const hasCurrencySymbols = nonEmptyValues.some(value => value.toString().includes('$'));
+                
+                if (hasCurrencySymbols) {
+                    window.customColumnTypes[column] = 'currency';
+                } else if (values.every(value => !isNaN(parseFloat(value)))) {
+                    window.customColumnTypes[column] = 'numeric';
+                
+                    // Determine whether to use button group or slider based on the range of values
+                    const numericValues = values.map(v => parseFloat(v));
+                    // Find unique integer values (floor the numbers to group similar values)
+                    const uniqueIntegerValues = [...new Set(numericValues.map(v => Math.floor(v)))];
+                    // Sort the values to determine range
+                    uniqueIntegerValues.sort((a, b) => a - b);
+                    
+                    // If we have a small number of distinct values (≤ 8) and a reasonably small range,
+                    // use a button group instead of a slider
+                    if (uniqueIntegerValues.length <= 8 && 
+                       (uniqueIntegerValues[uniqueIntegerValues.length - 1] - uniqueIntegerValues[0]) <= 10) {
+                        window.customColumnSpecialHandling[column] = 'buttonGroup';
+                    } 
+                } else {
+                    window.customColumnTypes[column] = 'text';
+                }
             }
         });
 
@@ -122,8 +130,8 @@
                         const columnType = window.customColumnTypes[column];
                         if (columnType === 'boolean') {
                             customFields[column] = value === 'Yes';
-                        } else if (columnType === 'numeric' && value) {
-                            customFields[column] = parseFloat(value.replace(/[^\d.-]/g, ''));
+                        } else if ((columnType === 'numeric' || columnType === 'currency') && value) {
+                            customFields[column] = parseFloat(value.replace(/[$,]/g, ''));
                         } else {
                             customFields[column] = value;
                         }
@@ -155,6 +163,40 @@
     function formatPrice(price, currencySymbol = '$') {
         if (price === null) return 'Price TBA';
         return currencySymbol + price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+
+    // Helper function to determine if a value should be displayed
+    function shouldDisplayValue(value, columnType) {
+        // Handle null, undefined, or empty string
+        if (value === null || value === undefined || value === '') {
+            return false;
+        }
+        
+        // Convert to string for consistent checking
+        const stringValue = value.toString().trim();
+        
+        // Handle empty strings after trimming
+        if (stringValue === '') {
+            return false;
+        }
+        
+        // Handle numeric and currency fields - don't display 0 values
+        if (columnType === 'numeric' || columnType === 'currency') {
+            // For currency fields, extract numeric value by removing currency symbols
+            const numericValue = columnType === 'currency' 
+                ? parseFloat(stringValue.replace(/[$,£€]/g, ''))
+                : parseFloat(stringValue);
+            
+            return !isNaN(numericValue) && numericValue > 0;
+        }
+        
+        // Handle boolean fields
+        if (columnType === 'boolean') {
+            return stringValue.toLowerCase() === 'yes' || stringValue.toLowerCase() === 'true';
+        }
+        
+        // For text fields, display any non-empty value
+        return true;
     }
 
     // SVG Icons remain unchanged
@@ -236,8 +278,15 @@
                 }
                 
                 const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                
+                if (!shouldDisplayValue(value, columnType)) {
+                    return '';
+                }
+                
                 const formattedValue = columnType === 'boolean' 
                     ? (value ? 'Yes' : 'No')
+                    : columnType === 'currency' 
+                    ? `$${value.toLocaleString()}`
                     : (columnType === 'numeric' ? value.toLocaleString() : value);
                 
                 // Handle different icon file types and add error handling
@@ -259,7 +308,8 @@
             // Filter out custom fields that have icons - they're already shown in the property-details section
             const fieldsWithoutIcons = Object.entries(property.customFields).filter(([key, value]) => {
                 const iconUrl = customIcons[key.toLowerCase()];
-                return !iconUrl; // Only include fields that don't have custom icons
+                const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                return !iconUrl && shouldDisplayValue(value, columnType); // Only include fields that don't have custom icons and should be displayed
             });
             
             if (fieldsWithoutIcons.length > 0) {
@@ -269,6 +319,8 @@
             const columnType = window.customColumnTypes && window.customColumnTypes[key];
             const formattedValue = columnType === 'boolean' 
                 ? (value ? 'Yes' : 'No')
+                : columnType === 'currency' 
+                ? `$${value.toLocaleString()}`
                 : (columnType === 'numeric' ? value.toLocaleString() : value);
             
             return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}">
@@ -488,8 +540,15 @@
                   }
                   
                   const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                  
+                  if (!shouldDisplayValue(value, columnType)) {
+                      return '';
+                  }
+                  
                   const formattedValue = columnType === 'boolean' 
                       ? (value ? 'Yes' : 'No')
+                      : columnType === 'currency' 
+                      ? `$${value.toLocaleString()}`
                       : (columnType === 'numeric' ? value.toLocaleString() : value);
                   
                   // Handle different icon file types and add error handling
@@ -511,7 +570,8 @@
             // Filter out custom fields that have icons - they're already shown in the property-details section
             const fieldsWithoutIcons = Object.entries(property.customFields).filter(([key, value]) => {
                 const iconUrl = customIcons[key.toLowerCase()];
-                return !iconUrl; // Only include fields that don't have custom icons
+                const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                return !iconUrl && shouldDisplayValue(value, columnType); // Only include fields that don't have custom icons and should be displayed
             });
             
             if (fieldsWithoutIcons.length > 0) {
@@ -521,6 +581,8 @@
               const columnType = window.customColumnTypes && window.customColumnTypes[key];
               const formattedValue = columnType === 'boolean' 
                   ? (value ? 'Yes' : 'No')
+                  : columnType === 'currency' 
+                  ? `$${value.toLocaleString()}`
                   : (columnType === 'numeric' ? value.toLocaleString() : value);
               
               return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}">
