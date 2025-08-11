@@ -377,6 +377,13 @@
     }
 
     function createPropertyCard(property) {
+        // Check pricing setting from meta tag
+        const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
+        const showPricing = metaTag ? metaTag.getAttribute('pricing') !== 'false' : true;
+        
+        // Get custom icons configuration
+        const customIcons = getCustomIcons();
+        
         const card = document.createElement('a');
         card.className = 'property-card sh-property-card';
         card.href = property.url;
@@ -430,13 +437,6 @@
                 }
             });
         }
-        
-        // Check pricing setting from meta tag
-        const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
-        const showPricing = metaTag ? metaTag.getAttribute('pricing') !== 'false' : true;
-        
-        // Get custom icons configuration
-        const customIcons = getCustomIcons();
         
         // Check for custom fields before generating the HTML
         const hasCustomFields = property.customFields && Object.keys(property.customFields).length > 0;
