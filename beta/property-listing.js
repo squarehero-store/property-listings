@@ -144,6 +144,20 @@
         return '$' + price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     }
 
+    // Helper function to check if a custom field value should be displayed
+    function shouldDisplayValue(value, columnType) {
+        if (value === null || value === undefined) return false;
+        
+        if (columnType === 'boolean') {
+            return true; // Always show boolean values (Yes/No)
+        } else if (columnType === 'numeric') {
+            return value > 0; // Only show numeric values greater than 0
+        } else {
+            // For text fields, check if not empty
+            return value !== '' && value.toString().trim() !== '';
+        }
+    }
+
     // SVG Icons remain unchanged
     const svgIcons = {
         area: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="17" fill="none" viewBox="0 0 18 17"><g fill="hsl(var(--black-hsl))" clip-path="url(#areaClip)"><path d="M.364 3.203 0 2.839 2.202.638l2.202 2.201-.363.364a.794.794 0 0 1-1.122 0l-.717-.715-.714.715a.794.794 0 0 1-1.124 0Z"/><path d="M16.855 15.016H1.548V1.563h1.308v12.144h14v1.309Z"/><path d="m15.58 16.564-.364-.364a.794.794 0 0 1 0-1.121l.714-.715-.714-.715a.794.794 0 0 1 0-1.122l.363-.363 2.202 2.202-2.202 2.198ZM16.119 11.598h-.634a.654.654 0 0 1 0-1.308h.634c.192 0 .347-.14.347-.317v-.614a.654.654 0 1 1 1.309 0v.614c0 .896-.743 1.625-1.656 1.625ZM13.063 11.599H9.727a.654.654 0 1 1 0-1.309h3.336a.654.654 0 0 1 0 1.309ZM7.251 11.598h-.633c-.913 0-1.657-.729-1.657-1.625v-.614a.654.654 0 1 1 1.309 0v.614c0 .175.156.317.348.317h.633a.654.654 0 1 1 0 1.309ZM5.616 7.727a.654.654 0 0 1-.655-.654V5.17a.654.654 0 1 1 1.309 0v1.904a.654.654 0 0 1-.654.654ZM5.616 3.537a.654.654 0 0 1-.655-.654v-.614c0-.896.744-1.625 1.657-1.625h.633a.654.654 0 0 1 0 1.308h-.633c-.192 0-.348.14-.348.317v.614a.654.654 0 0 1-.654.654ZM13.01 1.952H9.674a.654.654 0 0 1 0-1.308h3.337a.654.654 0 0 1 0 1.308ZM17.12 3.537a.654.654 0 0 1-.654-.654v-.614c0-.175-.155-.317-.347-.317h-.634a.654.654 0 1 1 0-1.308h.634c.913 0 1.656.729 1.656 1.625v.614a.654.654 0 0 1-.654.654ZM17.12 7.727a.655.655 0 0 1-.654-.654V5.17a.654.654 0 1 1 1.309 0v1.904a.654.654 0 0 1-.654.654Z"/></g><defs><clipPath id="areaClip"><path fill="#fff" d="M0 .65h17.759v15.89H0z"/></clipPath></defs></svg>`,
@@ -218,6 +232,12 @@
                 }
                 
                 const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                
+                // Check if this value should be displayed
+                if (!shouldDisplayValue(value, columnType)) {
+                    return ''; // Don't show fields with empty/zero values
+                }
+                
                 const formattedValue = columnType === 'boolean' 
                     ? (value ? 'Yes' : 'No')
                     : (columnType === 'numeric' ? value.toLocaleString() : value);
@@ -239,11 +259,18 @@
         // Add custom fields WITHOUT icons (fields with icons are shown above)
         if (hasCustomFields) {
             // Filter out custom fields that have icons - they're already shown in the property-details section
+            // Also filter out fields with empty/zero values
             const fieldsWithoutIcons = Object.entries(property.customFields).filter(([key, value]) => {
                 // Normalize the field name to match the icon key format
                 const normalizedKey = key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
                 const iconUrl = customIcons[normalizedKey] || customIcons[normalizedKey + '-icon'];
-                return !iconUrl; // Only include fields that don't have custom icons
+                
+                // Skip fields that have icons - they're shown in the main details section
+                if (iconUrl) return false;
+                
+                // Only include fields with meaningful values
+                const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                return shouldDisplayValue(value, columnType);
             });
             
             if (fieldsWithoutIcons.length > 0) {
@@ -470,6 +497,12 @@
                   }
                   
                   const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                  
+                  // Check if this value should be displayed
+                  if (!shouldDisplayValue(value, columnType)) {
+                      return ''; // Don't show fields with empty/zero values
+                  }
+                  
                   const formattedValue = columnType === 'boolean' 
                       ? (value ? 'Yes' : 'No')
                       : (columnType === 'numeric' ? value.toLocaleString() : value);
@@ -491,11 +524,18 @@
         // Add custom fields WITHOUT icons (fields with icons are shown above)
         if (hasCustomFields) {
             // Filter out custom fields that have icons - they're already shown in the property-details section
+            // Also filter out fields with empty/zero values
             const fieldsWithoutIcons = Object.entries(property.customFields).filter(([key, value]) => {
                 // Normalize the field name to match the icon key format
                 const normalizedKey = key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
                 const iconUrl = customIcons[normalizedKey] || customIcons[normalizedKey + '-icon'];
-                return !iconUrl; // Only include fields that don't have custom icons
+                
+                // Skip fields that have icons - they're shown in the main details section
+                if (iconUrl) return false;
+                
+                // Only include fields with meaningful values
+                const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                return shouldDisplayValue(value, columnType);
             });
             
             if (fieldsWithoutIcons.length > 0) {

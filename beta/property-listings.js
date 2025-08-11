@@ -826,6 +826,12 @@
                             }
                             
                             const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                            
+                            // Check if this value should be displayed
+                            if (!shouldDisplayValue(value, columnType)) {
+                                return ''; // Don't show fields with empty/zero values
+                            }
+                            
                             const formattedValue = columnType === 'boolean' 
                                 ? (value ? 'Yes' : 'No')
                                 : (columnType === 'numeric' ? value.toLocaleString() : value);
@@ -850,11 +856,18 @@
                     }
                     
                     // Filter out custom fields that have icons - they're already shown in the property-details section
+                    // Also filter out fields with empty/zero values
                     const fieldsWithoutIcons = Object.entries(property.customFields).filter(([key, value]) => {
                         // Normalize the field name to match the icon key format
                         const normalizedKey = key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
                         const iconUrl = window.customIcons && (window.customIcons[normalizedKey] || window.customIcons[normalizedKey + '-icon']);
-                        return !iconUrl; // Only include fields that don't have custom icons
+                        
+                        // Skip fields that have icons - they're shown in the main details section
+                        if (iconUrl) return false;
+                        
+                        // Only include fields with meaningful values
+                        const columnType = window.customColumnTypes && window.customColumnTypes[key];
+                        return shouldDisplayValue(value, columnType);
                     });
                     
                     if (fieldsWithoutIcons.length === 0) {
@@ -892,6 +905,20 @@
 
     function formatBathroomsForFilter(bathrooms) {
         return Number.isInteger(bathrooms) ? bathrooms.toString() : bathrooms.toFixed(1);
+    }
+
+    // Helper function to check if a custom field value should be displayed
+    function shouldDisplayValue(value, columnType) {
+        if (value === null || value === undefined) return false;
+        
+        if (columnType === 'boolean') {
+            return true; // Always show boolean values (Yes/No)
+        } else if (columnType === 'numeric') {
+            return value > 0; // Only show numeric values greater than 0
+        } else {
+            // For text fields, check if not empty
+            return value !== '' && value.toString().trim() !== '';
+        }
     }
     
     function renderPropertyListings(properties) {
