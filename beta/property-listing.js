@@ -211,7 +211,7 @@
             
             return Object.entries(property.customFields).map(([key, value]) => {
                 // Normalize the field name to match the icon key format
-                const normalizedKey = key.toLowerCase().replace(/\s+/g, '-');
+                const normalizedKey = key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
                 const iconUrl = customIcons[normalizedKey] || customIcons[normalizedKey + '-icon'];
                 if (!iconUrl) {
                     return ''; // Only show custom fields that have icons here
@@ -231,7 +231,7 @@
                     ? `<img src="${iconUrl}" alt="${key} icon" style="width: 20px; height: 20px; object-fit: contain;" onerror="this.style.display='none'">` 
                     : `<img src="${iconUrl}" alt="${key} icon" style="width: 20px; height: 20px;" onerror="this.style.display='none'">`;
                 
-                return `<span class="details-icon sh-custom-icon sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}-icon">${iconElement} <span class="sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}-value">${formattedValue}</span></span>`;
+                return `<span class="details-icon sh-custom-icon sh-custom-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}-icon">${iconElement} <span class="sh-custom-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}-value">${formattedValue}</span></span>`;
             }).join('');
         })()}
       </div>`;
@@ -241,7 +241,7 @@
             // Filter out custom fields that have icons - they're already shown in the property-details section
             const fieldsWithoutIcons = Object.entries(property.customFields).filter(([key, value]) => {
                 // Normalize the field name to match the icon key format
-                const normalizedKey = key.toLowerCase().replace(/\s+/g, '-');
+                const normalizedKey = key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
                 const iconUrl = customIcons[normalizedKey] || customIcons[normalizedKey + '-icon'];
                 return !iconUrl; // Only include fields that don't have custom icons
             });
@@ -255,7 +255,7 @@
                 ? (value ? 'Yes' : 'No')
                 : (columnType === 'numeric' ? value.toLocaleString() : value);
             
-            return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}">
+            return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}">
                 <span class="custom-detail-label sh-custom-detail-label">${key}:</span>
                 <span class="custom-detail-value sh-custom-detail-value">${formattedValue}</span>
             </div>`;
@@ -416,7 +416,7 @@
         // Add data attributes for custom fields
         if (property.customFields) {
             Object.entries(property.customFields).forEach(([key, value]) => {
-                const attributeName = `data-${key.toLowerCase().replace(/\s+/g, '-')}`;
+                const attributeName = `data-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}`;
                 const columnType = window.customColumnTypes && window.customColumnTypes[key];
                 const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[key];
                 
@@ -463,7 +463,7 @@
               
               return Object.entries(property.customFields).map(([key, value]) => {
                   // Normalize the field name to match the icon key format
-                  const normalizedKey = key.toLowerCase().replace(/\s+/g, '-');
+                  const normalizedKey = key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
                   const iconUrl = customIcons[normalizedKey] || customIcons[normalizedKey + '-icon'];
                   if (!iconUrl) {
                       return ''; // Only show custom fields that have icons here
@@ -483,7 +483,7 @@
                       ? `<img src="${iconUrl}" alt="${key} icon" style="width: 20px; height: 20px; object-fit: contain;" onerror="this.style.display='none'">` 
                       : `<img src="${iconUrl}" alt="${key} icon" style="width: 20px; height: 20px;" onerror="this.style.display='none'">`;
                   
-                  return `<span class="details-icon sh-custom-icon sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}-icon">${iconElement} <span class="sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}-value">${formattedValue}</span></span>`;
+                  return `<span class="details-icon sh-custom-icon sh-custom-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}-icon">${iconElement} <span class="sh-custom-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}-value">${formattedValue}</span></span>`;
               }).join('');
           })()}
         </div>`;
@@ -493,7 +493,7 @@
             // Filter out custom fields that have icons - they're already shown in the property-details section
             const fieldsWithoutIcons = Object.entries(property.customFields).filter(([key, value]) => {
                 // Normalize the field name to match the icon key format
-                const normalizedKey = key.toLowerCase().replace(/\s+/g, '-');
+                const normalizedKey = key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
                 const iconUrl = customIcons[normalizedKey] || customIcons[normalizedKey + '-icon'];
                 return !iconUrl; // Only include fields that don't have custom icons
             });
@@ -507,7 +507,7 @@
                   ? (value ? 'Yes' : 'No')
                   : (columnType === 'numeric' ? value.toLocaleString() : value);
               
-              return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}">
+              return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}">
                   <span class="custom-detail-label sh-custom-detail-label">${key}:</span>
                   <span class="custom-detail-value sh-custom-detail-value">${formattedValue}</span>
               </div>`;
