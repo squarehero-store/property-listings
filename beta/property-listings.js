@@ -803,10 +803,18 @@
                             console.log(`Currency data attribute - ${attributeName}: "${dataValue}" (from value: ${value})`);
                         }
                     } else {
-                        // For standard numeric fields, set the raw number for range filtering
-                        card.setAttribute(attributeName, value);
-                        if (columnType === 'currency') {
-                            console.log(`Currency data attribute - ${attributeName}: "${value}" (type: ${typeof value})`);
+                        // For currency fields, extract numeric value for filtering
+                        if (columnType === 'currency' && value && value !== '') {
+                            // Remove currency symbols, spaces, and commas to get clean numeric value
+                            const numericValue = value.toString().replace(/[\$,\s]/g, '');
+                            card.setAttribute(attributeName, numericValue);
+                            console.log(`Currency data attribute - ${attributeName}: "${numericValue}" (cleaned from "${value}")`);
+                        } else {
+                            // For standard numeric fields, set the raw number for range filtering
+                            card.setAttribute(attributeName, value);
+                            if (columnType === 'currency') {
+                                console.log(`Currency data attribute - ${attributeName}: "${value}" (type: ${typeof value})`);
+                            }
                         }
                     }
                 } else {
