@@ -785,6 +785,11 @@
                 const columnType = window.customColumnTypes && window.customColumnTypes[key];
                 const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[key];
                 
+                // Log for currency fields to debug
+                if (columnType === 'currency') {
+                    console.log(`Property "${property.title}" - Currency field "${key}": value="${value}", will set ${attributeName}`);
+                }
+                
                 if (columnType === 'boolean') {
                     // For boolean fields, set to 'yes' or 'no' for easier filtering
                     card.setAttribute(attributeName, value ? 'yes' : 'no');
@@ -792,14 +797,34 @@
                     if (specialHandling === 'buttonGroup') {
                         // For special numeric fields with button group (like Sleeps)
                         // Use the integer value for exact matching
-                        card.setAttribute(attributeName, Math.floor(Number(value)));
+                        const dataValue = Math.floor(Number(value));
+                        card.setAttribute(attributeName, dataValue);
+                        if (columnType === 'currency') {
+                            console.log(`Currency data attribute - ${attributeName}: "${dataValue}" (from value: ${value})`);
+                        }
                     } else {
                         // For standard numeric fields, set the raw number for range filtering
                         card.setAttribute(attributeName, value);
+                        if (columnType === 'currency') {
+                            console.log(`Currency data attribute - ${attributeName}: "${value}" (type: ${typeof value})`);
+                        }
                     }
                 } else {
                     // For text fields, set the text value
                     card.setAttribute(attributeName, value);
+                }
+            });
+        }
+        
+        // Log if property is missing currency fields that exist in other properties
+        if (window.customColumns) {
+            window.customColumns.forEach(column => {
+                const columnType = window.customColumnTypes && window.customColumnTypes[column];
+                if (columnType === 'currency') {
+                    const hasField = property.customFields && property.customFields[column] !== undefined;
+                    if (!hasField) {
+                        console.log(`Property "${property.title}" - Missing currency field "${column}"`);
+                    }
                 }
             });
         }
@@ -1609,6 +1634,17 @@
                         const value = dropdownFilter.value;
                         if (value !== 'all') {
                             filterGroups.push(`[data-${columnId}="${value}"]`);
+                        }
+                    }
+                } else if (columnType === 'currency') {
+                    const dropdownFilter = document.getElementById(`${columnId}-filter`);
+                    if (dropdownFilter) {
+                        const value = dropdownFilter.value;
+                        console.log(`Currency filter - Column: ${columnId}, Selected value: "${value}", Type: ${typeof value}`);
+                        if (value !== 'all') {
+                            // For currency fields, the dropdown value is numeric, data attribute is also numeric
+                            filterGroups.push(`[data-${columnId}="${value}"]`);
+                            console.log(`Currency filter selector: [data-${columnId}="${value}"]`);
                         }
                     }
                 }
