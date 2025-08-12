@@ -913,35 +913,17 @@
     
     // Helper function to determine if a value should be displayed
     function shouldDisplayValue(value, columnType) {
-        // Handle null, undefined, or empty string
+        // Just check if the value exists and isn't empty
         if (value === null || value === undefined || value === '') {
             return false;
         }
         
-        // Convert to string for consistent checking
-        const stringValue = value.toString().trim();
-        
-        // Handle empty strings after trimming
-        if (stringValue === '') {
-            return false;
+        // For text fields, also check if it's not just whitespace
+        if (columnType === 'text') {
+            return value.toString().trim() !== '';
         }
         
-        // Handle numeric and currency fields - don't display 0 values
-        if (columnType === 'numeric' || columnType === 'currency') {
-            // For currency fields, extract numeric value by removing currency symbols
-            const numericValue = columnType === 'currency' 
-                ? parseFloat(stringValue.replace(/[$,£€]/g, ''))
-                : parseFloat(stringValue);
-            
-            return !isNaN(numericValue) && numericValue > 0;
-        }
-        
-        // Handle boolean fields
-        if (columnType === 'boolean') {
-            return stringValue.toLowerCase() === 'yes' || stringValue.toLowerCase() === 'true';
-        }
-        
-        // For text fields, display any non-empty value
+        // For all other types (boolean, numeric, currency), if it exists, show it
         return true;
     }
     

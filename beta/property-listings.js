@@ -875,7 +875,14 @@
                         
                         // Only include fields with meaningful values
                         const columnType = window.customColumnTypes && window.customColumnTypes[key];
-                        return shouldDisplayValue(value, columnType);
+                        const shouldDisplay = shouldDisplayValue(value, columnType);
+                        
+                        // Debug logging for troubleshooting
+                        if (key.toLowerCase().includes('rent')) {
+                            console.log(`Field: ${key}, Value: ${value}, Type: ${columnType}, ShouldDisplay: ${shouldDisplay}`);
+                        }
+                        
+                        return shouldDisplay;
                     });
                     
                     if (fieldsWithoutIcons.length === 0) {
@@ -918,16 +925,18 @@
 
     // Helper function to check if a custom field value should be displayed
     function shouldDisplayValue(value, columnType) {
-        if (value === null || value === undefined) return false;
-        
-        if (columnType === 'boolean') {
-            return true; // Always show boolean values (Yes/No)
-        } else if (columnType === 'numeric' || columnType === 'currency') {
-            return value > 0; // Only show numeric/currency values greater than 0
-        } else {
-            // For text fields, check if not empty
-            return value !== '' && value.toString().trim() !== '';
+        // Just check if the value exists and isn't empty
+        if (value === null || value === undefined || value === '') {
+            return false;
         }
+        
+        // For text fields, also check if it's not just whitespace
+        if (columnType === 'text') {
+            return value.toString().trim() !== '';
+        }
+        
+        // For all other types (boolean, numeric, currency), if it exists, show it
+        return true;
     }
     
     function renderPropertyListings(properties) {
