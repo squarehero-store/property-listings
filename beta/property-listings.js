@@ -771,6 +771,12 @@
                 if (columnType === 'boolean') {
                     // For boolean fields, set to 'yes' or 'no' for easier filtering
                     card.setAttribute(attributeName, value ? 'yes' : 'no');
+                } else if (columnType === 'currency') {
+                    // For currency fields, format with $ symbol for filtering
+                    const formattedValue = typeof value === 'string' && value.includes('$') 
+                        ? value 
+                        : `$${value.toLocaleString()}`;
+                    card.setAttribute(attributeName, formattedValue);
                 } else if (columnType === 'numeric') {
                     if (specialHandling === 'buttonGroup') {
                         // For special numeric fields with button group (like Sleeps)
