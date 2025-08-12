@@ -1407,7 +1407,7 @@
                     const columnId = column.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
                     const columnType = window.customColumnTypes[column];
                     
-                    if (columnType === 'text') {
+                    if (columnType === 'text' || columnType === 'currency') {
                         const customDropdown = document.getElementById(`${columnId}-filter`);
                         if (customDropdown) {
                             customDropdown.addEventListener('change', updateFilters);
@@ -1833,8 +1833,8 @@
                     if (slider && slider.noUiSlider) {
                         slider.noUiSlider.reset();
                     }
-                } else if (columnType === 'text') {
-                    // Reset dropdown filters
+                } else if (columnType === 'text' || columnType === 'currency') {
+                    // Reset dropdown filters (both text and currency)
                     const dropdown = document.getElementById(`${columnId}-filter`);
                     if (dropdown) {
                         dropdown.value = 'all';
