@@ -499,11 +499,30 @@
                 const columnType = window.customColumnTypes[column];
                 
                 // Create a filter based on the column type
-                if (columnType === 'numeric') {
+                if (columnType === 'numeric' || columnType === 'currency') {
                     // Check if there are values available for this column
                     const values = propertyData
                         .map(p => p.customFields[column])
-                        .filter(v => v !== undefined && !isNaN(v));
+                        .filter(v => {
+                            if (v === undefined || v === null || v === '') return false;
+                            if (columnType === 'currency') {
+                                // For currency fields, extract numeric value from formatted string
+                                const numericValue = typeof v === 'string' && v.includes('$') 
+                                    ? parseFloat(v.replace(/[$,]/g, ''))
+                                    : parseFloat(v);
+                                return !isNaN(numericValue);
+                            }
+                            return !isNaN(v);
+                        })
+                        .map(v => {
+                            if (columnType === 'currency') {
+                                // Convert currency strings to numeric values
+                                return typeof v === 'string' && v.includes('$') 
+                                    ? parseFloat(v.replace(/[$,]/g, ''))
+                                    : parseFloat(v);
+                            }
+                            return v;
+                        });
                     
                     if (values.length > 0) {
                         // Check if this column has special handling
@@ -547,24 +566,8 @@
                         const columnType = window.customColumnTypes && window.customColumnTypes[column];
                         values.forEach(value => {
                             const option = document.createElement('option');
-                            
-                            if (columnType === 'currency') {
-                                // For currency fields: use raw numeric value for filtering, formatted value for display
-                                const numericValue = typeof value === 'string' && value.includes('$') 
-                                    ? parseFloat(value.replace(/[$,]/g, ''))
-                                    : value;
-                                const displayValue = typeof value === 'string' && value.includes('$') 
-                                    ? value 
-                                    : `$${value.toLocaleString()}`;
-                                    
-                                option.value = numericValue;
-                                option.textContent = displayValue;
-                            } else {
-                                // For all other fields: use the same value for both
-                                option.value = value;
-                                option.textContent = value;
-                            }
-                            
+                            option.value = value;
+                            option.textContent = value;
                             option.className = `sh-${columnId}-option`;
                             dropdown.appendChild(option);
                         });
@@ -1281,7 +1284,7 @@
                 const customNumericSliders = [];
                 if (window.customColumns && window.customColumns.length > 0) {
                     window.customColumns.forEach(column => {
-                        if (window.customColumnTypes[column] === 'numeric') {
+                        if (window.customColumnTypes[column] === 'numeric' || window.customColumnTypes[column] === 'currency') {
                             const columnId = column.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
                             const slider = document.getElementById(`${columnId}-slider`);
                             if (slider && slider.noUiSlider) {
@@ -1407,7 +1410,7 @@
                     const columnId = column.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
                     const columnType = window.customColumnTypes[column];
                     
-                    if (columnType === 'text' || columnType === 'currency') {
+                    if (columnType === 'text') {
                         const customDropdown = document.getElementById(`${columnId}-filter`);
                         if (customDropdown) {
                             customDropdown.addEventListener('change', updateFilters);
@@ -1423,7 +1426,7 @@
                     const columnType = window.customColumnTypes[column];
                     const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[column];
                     
-                    if (columnType === 'numeric' && specialHandling !== 'buttonGroup') {
+                    if ((columnType === 'numeric' || columnType === 'currency') && specialHandling !== 'buttonGroup') {
                         const customSlider = document.getElementById(`${columnId}-slider`);
                         if (customSlider && customSlider.noUiSlider) {
                             customSlider.noUiSlider.on('update', () => {
@@ -1644,19 +1647,8 @@
                             filterGroups.push(`[data-${columnId}="${value}"]`);
                         }
                     }
-                } else if (columnType === 'currency') {
-                    const dropdownFilter = document.getElementById(`${columnId}-filter`);
-                    if (dropdownFilter) {
-                        const value = dropdownFilter.value;
-                        console.log(`Currency filter - Column: ${columnId}, Selected value: "${value}", Type: ${typeof value}`);
-                        if (value !== 'all') {
-                            // For currency fields, the dropdown value is numeric, data attribute is also numeric
-                            filterGroups.push(`[data-${columnId}="${value}"]`);
-                            console.log(`Currency filter selector: [data-${columnId}="${value}"]`);
-                        }
-                    }
                 }
-                // Numeric filters are handled separately with sliders
+                // Numeric and currency filters are handled separately with sliders
             });
         }
 
@@ -1827,14 +1819,14 @@
                 const columnId = column.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
                 const columnType = window.customColumnTypes[column];
                 
-                if (columnType === 'numeric') {
-                    // Reset numeric sliders
+                if (columnType === 'numeric' || columnType === 'currency') {
+                    // Reset numeric and currency sliders
                     const slider = document.getElementById(`${columnId}-slider`);
                     if (slider && slider.noUiSlider) {
                         slider.noUiSlider.reset();
                     }
-                } else if (columnType === 'text' || columnType === 'currency') {
-                    // Reset dropdown filters (both text and currency)
+                } else if (columnType === 'text') {
+                    // Reset dropdown filters
                     const dropdown = document.getElementById(`${columnId}-filter`);
                     if (dropdown) {
                         dropdown.value = 'all';
