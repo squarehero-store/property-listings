@@ -544,10 +544,27 @@
                         const customDropdown = createDropdownFilter(`${columnId}-filter`, column, `Any ${column}`, `sh-${columnId}-filter`);
                         // Populate the dropdown with values
                         const dropdown = customDropdown.querySelector(`#${columnId}-filter`);
+                        const columnType = window.customColumnTypes && window.customColumnTypes[column];
                         values.forEach(value => {
                             const option = document.createElement('option');
-                            option.value = value;
-                            option.textContent = value;
+                            
+                            if (columnType === 'currency') {
+                                // For currency fields: use raw numeric value for filtering, formatted value for display
+                                const numericValue = typeof value === 'string' && value.includes('$') 
+                                    ? parseFloat(value.replace(/[$,]/g, ''))
+                                    : value;
+                                const displayValue = typeof value === 'string' && value.includes('$') 
+                                    ? value 
+                                    : `$${value.toLocaleString()}`;
+                                    
+                                option.value = numericValue;
+                                option.textContent = displayValue;
+                            } else {
+                                // For all other fields: use the same value for both
+                                option.value = value;
+                                option.textContent = value;
+                            }
+                            
                             option.className = `sh-${columnId}-option`;
                             dropdown.appendChild(option);
                         });
@@ -771,13 +788,7 @@
                 if (columnType === 'boolean') {
                     // For boolean fields, set to 'yes' or 'no' for easier filtering
                     card.setAttribute(attributeName, value ? 'yes' : 'no');
-                } else if (columnType === 'currency') {
-                    // For currency fields, format with $ symbol for filtering
-                    const formattedValue = typeof value === 'string' && value.includes('$') 
-                        ? value 
-                        : `$${value.toLocaleString()}`;
-                    card.setAttribute(attributeName, formattedValue);
-                } else if (columnType === 'numeric') {
+                } else if (columnType === 'numeric' || columnType === 'currency') {
                     if (specialHandling === 'buttonGroup') {
                         // For special numeric fields with button group (like Sleeps)
                         // Use the integer value for exact matching
