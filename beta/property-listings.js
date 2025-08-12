@@ -841,7 +841,8 @@
                             
                             const formattedValue = columnType === 'boolean' 
                                 ? (value ? 'Yes' : 'No')
-                                : (columnType === 'currency' ? `$${value.toLocaleString()}` 
+                                : (columnType === 'currency' ? 
+                                    (typeof value === 'string' && value.includes('$') ? value : `$${value.toLocaleString()}`)
                                     : (columnType === 'numeric' ? value.toLocaleString() : value));
                             
                             // Handle different icon file types and add error handling
@@ -895,7 +896,8 @@
                             const columnType = window.customColumnTypes && window.customColumnTypes[key];
                             const formattedValue = columnType === 'boolean' 
                                 ? (value ? 'Yes' : 'No')
-                                : (columnType === 'currency' ? `$${value.toLocaleString()}` 
+                                : (columnType === 'currency' ? 
+                                    (typeof value === 'string' && value.includes('$') ? value : `$${value.toLocaleString()}`)
                                     : (columnType === 'numeric' ? value.toLocaleString() : value));
                             
                             return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}">
