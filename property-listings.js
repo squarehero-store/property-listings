@@ -790,7 +790,7 @@
                 
                 // Log for currency fields to debug
                 if (columnType === 'currency') {
-                    console.log(`Property "${property.title}" - Currency field "${key}": value="${value}", will set ${attributeName}`);
+                    // Currency fields now handled with slider
                 }
                 
                 if (columnType === 'boolean') {
@@ -803,7 +803,7 @@
                         const dataValue = Math.floor(Number(value));
                         card.setAttribute(attributeName, dataValue);
                         if (columnType === 'currency') {
-                            console.log(`Currency data attribute - ${attributeName}: "${dataValue}" (from value: ${value})`);
+                            // Data attribute set for currency filtering
                         }
                     } else {
                         // For currency fields, extract numeric value for filtering
@@ -811,13 +811,9 @@
                             // Remove currency symbols, spaces, and commas to get clean numeric value
                             const numericValue = value.toString().replace(/[\$,\s]/g, '');
                             card.setAttribute(attributeName, numericValue);
-                            console.log(`Currency data attribute - ${attributeName}: "${numericValue}" (cleaned from "${value}")`);
                         } else {
                             // For standard numeric fields, set the raw number for range filtering
                             card.setAttribute(attributeName, value);
-                            if (columnType === 'currency') {
-                                console.log(`Currency data attribute - ${attributeName}: "${value}" (type: ${typeof value})`);
-                            }
                         }
                     }
                 } else {
@@ -834,7 +830,7 @@
                 if (columnType === 'currency') {
                     const hasField = property.customFields && property.customFields[column] !== undefined;
                     if (!hasField) {
-                        console.log(`Property "${property.title}" - Missing currency field "${column}"`);
+                        // Field not found, skip
                     }
                 }
             });
@@ -931,10 +927,6 @@
                         const columnType = window.customColumnTypes && window.customColumnTypes[key];
                         const shouldDisplay = shouldDisplayValue(value, columnType);
                         
-                        // Debug logging for troubleshooting
-                        if (key.toLowerCase().includes('rent')) {
-                            console.log(`Field: ${key}, Value: ${value}, Type: ${columnType}, ShouldDisplay: ${shouldDisplay}`);
-                        }
                         
                         return shouldDisplay;
                     });
