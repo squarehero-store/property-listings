@@ -164,7 +164,7 @@
                         const columnType = window.customColumnTypes && window.customColumnTypes[column];
                         if (columnType === 'boolean') {
                             customFields[column] = value === 'Yes';
-                        } else if (columnType === 'numeric' && value) {
+                        } else if ((columnType === 'numeric' || columnType === 'currency') && value) {
                             customFields[column] = parseFloat(value.replace(/[$,]/g, ''));
                         } else {
                             customFields[column] = value;
@@ -347,33 +347,33 @@
                 window.customColumnTypes[column] = 'text';
             } else if (nonEmptyValues.every(value => value === 'Yes' || value === 'No')) {
                 window.customColumnTypes[column] = 'boolean';
-            } else {
-                // Check if any values contain currency symbols
+            } else if (nonEmptyValues.every(value => !isNaN(parseFloat(value.replace(/[$,]/g, ''))))) {
+                // Check if this is a currency field (contains $ symbols)
                 const hasCurrencySymbols = nonEmptyValues.some(value => value.toString().includes('$'));
                 
                 if (hasCurrencySymbols) {
                     window.customColumnTypes[column] = 'currency';
-                } else if (nonEmptyValues.every(value => !isNaN(parseFloat(value.replace(/[$,]/g, ''))))) {
-                    window.customColumnTypes[column] = 'numeric';
-                
-                    // Determine whether to use button group or slider based on the range of values
-                    const numericValues = nonEmptyValues.map(v => parseFloat(v.replace(/[$,]/g, '')));
-                    // Find unique integer values (floor the numbers to group similar values)
-                    const uniqueIntegerValues = [...new Set(numericValues.map(v => Math.floor(v)))];
-                    // Sort the values to determine range
-                    uniqueIntegerValues.sort((a, b) => a - b);
-                    
-                    // If we have a small number of distinct values (≤ 8) and a reasonably small range,
-                    // use a button group instead of a slider
-                    if (uniqueIntegerValues.length <= 8 && 
-                       (uniqueIntegerValues[uniqueIntegerValues.length - 1] - uniqueIntegerValues[0]) <= 10) {
-                        window.customColumnSpecialHandling[column] = 'buttonGroup';
-                    } else {
-                        // Use slider for larger ranges
-                    }
                 } else {
-                    window.customColumnTypes[column] = 'text';
+                    window.customColumnTypes[column] = 'numeric';
                 }
+                
+                // Determine whether to use button group or slider based on the range of values
+                const numericValues = nonEmptyValues.map(v => parseFloat(v.replace(/[$,]/g, '')));
+                // Find unique integer values (floor the numbers to group similar values)
+                const uniqueIntegerValues = [...new Set(numericValues.map(v => Math.floor(v)))];
+                // Sort the values to determine range
+                uniqueIntegerValues.sort((a, b) => a - b);
+                
+                // If we have a small number of distinct values (≤ 8) and a reasonably small range,
+                // use a button group instead of a slider
+                if (uniqueIntegerValues.length <= 8 && 
+                   (uniqueIntegerValues[uniqueIntegerValues.length - 1] - uniqueIntegerValues[0]) <= 10) {
+                    window.customColumnSpecialHandling[column] = 'buttonGroup';
+                } else {
+                    // Use slider for larger ranges
+                }
+            } else {
+                window.customColumnTypes[column] = 'text';
             }
         });
     
@@ -397,7 +397,7 @@
                         const columnType = window.customColumnTypes[column];
                         if (columnType === 'boolean') {
                             customFields[column] = value === 'Yes';
-                        } else if ((columnType === 'numeric' || columnType === 'currency') && value) {
+                        } else if (columnType === 'numeric' && value) {
                             customFields[column] = parseFloat(value.replace(/[$,]/g, ''));
                         } else {
                             customFields[column] = value;
@@ -544,10 +544,27 @@
                         const customDropdown = createDropdownFilter(`${columnId}-filter`, column, `Any ${column}`, `sh-${columnId}-filter`);
                         // Populate the dropdown with values
                         const dropdown = customDropdown.querySelector(`#${columnId}-filter`);
+                        const columnType = window.customColumnTypes && window.customColumnTypes[column];
                         values.forEach(value => {
                             const option = document.createElement('option');
-                            option.value = value;
-                            option.textContent = value;
+                            
+                            if (columnType === 'currency') {
+                                // For currency fields: use raw numeric value for filtering, formatted value for display
+                                const numericValue = typeof value === 'string' && value.includes('$') 
+                                    ? parseFloat(value.replace(/[$,]/g, ''))
+                                    : value;
+                                const displayValue = typeof value === 'string' && value.includes('$') 
+                                    ? value 
+                                    : `$${value.toLocaleString()}`;
+                                    
+                                option.value = numericValue;
+                                option.textContent = displayValue;
+                            } else {
+                                // For all other fields: use the same value for both
+                                option.value = value;
+                                option.textContent = value;
+                            }
+                            
                             option.className = `sh-${columnId}-option`;
                             dropdown.appendChild(option);
                         });
@@ -768,21 +785,54 @@
                 const columnType = window.customColumnTypes && window.customColumnTypes[key];
                 const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[key];
                 
+                // Log for currency fields to debug
+                if (columnType === 'currency') {
+                    console.log(`Property "${property.title}" - Currency field "${key}": value="${value}", will set ${attributeName}`);
+                }
+                
                 if (columnType === 'boolean') {
                     // For boolean fields, set to 'yes' or 'no' for easier filtering
                     card.setAttribute(attributeName, value ? 'yes' : 'no');
-                } else if (columnType === 'numeric') {
+                } else if (columnType === 'numeric' || columnType === 'currency') {
                     if (specialHandling === 'buttonGroup') {
                         // For special numeric fields with button group (like Sleeps)
                         // Use the integer value for exact matching
-                        card.setAttribute(attributeName, Math.floor(Number(value)));
+                        const dataValue = Math.floor(Number(value));
+                        card.setAttribute(attributeName, dataValue);
+                        if (columnType === 'currency') {
+                            console.log(`Currency data attribute - ${attributeName}: "${dataValue}" (from value: ${value})`);
+                        }
                     } else {
-                        // For standard numeric fields, set the raw number for range filtering
-                        card.setAttribute(attributeName, value);
+                        // For currency fields, extract numeric value for filtering
+                        if (columnType === 'currency' && value && value !== '') {
+                            // Remove currency symbols, spaces, and commas to get clean numeric value
+                            const numericValue = value.toString().replace(/[\$,\s]/g, '');
+                            card.setAttribute(attributeName, numericValue);
+                            console.log(`Currency data attribute - ${attributeName}: "${numericValue}" (cleaned from "${value}")`);
+                        } else {
+                            // For standard numeric fields, set the raw number for range filtering
+                            card.setAttribute(attributeName, value);
+                            if (columnType === 'currency') {
+                                console.log(`Currency data attribute - ${attributeName}: "${value}" (type: ${typeof value})`);
+                            }
+                        }
                     }
                 } else {
                     // For text fields, set the text value
                     card.setAttribute(attributeName, value);
+                }
+            });
+        }
+        
+        // Log if property is missing currency fields that exist in other properties
+        if (window.customColumns) {
+            window.customColumns.forEach(column => {
+                const columnType = window.customColumnTypes && window.customColumnTypes[column];
+                if (columnType === 'currency') {
+                    const hasField = property.customFields && property.customFields[column] !== undefined;
+                    if (!hasField) {
+                        console.log(`Property "${property.title}" - Missing currency field "${column}"`);
+                    }
                 }
             });
         }
@@ -834,15 +884,16 @@
                             
                             const columnType = window.customColumnTypes && window.customColumnTypes[key];
                             
+                            // Check if this value should be displayed
                             if (!shouldDisplayValue(value, columnType)) {
-                                return '';
+                                return ''; // Don't show fields with empty/zero values
                             }
                             
                             const formattedValue = columnType === 'boolean' 
                                 ? (value ? 'Yes' : 'No')
-                                : columnType === 'currency'
-                                ? `$${value.toLocaleString()}`
-                                : (columnType === 'numeric' ? value.toLocaleString() : value);
+                                : (columnType === 'currency' ? 
+                                    (typeof value === 'string' && value.includes('$') ? value : `$${value.toLocaleString()}`)
+                                    : (columnType === 'numeric' ? value.toLocaleString() : value));
                             
                             // Handle different icon file types and add error handling
                             const isImageIcon = iconUrl.toLowerCase().endsWith('.png') || 
@@ -864,12 +915,25 @@
                     }
                     
                     // Filter out custom fields that have icons - they're already shown in the property-details section
+                    // Also filter out fields with empty/zero values
                     const fieldsWithoutIcons = Object.entries(property.customFields).filter(([key, value]) => {
                         // Normalize the field name to match the icon key format
                         const normalizedKey = key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
                         const iconUrl = window.customIcons && (window.customIcons[normalizedKey] || window.customIcons[normalizedKey + '-icon']);
+                        
+                        // Skip fields that have icons - they're shown in the main details section
+                        if (iconUrl) return false;
+                        
+                        // Only include fields with meaningful values
                         const columnType = window.customColumnTypes && window.customColumnTypes[key];
-                        return !iconUrl && shouldDisplayValue(value, columnType); // Only include fields that don't have custom icons and should be displayed
+                        const shouldDisplay = shouldDisplayValue(value, columnType);
+                        
+                        // Debug logging for troubleshooting
+                        if (key.toLowerCase().includes('rent')) {
+                            console.log(`Field: ${key}, Value: ${value}, Type: ${columnType}, ShouldDisplay: ${shouldDisplay}`);
+                        }
+                        
+                        return shouldDisplay;
                     });
                     
                     if (fieldsWithoutIcons.length === 0) {
@@ -882,9 +946,9 @@
                             const columnType = window.customColumnTypes && window.customColumnTypes[key];
                             const formattedValue = columnType === 'boolean' 
                                 ? (value ? 'Yes' : 'No')
-                                : columnType === 'currency'
-                                ? `$${value.toLocaleString()}`
-                                : (columnType === 'numeric' ? value.toLocaleString() : value);
+                                : (columnType === 'currency' ? 
+                                    (typeof value === 'string' && value.includes('$') ? value : `$${value.toLocaleString()}`)
+                                    : (columnType === 'numeric' ? value.toLocaleString() : value));
                             
                             return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}">
                                 <span class="custom-detail-label">${key}:</span>
@@ -910,8 +974,8 @@
     function formatBathroomsForFilter(bathrooms) {
         return Number.isInteger(bathrooms) ? bathrooms.toString() : bathrooms.toFixed(1);
     }
-    
-    // Helper function to determine if a value should be displayed
+
+    // Helper function to check if a custom field value should be displayed
     function shouldDisplayValue(value, columnType) {
         // Just check if the value exists and isn't empty
         if (value === null || value === undefined || value === '') {
@@ -1343,7 +1407,7 @@
                     const columnId = column.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
                     const columnType = window.customColumnTypes[column];
                     
-                    if (columnType === 'text') {
+                    if (columnType === 'text' || columnType === 'currency') {
                         const customDropdown = document.getElementById(`${columnId}-filter`);
                         if (customDropdown) {
                             customDropdown.addEventListener('change', updateFilters);
@@ -1580,6 +1644,17 @@
                             filterGroups.push(`[data-${columnId}="${value}"]`);
                         }
                     }
+                } else if (columnType === 'currency') {
+                    const dropdownFilter = document.getElementById(`${columnId}-filter`);
+                    if (dropdownFilter) {
+                        const value = dropdownFilter.value;
+                        console.log(`Currency filter - Column: ${columnId}, Selected value: "${value}", Type: ${typeof value}`);
+                        if (value !== 'all') {
+                            // For currency fields, the dropdown value is numeric, data attribute is also numeric
+                            filterGroups.push(`[data-${columnId}="${value}"]`);
+                            console.log(`Currency filter selector: [data-${columnId}="${value}"]`);
+                        }
+                    }
                 }
                 // Numeric filters are handled separately with sliders
             });
@@ -1758,8 +1833,8 @@
                     if (slider && slider.noUiSlider) {
                         slider.noUiSlider.reset();
                     }
-                } else if (columnType === 'text') {
-                    // Reset dropdown filters
+                } else if (columnType === 'text' || columnType === 'currency') {
+                    // Reset dropdown filters (both text and currency)
                     const dropdown = document.getElementById(`${columnId}-filter`);
                     if (dropdown) {
                         dropdown.value = 'all';

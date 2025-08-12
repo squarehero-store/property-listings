@@ -15,19 +15,6 @@
         return customIcons;
     }
 
-    // Currency symbol helper
-    function getCurrencySymbol(currencyCode) {
-        const symbols = {
-            USD: '$',
-            CAD: '$',
-            AUD: '$',
-            NZD: '$',
-            GBP: '£',
-            EUR: '€'
-        };
-        return symbols[currencyCode] || '$';
-    }
-
     // Helper functions for Property Data
     function parseCSV(csv) {
         const lines = csv.split('\n');
@@ -83,32 +70,24 @@
                 window.customColumnTypes[column] = 'text';
             } else if (values.every(value => value === 'Yes' || value === 'No')) {
                 window.customColumnTypes[column] = 'boolean';
+            } else if (values.every(value => !isNaN(parseFloat(value)))) {
+                window.customColumnTypes[column] = 'numeric';
+                
+                // Determine whether to use button group or slider based on the range of values
+                const numericValues = values.map(v => parseFloat(v));
+                // Find unique integer values (floor the numbers to group similar values)
+                const uniqueIntegerValues = [...new Set(numericValues.map(v => Math.floor(v)))];
+                // Sort the values to determine range
+                uniqueIntegerValues.sort((a, b) => a - b);
+                
+                // If we have a small number of distinct values (≤ 8) and a reasonably small range,
+                // use a button group instead of a slider
+                if (uniqueIntegerValues.length <= 8 && 
+                   (uniqueIntegerValues[uniqueIntegerValues.length - 1] - uniqueIntegerValues[0]) <= 10) {
+                    window.customColumnSpecialHandling[column] = 'buttonGroup';
+                } 
             } else {
-                // Check if any values contain currency symbols
-                const nonEmptyValues = values.filter(value => value !== undefined && value !== null && value.toString().trim() !== '');
-                const hasCurrencySymbols = nonEmptyValues.some(value => value.toString().includes('$'));
-                
-                if (hasCurrencySymbols) {
-                    window.customColumnTypes[column] = 'currency';
-                } else if (values.every(value => !isNaN(parseFloat(value)))) {
-                    window.customColumnTypes[column] = 'numeric';
-                
-                    // Determine whether to use button group or slider based on the range of values
-                    const numericValues = values.map(v => parseFloat(v));
-                    // Find unique integer values (floor the numbers to group similar values)
-                    const uniqueIntegerValues = [...new Set(numericValues.map(v => Math.floor(v)))];
-                    // Sort the values to determine range
-                    uniqueIntegerValues.sort((a, b) => a - b);
-                    
-                    // If we have a small number of distinct values (≤ 8) and a reasonably small range,
-                    // use a button group instead of a slider
-                    if (uniqueIntegerValues.length <= 8 && 
-                       (uniqueIntegerValues[uniqueIntegerValues.length - 1] - uniqueIntegerValues[0]) <= 10) {
-                        window.customColumnSpecialHandling[column] = 'buttonGroup';
-                    } 
-                } else {
-                    window.customColumnTypes[column] = 'text';
-                }
+                window.customColumnTypes[column] = 'text';
             }
         });
 
@@ -130,8 +109,8 @@
                         const columnType = window.customColumnTypes[column];
                         if (columnType === 'boolean') {
                             customFields[column] = value === 'Yes';
-                        } else if ((columnType === 'numeric' || columnType === 'currency') && value) {
-                            customFields[column] = parseFloat(value.replace(/[$,]/g, ''));
+                        } else if (columnType === 'numeric' && value) {
+                            customFields[column] = parseFloat(value.replace(/[^\d.-]/g, ''));
                         } else {
                             customFields[column] = value;
                         }
@@ -160,25 +139,23 @@
         return processedItems;
     }
 
-    function formatPrice(price, currencySymbol = '$') {
+    function formatPrice(price) {
         if (price === null) return 'Price TBA';
-        return currencySymbol + price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        return '$' + price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     }
 
-    // Helper function to determine if a value should be displayed
+    // Helper function to check if a custom field value should be displayed
     function shouldDisplayValue(value, columnType) {
-        // Just check if the value exists and isn't empty
-        if (value === null || value === undefined || value === '') {
-            return false;
-        }
+        if (value === null || value === undefined) return false;
         
-        // For text fields, also check if it's not just whitespace
-        if (columnType === 'text') {
-            return value.toString().trim() !== '';
+        if (columnType === 'boolean') {
+            return true; // Always show boolean values (Yes/No)
+        } else if (columnType === 'numeric') {
+            return value > 0; // Only show numeric values greater than 0
+        } else {
+            // For text fields, check if not empty
+            return value !== '' && value.toString().trim() !== '';
         }
-        
-        // For all other types (boolean, numeric, currency), if it exists, show it
-        return true;
     }
 
     // SVG Icons remain unchanged
@@ -195,30 +172,23 @@
         if (!metaTag || metaTag.getAttribute('enabled') !== 'true') return;
 
         const sheetUrl = metaTag.getAttribute('sheet-url');
-        const target = metaTag.getAttribute('target');
         const currentPropertyJsonUrl = `${window.location.pathname}?format=json`;
-        const blogJsonUrl = `/${target}?format=json&nocache=${new Date().getTime()}`;
 
         Promise.all([
             fetch(sheetUrl).then(response => response.text()),
-            fetch(currentPropertyJsonUrl).then(response => response.json()),
-            fetch(blogJsonUrl).then(response => response.json())
-        ]).then(([csvData, currentPropertyData, websiteSettingsData]) => {
+            fetch(currentPropertyJsonUrl).then(response => response.json())
+        ]).then(([csvData, currentPropertyData]) => {
             const sheetData = parseCSV(csvData);
             const propertyData = processPropertyData(sheetData, [currentPropertyData.item]);
             const currentProperty = propertyData[0];
-            
-            // Get currency symbol from website settings
-            const storeSettings = websiteSettingsData.websiteSettings?.storeSettings || {};
-            const currencySymbol = getCurrencySymbol(storeSettings.selectedCurrency);
 
             if (currentProperty) {
-                insertCurrentPropertyDetails(currentProperty, currencySymbol);
+                insertCurrentPropertyDetails(currentProperty);
             }
         }).catch(error => console.error('Error fetching property data:', error));
     }
 
-    function insertCurrentPropertyDetails(property, currencySymbol = '$') {
+    function insertCurrentPropertyDetails(property) {
         const blogItemTitle = document.querySelector('.blog-item-title');
         if (!blogItemTitle) {
             console.error('Blog item title element not found');
@@ -241,7 +211,7 @@
         let detailsContent = `
     <div class="listing-content sh-listing-content">
       ${property.location ? `<p class="property-location sh-property-location">${property.location}</p>` : ''}
-      ${showPricing ? `<p class="property-price sh-property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price, currencySymbol)}</p>` : ''}
+      ${showPricing ? `<p class="property-price sh-property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price)}</p>` : ''}
       <div class="property-details sh-property-details">
         ${property.area ? `<span class="details-icon sh-area-icon">${svgIcons.area} <span class="sh-area-value">${property.area.toLocaleString()} sq ft</span></span>` : ''}
         ${property.bedrooms ? `<span class="details-icon sh-beds-icon">${svgIcons.beds} <span class="sh-beds-value">${property.bedrooms}</span></span>` : ''}
@@ -254,21 +224,22 @@
             }
             
             return Object.entries(property.customFields).map(([key, value]) => {
-                const iconUrl = customIcons[key.toLowerCase()];
+                // Normalize the field name to match the icon key format
+                const normalizedKey = key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+                const iconUrl = customIcons[normalizedKey] || customIcons[normalizedKey + '-icon'];
                 if (!iconUrl) {
                     return ''; // Only show custom fields that have icons here
                 }
                 
                 const columnType = window.customColumnTypes && window.customColumnTypes[key];
                 
+                // Check if this value should be displayed
                 if (!shouldDisplayValue(value, columnType)) {
-                    return '';
+                    return ''; // Don't show fields with empty/zero values
                 }
                 
                 const formattedValue = columnType === 'boolean' 
                     ? (value ? 'Yes' : 'No')
-                    : columnType === 'currency' 
-                    ? `$${value.toLocaleString()}`
                     : (columnType === 'numeric' ? value.toLocaleString() : value);
                 
                 // Handle different icon file types and add error handling
@@ -280,7 +251,7 @@
                     ? `<img src="${iconUrl}" alt="${key} icon" style="width: 20px; height: 20px; object-fit: contain;" onerror="this.style.display='none'">` 
                     : `<img src="${iconUrl}" alt="${key} icon" style="width: 20px; height: 20px;" onerror="this.style.display='none'">`;
                 
-                return `<span class="details-icon sh-custom-icon sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}-icon">${iconElement} <span class="sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}-value">${formattedValue}</span></span>`;
+                return `<span class="details-icon sh-custom-icon sh-custom-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}-icon">${iconElement} <span class="sh-custom-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}-value">${formattedValue}</span></span>`;
             }).join('');
         })()}
       </div>`;
@@ -288,10 +259,18 @@
         // Add custom fields WITHOUT icons (fields with icons are shown above)
         if (hasCustomFields) {
             // Filter out custom fields that have icons - they're already shown in the property-details section
+            // Also filter out fields with empty/zero values
             const fieldsWithoutIcons = Object.entries(property.customFields).filter(([key, value]) => {
-                const iconUrl = customIcons[key.toLowerCase()];
+                // Normalize the field name to match the icon key format
+                const normalizedKey = key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+                const iconUrl = customIcons[normalizedKey] || customIcons[normalizedKey + '-icon'];
+                
+                // Skip fields that have icons - they're shown in the main details section
+                if (iconUrl) return false;
+                
+                // Only include fields with meaningful values
                 const columnType = window.customColumnTypes && window.customColumnTypes[key];
-                return !iconUrl && shouldDisplayValue(value, columnType); // Only include fields that don't have custom icons and should be displayed
+                return shouldDisplayValue(value, columnType);
             });
             
             if (fieldsWithoutIcons.length > 0) {
@@ -301,11 +280,9 @@
             const columnType = window.customColumnTypes && window.customColumnTypes[key];
             const formattedValue = columnType === 'boolean' 
                 ? (value ? 'Yes' : 'No')
-                : columnType === 'currency' 
-                ? `$${value.toLocaleString()}`
                 : (columnType === 'numeric' ? value.toLocaleString() : value);
             
-            return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}">
+            return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}">
                 <span class="custom-detail-label sh-custom-detail-label">${key}:</span>
                 <span class="custom-detail-value sh-custom-detail-value">${formattedValue}</span>
             </div>`;
@@ -407,10 +384,6 @@
                 ]).then(([csvData, allPropertiesData]) => {
                     const sheetData = parseCSV(csvData);
                     const propertyData = processPropertyData(sheetData, allPropertiesData.items);
-                    
-                    // Get currency symbol from website settings
-                    const storeSettings = allPropertiesData.websiteSettings?.storeSettings || {};
-                    const currencySymbol = getCurrencySymbol(storeSettings.selectedCurrency);
 
                     let filteredProperties = propertyData.filter(property => property.urlId !== currentUrlId);
 
@@ -423,14 +396,21 @@
                     const relatedProperties = filteredProperties.slice(0, 3);
 
                     if (relatedProperties.length > 0) {
-                        renderRelatedProperties(relatedProperties, shouldFilterByTag, currencySymbol);
+                        renderRelatedProperties(relatedProperties, shouldFilterByTag);
                     }
                 }).catch(error => console.error('Error fetching data:', error));
             })
             .catch(error => console.error('Error fetching current property data:', error));
     }
 
-    function createPropertyCard(property, currencySymbol = '$') {
+    function createPropertyCard(property) {
+        // Check pricing setting from meta tag
+        const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
+        const showPricing = metaTag ? metaTag.getAttribute('pricing') !== 'false' : true;
+        
+        // Get custom icons configuration
+        const customIcons = getCustomIcons();
+        
         const card = document.createElement('a');
         card.className = 'property-card sh-property-card';
         card.href = property.url;
@@ -463,7 +443,7 @@
         // Add data attributes for custom fields
         if (property.customFields) {
             Object.entries(property.customFields).forEach(([key, value]) => {
-                const attributeName = `data-${key.toLowerCase().replace(/\s+/g, '-')}`;
+                const attributeName = `data-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}`;
                 const columnType = window.customColumnTypes && window.customColumnTypes[key];
                 const specialHandling = window.customColumnSpecialHandling && window.customColumnSpecialHandling[key];
                 
@@ -485,13 +465,6 @@
             });
         }
         
-        // Check pricing setting from meta tag
-        const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
-        const showPricing = metaTag ? metaTag.getAttribute('pricing') !== 'false' : true;
-        
-        // Get custom icons configuration
-        const customIcons = getCustomIcons();
-        
         // Check for custom fields before generating the HTML
         const hasCustomFields = property.customFields && Object.keys(property.customFields).length > 0;
 
@@ -503,7 +476,7 @@
       <div class="listing-content sh-listing-content">
         <h3 class="property-title sh-property-title">${property.title}</h3>
         ${property.location ? `<p class="property-location sh-property-location">${property.location}</p>` : ''}
-        ${showPricing ? `<p class="property-price sh-property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price, currencySymbol)}</p>` : ''}
+        ${showPricing ? `<p class="property-price sh-property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price)}</p>` : ''}
         <div class="property-details sh-property-details">
           ${property.area ? `<span class="details-icon sh-area-icon">${svgIcons.area} <span class="sh-area-value">${property.area.toLocaleString()} sq ft</span></span>` : ''}
           ${property.bedrooms ? `<span class="details-icon sh-beds-icon">${svgIcons.beds} <span class="sh-beds-value">${property.bedrooms}</span></span>` : ''}
@@ -516,21 +489,22 @@
               }
               
               return Object.entries(property.customFields).map(([key, value]) => {
-                  const iconUrl = customIcons[key.toLowerCase()];
+                  // Normalize the field name to match the icon key format
+                  const normalizedKey = key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+                  const iconUrl = customIcons[normalizedKey] || customIcons[normalizedKey + '-icon'];
                   if (!iconUrl) {
                       return ''; // Only show custom fields that have icons here
                   }
                   
                   const columnType = window.customColumnTypes && window.customColumnTypes[key];
                   
+                  // Check if this value should be displayed
                   if (!shouldDisplayValue(value, columnType)) {
-                      return '';
+                      return ''; // Don't show fields with empty/zero values
                   }
                   
                   const formattedValue = columnType === 'boolean' 
                       ? (value ? 'Yes' : 'No')
-                      : columnType === 'currency' 
-                      ? `$${value.toLocaleString()}`
                       : (columnType === 'numeric' ? value.toLocaleString() : value);
                   
                   // Handle different icon file types and add error handling
@@ -542,7 +516,7 @@
                       ? `<img src="${iconUrl}" alt="${key} icon" style="width: 20px; height: 20px; object-fit: contain;" onerror="this.style.display='none'">` 
                       : `<img src="${iconUrl}" alt="${key} icon" style="width: 20px; height: 20px;" onerror="this.style.display='none'">`;
                   
-                  return `<span class="details-icon sh-custom-icon sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}-icon">${iconElement} <span class="sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}-value">${formattedValue}</span></span>`;
+                  return `<span class="details-icon sh-custom-icon sh-custom-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}-icon">${iconElement} <span class="sh-custom-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}-value">${formattedValue}</span></span>`;
               }).join('');
           })()}
         </div>`;
@@ -550,10 +524,18 @@
         // Add custom fields WITHOUT icons (fields with icons are shown above)
         if (hasCustomFields) {
             // Filter out custom fields that have icons - they're already shown in the property-details section
+            // Also filter out fields with empty/zero values
             const fieldsWithoutIcons = Object.entries(property.customFields).filter(([key, value]) => {
-                const iconUrl = customIcons[key.toLowerCase()];
+                // Normalize the field name to match the icon key format
+                const normalizedKey = key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+                const iconUrl = customIcons[normalizedKey] || customIcons[normalizedKey + '-icon'];
+                
+                // Skip fields that have icons - they're shown in the main details section
+                if (iconUrl) return false;
+                
+                // Only include fields with meaningful values
                 const columnType = window.customColumnTypes && window.customColumnTypes[key];
-                return !iconUrl && shouldDisplayValue(value, columnType); // Only include fields that don't have custom icons and should be displayed
+                return shouldDisplayValue(value, columnType);
             });
             
             if (fieldsWithoutIcons.length > 0) {
@@ -563,11 +545,9 @@
               const columnType = window.customColumnTypes && window.customColumnTypes[key];
               const formattedValue = columnType === 'boolean' 
                   ? (value ? 'Yes' : 'No')
-                  : columnType === 'currency' 
-                  ? `$${value.toLocaleString()}`
                   : (columnType === 'numeric' ? value.toLocaleString() : value);
               
-              return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-')}">
+              return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}">
                   <span class="custom-detail-label sh-custom-detail-label">${key}:</span>
                   <span class="custom-detail-value sh-custom-detail-value">${formattedValue}</span>
               </div>`;
@@ -586,7 +566,7 @@
         return card;
     }
 
-    function renderRelatedProperties(properties, isTagFiltered, currencySymbol = '$') {
+    function renderRelatedProperties(properties, isTagFiltered) {
         const blogItemWrapper = document.querySelector('.blog-item-wrapper');
         if (!blogItemWrapper) {
             console.error('Blog item wrapper not found');
@@ -603,7 +583,7 @@
         relatedContainer.className = 'property-grid';
 
         properties.forEach(property => {
-            const card = createPropertyCard(property, currencySymbol);
+            const card = createPropertyCard(property);
             relatedContainer.appendChild(card);
         });
 
