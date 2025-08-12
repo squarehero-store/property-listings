@@ -1355,8 +1355,15 @@
                             const dataAttr = `data-${columnId}`;
                             
                             if (card.hasAttribute(dataAttr)) {
-                                const cardValue = parseFloat(card.getAttribute(dataAttr) || 0);
-                                shouldShow = shouldShow && (cardValue >= minValue && cardValue <= maxValue);
+                                const attributeValue = card.getAttribute(dataAttr);
+                                // Skip filtering if the card doesn't have a valid value (empty string or null)
+                                if (attributeValue && attributeValue.trim() !== '') {
+                                    const cardValue = parseFloat(attributeValue);
+                                    // Only apply filter if we have a valid numeric value
+                                    if (!isNaN(cardValue)) {
+                                        shouldShow = shouldShow && (cardValue >= minValue && cardValue <= maxValue);
+                                    }
+                                }
                             }
                         }
                     });
