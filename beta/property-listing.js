@@ -573,10 +573,17 @@
             return;
         }
 
+        // Get custom item type from meta tag
+        const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
+        const itemType = metaTag ? metaTag.getAttribute('item-type') || 'Properties' : 'Properties';
+        
+        // Capitalize the first letter of itemType
+        const capitalizedItemType = itemType.charAt(0).toUpperCase() + itemType.slice(1);
+
         const relatedSection = document.createElement('div');
         relatedSection.className = 'related-properties-section';
 
-        const sectionTitle = isTagFiltered ? 'Related Properties' : 'More Properties';
+        const sectionTitle = isTagFiltered ? `Related ${capitalizedItemType}` : `More ${capitalizedItemType}`;
         relatedSection.innerHTML = `<h2>${sectionTitle}</h2>`;
 
         const relatedContainer = document.createElement('div');
