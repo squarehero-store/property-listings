@@ -407,6 +407,7 @@
         // Check pricing setting from meta tag
         const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
         const showPricing = metaTag ? metaTag.getAttribute('pricing') !== 'false' : true;
+        const buttonText = metaTag ? metaTag.getAttribute('button-text') || 'View Home' : 'View Home';
         
         // Get custom icons configuration
         const customIcons = getCustomIcons();
@@ -558,7 +559,7 @@
         
         // Add View Home button and close listing-content div
         cardContent += `
-        <span class="sh-button sh-view-button">View Home</span>
+        <span class="sh-button sh-view-button">${buttonText}</span>
       </div>
     `;
 
