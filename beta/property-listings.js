@@ -1651,6 +1651,8 @@
     }
     
     function updateFilters() {
+        console.log(`🔍 [FilterDebug] updateFilters called`);
+        
         const locationFilter = document.getElementById('location-filter');
         const statusFilter = document.getElementById('status-filter');
         
@@ -1701,20 +1703,33 @@
                         const columnId = column.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
                         const dropdownFilter = document.getElementById(`${columnId}-filter`);
                         
+                        console.log(`🔍 [FilterDebug] Checking comma-separated filter for ${column}:`);
+                        console.log(`🔍 [FilterDebug] - Dropdown found:`, !!dropdownFilter);
+                        console.log(`🔍 [FilterDebug] - Dropdown value:`, dropdownFilter?.value);
+                        
                         if (dropdownFilter && dropdownFilter.value !== 'all') {
                             const selectedValue = dropdownFilter.value;
                             const dataValue = card.getAttribute(`data-${columnId}`);
                             
+                            console.log(`🔍 [FilterDebug] - Selected value: "${selectedValue}"`);
+                            console.log(`🔍 [FilterDebug] - Card data value: "${dataValue}"`);
+                            
                             if (!dataValue) {
                                 matchesCommaSeparated = false;
+                                console.log(`🔍 [FilterDebug] - No data value, setting to false`);
                                 return;
                             }
                             
                             // Split the data attribute value and check if our selected value is in the list
                             const values = dataValue.split(',').map(v => v.trim());
+                            console.log(`🔍 [FilterDebug] - Split values:`, values);
+                            
                             if (!values.includes(selectedValue)) {
                                 matchesCommaSeparated = false;
+                                console.log(`🔍 [FilterDebug] - Selected value not in list, setting to false`);
                                 return;
+                            } else {
+                                console.log(`🔍 [FilterDebug] - Match found!`);
                             }
                         }
                     }
@@ -1722,6 +1737,7 @@
             }
             
             const finalResult = matchesLocation && matchesCategory && matchesCommaSeparated;
+            console.log(`🔍 [FilterDebug] Card ${card.querySelector('.property-title')?.textContent} - Final result: ${finalResult}`);
             
             return finalResult;
         };
@@ -1845,10 +1861,13 @@
                     const dropdownFilter = document.getElementById(`${columnId}-filter`);
                     if (dropdownFilter && dropdownFilter.value !== 'all') {
                         commaSeparatedActive = true;
+                        console.log(`🔍 [FilterDebug] Comma-separated field "${column}" is active with value: "${dropdownFilter.value}"`);
                     }
                 }
             });
         }
+        
+        console.log(`🔍 [FilterDebug] Filter status - Location: ${locationActive}, Category: ${categoryActive}, CommaSeparated: ${commaSeparatedActive}`);
         
         if (window.mixer) {
             // Always start with building the base selector from button groups and other filters
@@ -1945,6 +1964,8 @@
                 
                 // Handle comma-separated field filters
                 if (commaSeparatedActive) {
+                    console.log(`🔍 [FilterDebug] Handling comma-separated filters with temporary classes`);
+                    
                     window.customColumns.forEach(column => {
                         const columnType = window.customColumnTypes[column];
                         if (columnType === 'comma-separated') {
@@ -1955,8 +1976,14 @@
                                 const selectedValue = dropdownFilter.value;
                                 const className = `${columnId}-match`;
                                 
+                                console.log(`🔍 [FilterDebug] Processing ${column} with selected value: "${selectedValue}"`);
+                                console.log(`🔍 [FilterDebug] Using class name: "${className}"`);
+                                
                                 // Add a temporary class to matching cards
-                                document.querySelectorAll('.property-card').forEach(card => {
+                                const cards = document.querySelectorAll('.property-card');
+                                let matchingCards = 0;
+                                
+                                cards.forEach(card => {
                                     card.classList.remove(className);
                                     const dataValue = card.getAttribute(`data-${columnId}`);
                                     
@@ -1964,9 +1991,13 @@
                                         const values = dataValue.split(',').map(v => v.trim());
                                         if (values.includes(selectedValue)) {
                                             card.classList.add(className);
+                                            matchingCards++;
+                                            console.log(`🔍 [FilterDebug] Added ${className} to card with data: "${dataValue}"`);
                                         }
                                     }
                                 });
+                                
+                                console.log(`🔍 [FilterDebug] Found ${matchingCards} matching cards out of ${cards.length} total`);
                                 selectorParts.push(`.${className}`);
                             }
                         }
@@ -1983,6 +2014,10 @@
                     const locationCategorySelector = selectorParts.join('');
                     combinedSelector = locationCategorySelector + filterString;
                 }
+                
+                console.log(`🔍 [FilterDebug] Using combined selector: "${combinedSelector}"`);
+                console.log(`🔍 [FilterDebug] Selector parts:`, selectorParts);
+                console.log(`🔍 [FilterDebug] Filter string: "${filterString}"`);
                 
                 window.mixer.filter(combinedSelector);
             } else {
