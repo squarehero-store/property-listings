@@ -338,23 +338,32 @@
         window.customColumnTypes = {};
         window.customColumnSpecialHandling = {};
         
+        console.log(`🔍 [ColumnDetection] Processing ${customColumns.length} custom columns:`, customColumns);
+        
         customColumns.forEach(column => {
             // Check values to determine type - get all values including empty ones
             const allValues = sheetData.map(row => row[column]);
             const nonEmptyValues = allValues.filter(value => value && value.toString().trim() !== '');
             
+            console.log(`🔍 [ColumnDetection] Column "${column}": ${nonEmptyValues.length} non-empty values out of ${allValues.length} total`);
+            console.log(`🔍 [ColumnDetection] Sample values:`, nonEmptyValues.slice(0, 3));
+            
             if (nonEmptyValues.length === 0) {
                 window.customColumnTypes[column] = 'text';
+                console.log(`🔍 [ColumnDetection] ${column} -> text (no values)`);
             } else if (nonEmptyValues.every(value => value === 'Yes' || value === 'No')) {
                 window.customColumnTypes[column] = 'boolean';
+                console.log(`🔍 [ColumnDetection] ${column} -> boolean`);
             } else if (nonEmptyValues.every(value => !isNaN(parseFloat(value.replace(/[$,]/g, ''))))) {
                 // Check if this is a currency field (contains $ symbols)
                 const hasCurrencySymbols = nonEmptyValues.some(value => value.toString().includes('$'));
                 
                 if (hasCurrencySymbols) {
                     window.customColumnTypes[column] = 'currency';
+                    console.log(`🔍 [ColumnDetection] ${column} -> currency`);
                 } else {
                     window.customColumnTypes[column] = 'numeric';
+                    console.log(`🔍 [ColumnDetection] ${column} -> numeric`);
                 }
                 
                 // Determine whether to use button group or slider based on the range of values
@@ -369,8 +378,10 @@
                 if (uniqueIntegerValues.length <= 8 && 
                    (uniqueIntegerValues[uniqueIntegerValues.length - 1] - uniqueIntegerValues[0]) <= 10) {
                     window.customColumnSpecialHandling[column] = 'buttonGroup';
+                    console.log(`🔍 [ColumnDetection] ${column} -> using buttonGroup (${uniqueIntegerValues.length} unique values)`);
                 } else {
                     // Use slider for larger ranges
+                    console.log(`🔍 [ColumnDetection] ${column} -> using slider (${uniqueIntegerValues.length} unique values)`);
                 }
             } else {
                 // Check if this is a comma-separated text field
@@ -380,8 +391,16 @@
                 
                 if (hasCommaSeparatedValues) {
                     window.customColumnTypes[column] = 'comma-separated';
+                    console.log(`🔍 [ColumnDetection] ${column} -> comma-separated`);
+                    
+                    // Log some sample comma-separated values
+                    const commaSeparatedSamples = nonEmptyValues.filter(value => 
+                        value.includes(',') && value.split(',').length > 1
+                    ).slice(0, 3);
+                    console.log(`🔍 [ColumnDetection] Sample comma-separated values:`, commaSeparatedSamples);
                 } else {
                     window.customColumnTypes[column] = 'text';
+                    console.log(`🔍 [ColumnDetection] ${column} -> text`);
                 }
             }
         });
@@ -404,6 +423,8 @@
                     const value = sheetRow[1][column];
                     if (value !== undefined) {
                         const columnType = window.customColumnTypes[column];
+                        console.log(`🔍 [DataProcessing] Processing ${column} for ${item.title}: value="${value}", type="${columnType}"`);
+                        
                         if (columnType === 'boolean') {
                             customFields[column] = value === 'Yes';
                         } else if (columnType === 'numeric' && value) {
@@ -411,6 +432,7 @@
                         } else if (columnType === 'comma-separated' && value) {
                             // Split comma-separated values and clean them up
                             customFields[column] = value.split(',').map(v => v.trim()).filter(v => v);
+                            console.log(`🔍 [DataProcessing] Comma-separated ${column} split into:`, customFields[column]);
                         } else {
                             customFields[column] = value;
                         }
@@ -506,9 +528,13 @@
         
         // Add filters for custom columns if they exist
         if (window.customColumns && window.customColumns.length > 0) {
+            console.log(`🔍 [FilterCreation] Processing ${window.customColumns.length} custom columns for filters`);
+            
             window.customColumns.forEach(column => {
                 const columnId = column.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
                 const columnType = window.customColumnTypes[column];
+                
+                console.log(`🔍 [FilterCreation] Creating filter for column "${column}" (${columnType})`);
                 
                 // Create a filter based on the column type
                 if (columnType === 'numeric' || columnType === 'currency') {
@@ -567,29 +593,42 @@
                 } else if (columnType === 'comma-separated') {
                     // For comma-separated fields, collect all individual values
                     const allValues = new Set();
+                    console.log(`🔍 [DropdownDebug] Processing comma-separated field: ${column}`);
+                    
                     propertyData.forEach(p => {
                         const fieldValue = p.customFields[column];
+                        console.log(`🔍 [DropdownDebug] Property ${p.title}: field value =`, fieldValue);
                         if (Array.isArray(fieldValue)) {
                             fieldValue.forEach(val => {
                                 if (val && val.trim()) {
                                     allValues.add(val.trim());
+                                    console.log(`🔍 [DropdownDebug] Added value: "${val.trim()}"`);
                                 }
                             });
                         }
                     });
                     
+                    console.log(`🔍 [DropdownDebug] Found ${allValues.size} unique values for ${column}:`, Array.from(allValues));
+                    
                     if (allValues.size > 0 && allValues.size <= 15) {
+                        console.log(`🔍 [DropdownDebug] Creating dropdown for ${column} with ${allValues.size} options`);
                         const customDropdown = createDropdownFilter(`${columnId}-filter`, column, `Any ${column}`, `sh-${columnId}-filter`);
                         // Populate the dropdown with individual values
                         const dropdown = customDropdown.querySelector(`#${columnId}-filter`);
+                        console.log(`🔍 [DropdownDebug] Dropdown element found:`, dropdown);
+                        
                         allValues.forEach(value => {
                             const option = document.createElement('option');
                             option.value = value;
                             option.textContent = value;
                             option.className = `sh-${columnId}-option`;
                             dropdown.appendChild(option);
+                            console.log(`🔍 [DropdownDebug] Added option: ${value}`);
                         });
                         filtersContainer.appendChild(customDropdown);
+                        console.log(`🔍 [DropdownDebug] Dropdown for ${column} added to filters container`);
+                    } else {
+                        console.log(`🔍 [DropdownDebug] Skipping dropdown for ${column} - ${allValues.size} values (must be 1-15)`);
                     }
                 } else {
                     // For text columns, create a dropdown if there are fewer than 10 unique values
@@ -628,6 +667,20 @@
         }
 
         container.appendChild(filtersContainer);
+
+        // Log final filter summary
+        console.log(`🔍 [FilterSummary] Total filters created: ${filtersContainer.children.length}`);
+        const filterTypes = Array.from(filtersContainer.children).map(child => {
+            if (child.classList.contains('reset-button')) return 'reset-button';
+            const select = child.querySelector('select');
+            const buttonGroup = child.querySelector('.button-group');
+            const slider = child.querySelector('.range-slider');
+            if (select) return `dropdown (${select.id})`;
+            if (buttonGroup) return `button-group (${buttonGroup.id})`;
+            if (slider) return `slider (${slider.id})`;
+            return 'unknown';
+        });
+        console.log(`🔍 [FilterSummary] Filter types:`, filterTypes);
 
         const gridContainer = document.createElement('div');
         gridContainer.id = 'property-grid';
