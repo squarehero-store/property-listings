@@ -87,7 +87,16 @@
                     window.customColumnSpecialHandling[column] = 'buttonGroup';
                 } 
             } else {
-                window.customColumnTypes[column] = 'text';
+                // Check if this is a comma-separated text field
+                const hasCommaSeparatedValues = values.some(value => 
+                    value.includes(',') && value.split(',').length > 1
+                );
+                
+                if (hasCommaSeparatedValues) {
+                    window.customColumnTypes[column] = 'comma-separated';
+                } else {
+                    window.customColumnTypes[column] = 'text';
+                }
             }
         });
 
@@ -111,6 +120,9 @@
                             customFields[column] = value === 'Yes';
                         } else if (columnType === 'numeric' && value) {
                             customFields[column] = parseFloat(value.replace(/[^\d.-]/g, ''));
+                        } else if (columnType === 'comma-separated' && value) {
+                            // Split comma-separated values and clean them up
+                            customFields[column] = value.split(',').map(v => v.trim()).filter(v => v);
                         } else {
                             customFields[column] = value;
                         }
@@ -152,6 +164,8 @@
             return true; // Always show boolean values (Yes/No)
         } else if (columnType === 'numeric') {
             return value > 0; // Only show numeric values greater than 0
+        } else if (columnType === 'comma-separated') {
+            return Array.isArray(value) && value.length > 0; // Show if array has items
         } else {
             // For text fields, check if not empty
             return value !== '' && value.toString().trim() !== '';
@@ -240,7 +254,8 @@
                 
                 const formattedValue = columnType === 'boolean' 
                     ? (value ? 'Yes' : 'No')
-                    : (columnType === 'numeric' ? value.toLocaleString() : value);
+                    : (columnType === 'numeric' ? value.toLocaleString() 
+                    : (columnType === 'comma-separated' ? value.join(', ') : value));
                 
                 // Handle different icon file types and add error handling
                 const isImageIcon = iconUrl.toLowerCase().endsWith('.png') || 
@@ -280,7 +295,8 @@
             const columnType = window.customColumnTypes && window.customColumnTypes[key];
             const formattedValue = columnType === 'boolean' 
                 ? (value ? 'Yes' : 'No')
-                : (columnType === 'numeric' ? value.toLocaleString() : value);
+                : (columnType === 'numeric' ? value.toLocaleString() 
+                : (columnType === 'comma-separated' ? value.join(', ') : value));
             
             return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}">
                 <span class="custom-detail-label sh-custom-detail-label">${key}:</span>
@@ -459,6 +475,9 @@
                         // For standard numeric fields
                         card.setAttribute(attributeName, value);
                     }
+                } else if (columnType === 'comma-separated') {
+                    // For comma-separated fields, join with commas for data attribute
+                    card.setAttribute(attributeName, Array.isArray(value) ? value.join(',') : value);
                 } else {
                     // For text fields
                     card.setAttribute(attributeName, value);
@@ -506,7 +525,8 @@
                   
                   const formattedValue = columnType === 'boolean' 
                       ? (value ? 'Yes' : 'No')
-                      : (columnType === 'numeric' ? value.toLocaleString() : value);
+                      : (columnType === 'numeric' ? value.toLocaleString() 
+                      : (columnType === 'comma-separated' ? value.join(', ') : value));
                   
                   // Handle different icon file types and add error handling
                   const isImageIcon = iconUrl.toLowerCase().endsWith('.png') || 
@@ -546,7 +566,8 @@
               const columnType = window.customColumnTypes && window.customColumnTypes[key];
               const formattedValue = columnType === 'boolean' 
                   ? (value ? 'Yes' : 'No')
-                  : (columnType === 'numeric' ? value.toLocaleString() : value);
+                  : (columnType === 'numeric' ? value.toLocaleString() 
+                  : (columnType === 'comma-separated' ? value.join(', ') : value));
               
               return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}">
                   <span class="custom-detail-label sh-custom-detail-label">${key}:</span>
