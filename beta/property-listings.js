@@ -598,13 +598,26 @@
                     propertyData.forEach(p => {
                         const fieldValue = p.customFields[column];
                         console.log(`🔍 [DropdownDebug] Property ${p.title}: field value =`, fieldValue);
+                        
+                        // Handle both array and string formats
                         if (Array.isArray(fieldValue)) {
                             fieldValue.forEach(val => {
                                 if (val && val.trim()) {
                                     allValues.add(val.trim());
-                                    console.log(`🔍 [DropdownDebug] Added value: "${val.trim()}"`);
+                                    console.log(`🔍 [DropdownDebug] Added value from array: "${val.trim()}"`);
                                 }
                             });
+                        } else if (fieldValue && typeof fieldValue === 'string' && fieldValue.includes(',')) {
+                            // If it's still a string with commas, split it here
+                            const splitValues = fieldValue.split(',').map(v => v.trim()).filter(v => v);
+                            splitValues.forEach(val => {
+                                allValues.add(val);
+                                console.log(`🔍 [DropdownDebug] Added value from string split: "${val}"`);
+                            });
+                        } else if (fieldValue && typeof fieldValue === 'string' && fieldValue.trim()) {
+                            // Single value string
+                            allValues.add(fieldValue.trim());
+                            console.log(`🔍 [DropdownDebug] Added single value: "${fieldValue.trim()}"`);
                         }
                     });
                     
