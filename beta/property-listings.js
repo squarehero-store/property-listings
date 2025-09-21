@@ -593,18 +593,15 @@
                 } else if (columnType === 'comma-separated') {
                     // For comma-separated fields, collect all individual values
                     const allValues = new Set();
-                    console.log(`🔍 [DropdownDebug] Processing comma-separated field: ${column}`);
                     
                     propertyData.forEach(p => {
                         const fieldValue = p.customFields[column];
-                        console.log(`🔍 [DropdownDebug] Property ${p.title}: field value =`, fieldValue);
                         
                         // Handle both array and string formats
                         if (Array.isArray(fieldValue)) {
                             fieldValue.forEach(val => {
                                 if (val && val.trim()) {
                                     allValues.add(val.trim());
-                                    console.log(`🔍 [DropdownDebug] Added value from array: "${val.trim()}"`);
                                 }
                             });
                         } else if (fieldValue && typeof fieldValue === 'string' && fieldValue.includes(',')) {
@@ -612,23 +609,17 @@
                             const splitValues = fieldValue.split(',').map(v => v.trim()).filter(v => v);
                             splitValues.forEach(val => {
                                 allValues.add(val);
-                                console.log(`🔍 [DropdownDebug] Added value from string split: "${val}"`);
                             });
                         } else if (fieldValue && typeof fieldValue === 'string' && fieldValue.trim()) {
                             // Single value string
                             allValues.add(fieldValue.trim());
-                            console.log(`🔍 [DropdownDebug] Added single value: "${fieldValue.trim()}"`);
                         }
                     });
                     
-                    console.log(`🔍 [DropdownDebug] Found ${allValues.size} unique values for ${column}:`, Array.from(allValues));
-                    
                     if (allValues.size > 0 && allValues.size <= 15) {
-                        console.log(`🔍 [DropdownDebug] Creating dropdown for ${column} with ${allValues.size} options`);
                         const customDropdown = createDropdownFilter(`${columnId}-filter`, column, `Any ${column}`, `sh-${columnId}-filter`);
                         // Populate the dropdown with individual values
                         const dropdown = customDropdown.querySelector(`#${columnId}-filter`);
-                        console.log(`🔍 [DropdownDebug] Dropdown element found:`, dropdown);
                         
                         allValues.forEach(value => {
                             const option = document.createElement('option');
@@ -636,12 +627,8 @@
                             option.textContent = value;
                             option.className = `sh-${columnId}-option`;
                             dropdown.appendChild(option);
-                            console.log(`🔍 [DropdownDebug] Added option: ${value}`);
                         });
                         filtersContainer.appendChild(customDropdown);
-                        console.log(`🔍 [DropdownDebug] Dropdown for ${column} added to filters container`);
-                    } else {
-                        console.log(`🔍 [DropdownDebug] Skipping dropdown for ${column} - ${allValues.size} values (must be 1-15)`);
                     }
                 } else {
                     // For text columns, create a dropdown if there are fewer than 10 unique values
@@ -1536,25 +1523,15 @@
                     const columnId = column.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
                     const columnType = window.customColumnTypes[column];
                     
-                    console.error(`🚨 CHECKING DROPDOWN: ${column} (${columnType}) -> ID: ${columnId}-filter`);
-                    
                     if (columnType === 'text') {
                         const customDropdown = document.getElementById(`${columnId}-filter`);
-                        console.error(`🚨 TEXT DROPDOWN FOUND: ${columnId}`, !!customDropdown);
                         if (customDropdown) {
-                            customDropdown.addEventListener('change', function() {
-                                console.error(`🚨 DROPDOWN CHANGED: ${columnId} = ${this.value}`);
-                                updateFilters();
-                            });
+                            customDropdown.addEventListener('change', updateFilters);
                         }
                     } else if (columnType === 'comma-separated') {
                         const customDropdown = document.getElementById(`${columnId}-filter`);
-                        console.error(`🚨 COMMA-SEPARATED DROPDOWN FOUND: ${columnId}`, !!customDropdown);
                         if (customDropdown) {
-                            customDropdown.addEventListener('change', function() {
-                                console.error(`🚨 COMMA-SEPARATED DROPDOWN CHANGED: ${columnId} = ${this.value}`);
-                                updateFilters();
-                            });
+                            customDropdown.addEventListener('change', updateFilters);
                         }
                     }
                 });
@@ -1666,8 +1643,6 @@
     }
     
     function updateFilters() {
-        console.error(`🚨 FILTER DEBUG: updateFilters() function called!`);
-        console.log(`🔍 [FilterDebug] updateFilters called`);
         
         const locationFilter = document.getElementById('location-filter');
         const statusFilter = document.getElementById('status-filter');
@@ -1719,33 +1694,21 @@
                         const columnId = column.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
                         const dropdownFilter = document.getElementById(`${columnId}-filter`);
                         
-                        console.log(`🔍 [FilterDebug] Checking comma-separated filter for ${column}:`);
-                        console.log(`🔍 [FilterDebug] - Dropdown found:`, !!dropdownFilter);
-                        console.log(`🔍 [FilterDebug] - Dropdown value:`, dropdownFilter?.value);
-                        
                         if (dropdownFilter && dropdownFilter.value !== 'all') {
                             const selectedValue = dropdownFilter.value;
                             const dataValue = card.getAttribute(`data-${columnId}`);
                             
-                            console.log(`🔍 [FilterDebug] - Selected value: "${selectedValue}"`);
-                            console.log(`🔍 [FilterDebug] - Card data value: "${dataValue}"`);
-                            
                             if (!dataValue) {
                                 matchesCommaSeparated = false;
-                                console.log(`🔍 [FilterDebug] - No data value, setting to false`);
                                 return;
                             }
                             
                             // Split the data attribute value and check if our selected value is in the list
                             const values = dataValue.split(',').map(v => v.trim());
-                            console.log(`🔍 [FilterDebug] - Split values:`, values);
                             
                             if (!values.includes(selectedValue)) {
                                 matchesCommaSeparated = false;
-                                console.log(`🔍 [FilterDebug] - Selected value not in list, setting to false`);
                                 return;
-                            } else {
-                                console.log(`🔍 [FilterDebug] - Match found!`);
                             }
                         }
                     }
@@ -1753,7 +1716,6 @@
             }
             
             const finalResult = matchesLocation && matchesCategory && matchesCommaSeparated;
-            console.log(`🔍 [FilterDebug] Card ${card.querySelector('.property-title')?.textContent} - Final result: ${finalResult}`);
             
             return finalResult;
         };
@@ -1877,13 +1839,10 @@
                     const dropdownFilter = document.getElementById(`${columnId}-filter`);
                     if (dropdownFilter && dropdownFilter.value !== 'all') {
                         commaSeparatedActive = true;
-                        console.log(`🔍 [FilterDebug] Comma-separated field "${column}" is active with value: "${dropdownFilter.value}"`);
                     }
                 }
             });
         }
-        
-        console.log(`🔍 [FilterDebug] Filter status - Location: ${locationActive}, Category: ${categoryActive}, CommaSeparated: ${commaSeparatedActive}`);
         
         if (window.mixer) {
             // Always start with building the base selector from button groups and other filters
@@ -1980,7 +1939,6 @@
                 
                 // Handle comma-separated field filters
                 if (commaSeparatedActive) {
-                    console.log(`🔍 [FilterDebug] Handling comma-separated filters with temporary classes`);
                     
                     window.customColumns.forEach(column => {
                         const columnType = window.customColumnTypes[column];
@@ -1991,9 +1949,6 @@
                             if (dropdownFilter && dropdownFilter.value !== 'all') {
                                 const selectedValue = dropdownFilter.value;
                                 const className = `${columnId}-match`;
-                                
-                                console.log(`🔍 [FilterDebug] Processing ${column} with selected value: "${selectedValue}"`);
-                                console.log(`🔍 [FilterDebug] Using class name: "${className}"`);
                                 
                                 // Add a temporary class to matching cards
                                 const cards = document.querySelectorAll('.property-card');
@@ -2008,12 +1963,10 @@
                                         if (values.includes(selectedValue)) {
                                             card.classList.add(className);
                                             matchingCards++;
-                                            console.log(`🔍 [FilterDebug] Added ${className} to card with data: "${dataValue}"`);
                                         }
                                     }
                                 });
                                 
-                                console.log(`🔍 [FilterDebug] Found ${matchingCards} matching cards out of ${cards.length} total`);
                                 selectorParts.push(`.${className}`);
                             }
                         }
@@ -2030,10 +1983,6 @@
                     const locationCategorySelector = selectorParts.join('');
                     combinedSelector = locationCategorySelector + filterString;
                 }
-                
-                console.log(`🔍 [FilterDebug] Using combined selector: "${combinedSelector}"`);
-                console.log(`🔍 [FilterDebug] Selector parts:`, selectorParts);
-                console.log(`🔍 [FilterDebug] Filter string: "${filterString}"`);
                 
                 window.mixer.filter(combinedSelector);
             } else {
