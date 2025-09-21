@@ -1536,11 +1536,23 @@
                     const columnId = column.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
                     const columnType = window.customColumnTypes[column];
                     
+                    console.error(`🚨 CHECKING DROPDOWN: ${column} (${columnType}) -> ID: ${columnId}-filter`);
+                    
                     if (columnType === 'text') {
                         const customDropdown = document.getElementById(`${columnId}-filter`);
+                        console.error(`🚨 TEXT DROPDOWN FOUND: ${columnId}`, !!customDropdown);
                         if (customDropdown) {
                             customDropdown.addEventListener('change', function() {
                                 console.error(`🚨 DROPDOWN CHANGED: ${columnId} = ${this.value}`);
+                                updateFilters();
+                            });
+                        }
+                    } else if (columnType === 'comma-separated') {
+                        const customDropdown = document.getElementById(`${columnId}-filter`);
+                        console.error(`🚨 COMMA-SEPARATED DROPDOWN FOUND: ${columnId}`, !!customDropdown);
+                        if (customDropdown) {
+                            customDropdown.addEventListener('change', function() {
+                                console.error(`🚨 COMMA-SEPARATED DROPDOWN CHANGED: ${columnId} = ${this.value}`);
                                 updateFilters();
                             });
                         }
