@@ -1539,7 +1539,10 @@
                     if (columnType === 'text') {
                         const customDropdown = document.getElementById(`${columnId}-filter`);
                         if (customDropdown) {
-                            customDropdown.addEventListener('change', updateFilters);
+                            customDropdown.addEventListener('change', function() {
+                                console.error(`🚨 DROPDOWN CHANGED: ${columnId} = ${this.value}`);
+                                updateFilters();
+                            });
                         }
                     }
                 });
@@ -1651,6 +1654,7 @@
     }
     
     function updateFilters() {
+        console.error(`🚨 FILTER DEBUG: updateFilters() function called!`);
         console.log(`🔍 [FilterDebug] updateFilters called`);
         
         const locationFilter = document.getElementById('location-filter');
