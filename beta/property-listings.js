@@ -373,7 +373,16 @@
                     // Use slider for larger ranges
                 }
             } else {
-                window.customColumnTypes[column] = 'text';
+                // Check if this is a comma-separated text field
+                const hasCommaSeparatedValues = nonEmptyValues.some(value => 
+                    value.includes(',') && value.split(',').length > 1
+                );
+                
+                if (hasCommaSeparatedValues) {
+                    window.customColumnTypes[column] = 'comma-separated';
+                } else {
+                    window.customColumnTypes[column] = 'text';
+                }
             }
         });
     
@@ -399,6 +408,9 @@
                             customFields[column] = value === 'Yes';
                         } else if (columnType === 'numeric' && value) {
                             customFields[column] = parseFloat(value.replace(/[$,]/g, ''));
+                        } else if (columnType === 'comma-separated' && value) {
+                            // Split comma-separated values and clean them up
+                            customFields[column] = value.split(',').map(v => v.trim()).filter(v => v);
                         } else {
                             customFields[column] = value;
                         }
@@ -552,6 +564,33 @@
                 } else if (columnType === 'boolean') {
                     // For Yes/No columns, create a toggle filter
                     filtersContainer.appendChild(createButtonGroupFilter(`${columnId}-filter`, column, ['Any', 'Yes', 'No'], `sh-${columnId}-filter`));
+                } else if (columnType === 'comma-separated') {
+                    // For comma-separated fields, collect all individual values
+                    const allValues = new Set();
+                    propertyData.forEach(p => {
+                        const fieldValue = p.customFields[column];
+                        if (Array.isArray(fieldValue)) {
+                            fieldValue.forEach(val => {
+                                if (val && val.trim()) {
+                                    allValues.add(val.trim());
+                                }
+                            });
+                        }
+                    });
+                    
+                    if (allValues.size > 0 && allValues.size <= 15) {
+                        const customDropdown = createDropdownFilter(`${columnId}-filter`, column, `Any ${column}`, `sh-${columnId}-filter`);
+                        // Populate the dropdown with individual values
+                        const dropdown = customDropdown.querySelector(`#${columnId}-filter`);
+                        allValues.forEach(value => {
+                            const option = document.createElement('option');
+                            option.value = value;
+                            option.textContent = value;
+                            option.className = `sh-${columnId}-option`;
+                            dropdown.appendChild(option);
+                        });
+                        filtersContainer.appendChild(customDropdown);
+                    }
                 } else {
                     // For text columns, create a dropdown if there are fewer than 10 unique values
                     // otherwise, text search might be more appropriate
@@ -563,7 +602,6 @@
                         const customDropdown = createDropdownFilter(`${columnId}-filter`, column, `Any ${column}`, `sh-${columnId}-filter`);
                         // Populate the dropdown with values
                         const dropdown = customDropdown.querySelector(`#${columnId}-filter`);
-                        const columnType = window.customColumnTypes && window.customColumnTypes[column];
                         values.forEach(value => {
                             const option = document.createElement('option');
                             option.value = value;
@@ -816,6 +854,9 @@
                             card.setAttribute(attributeName, value);
                         }
                     }
+                } else if (columnType === 'comma-separated') {
+                    // For comma-separated fields, join with commas for data attribute
+                    card.setAttribute(attributeName, Array.isArray(value) ? value.join(',') : value);
                 } else {
                     // For text fields, set the text value
                     card.setAttribute(attributeName, value);
@@ -1547,7 +1588,7 @@
         const locationFilter = document.getElementById('location-filter');
         const statusFilter = document.getElementById('status-filter');
         
-        // Create a custom filter function for multiple tags/categories
+        // Create a custom filter function for multiple tags/categories and comma-separated fields
         const customFilterFunction = (card) => {
             // Guard: Only process DOM elements
             if (!card || typeof card.getAttribute !== 'function') {
@@ -1556,6 +1597,7 @@
             
             let matchesLocation = true;
             let matchesCategory = true;
+            let matchesCommaSeparated = true;
             
             // Check location filter (tags)
             if (locationFilter && locationFilter.value !== 'all') {
@@ -1585,7 +1627,35 @@
                 }
             }
             
-            const finalResult = matchesLocation && matchesCategory;
+            // Check comma-separated field filters
+            if (window.customColumns && window.customColumns.length > 0) {
+                window.customColumns.forEach(column => {
+                    const columnType = window.customColumnTypes[column];
+                    if (columnType === 'comma-separated') {
+                        const columnId = column.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+                        const dropdownFilter = document.getElementById(`${columnId}-filter`);
+                        
+                        if (dropdownFilter && dropdownFilter.value !== 'all') {
+                            const selectedValue = dropdownFilter.value;
+                            const dataValue = card.getAttribute(`data-${columnId}`);
+                            
+                            if (!dataValue) {
+                                matchesCommaSeparated = false;
+                                return;
+                            }
+                            
+                            // Split the data attribute value and check if our selected value is in the list
+                            const values = dataValue.split(',').map(v => v.trim());
+                            if (!values.includes(selectedValue)) {
+                                matchesCommaSeparated = false;
+                                return;
+                            }
+                        }
+                    }
+                });
+            }
+            
+            const finalResult = matchesLocation && matchesCategory && matchesCommaSeparated;
             
             return finalResult;
         };
@@ -1666,14 +1736,53 @@
                             filterGroups.push(`[data-${columnId}="${value}"]`);
                         }
                     }
+                } else if (columnType === 'comma-separated') {
+                    const dropdownFilter = document.getElementById(`${columnId}-filter`);
+                    if (dropdownFilter) {
+                        const value = dropdownFilter.value;
+                        if (value !== 'all') {
+                            // For comma-separated fields, we need to check if the selected value is contained in the data attribute
+                            // Since we store comma-separated values as "value1,value2,value3", we need to use a contains selector
+                            // But CSS attribute selectors don't have exact word matching, so we'll use a custom filter
+                            const customFilterForCommaSeparated = (card) => {
+                                const dataValue = card.getAttribute(`data-${columnId}`);
+                                if (!dataValue) return false;
+                                // Split the data attribute value and check if our selected value is in the list
+                                const values = dataValue.split(',').map(v => v.trim());
+                                return values.includes(value);
+                            };
+                            
+                            // Store the custom filter function for this field
+                            window[`${columnId}CommaFilter`] = customFilterForCommaSeparated;
+                            
+                            // For now, we'll use a CSS selector that matches any element with this data attribute
+                            // The actual filtering will be refined in the custom filter function
+                            filterGroups.push(`[data-${columnId}]`);
+                        }
+                    }
                 }
                 // Numeric and currency filters are handled separately with sliders
             });
         }
 
-        // If location or category filter is active, use custom filter function for MixItUp
+        // If location, category filter, or comma-separated fields are active, use custom filter function for MixItUp
         const locationActive = locationFilter && locationFilter.value !== 'all';
         const categoryActive = statusFilter && statusFilter.value !== 'all';
+        
+        // Check if any comma-separated fields are active
+        let commaSeparatedActive = false;
+        if (window.customColumns && window.customColumns.length > 0) {
+            window.customColumns.forEach(column => {
+                const columnType = window.customColumnTypes[column];
+                if (columnType === 'comma-separated') {
+                    const columnId = column.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+                    const dropdownFilter = document.getElementById(`${columnId}-filter`);
+                    if (dropdownFilter && dropdownFilter.value !== 'all') {
+                        commaSeparatedActive = true;
+                    }
+                }
+            });
+        }
         
         if (window.mixer) {
             // Always start with building the base selector from button groups and other filters
@@ -1738,7 +1847,7 @@
                 });
             }
 
-            if (locationActive || categoryActive) {
+            if (locationActive || categoryActive || commaSeparatedActive) {
                 // Build a CSS selector for MixItUp instead of using a function
                 let selectorParts = [];
                 
@@ -1768,6 +1877,36 @@
                     selectorParts.push('.category-match');
                 }
                 
+                // Handle comma-separated field filters
+                if (commaSeparatedActive) {
+                    window.customColumns.forEach(column => {
+                        const columnType = window.customColumnTypes[column];
+                        if (columnType === 'comma-separated') {
+                            const columnId = column.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+                            const dropdownFilter = document.getElementById(`${columnId}-filter`);
+                            
+                            if (dropdownFilter && dropdownFilter.value !== 'all') {
+                                const selectedValue = dropdownFilter.value;
+                                const className = `${columnId}-match`;
+                                
+                                // Add a temporary class to matching cards
+                                document.querySelectorAll('.property-card').forEach(card => {
+                                    card.classList.remove(className);
+                                    const dataValue = card.getAttribute(`data-${columnId}`);
+                                    
+                                    if (dataValue) {
+                                        const values = dataValue.split(',').map(v => v.trim());
+                                        if (values.includes(selectedValue)) {
+                                            card.classList.add(className);
+                                        }
+                                    }
+                                });
+                                selectorParts.push(`.${className}`);
+                            }
+                        }
+                    });
+                }
+                
                 // Combine location/category selectors with button group filters
                 let combinedSelector;
                 if (filterString === 'all') {
@@ -1781,9 +1920,20 @@
                 
                 window.mixer.filter(combinedSelector);
             } else {
-                // Clean up temporary classes when not using location/category filters
+                // Clean up temporary classes when not using location/category/comma-separated filters
                 document.querySelectorAll('.property-card').forEach(card => {
                     card.classList.remove('location-match', 'category-match');
+                    
+                    // Remove comma-separated field classes
+                    if (window.customColumns && window.customColumns.length > 0) {
+                        window.customColumns.forEach(column => {
+                            const columnType = window.customColumnTypes[column];
+                            if (columnType === 'comma-separated') {
+                                const columnId = column.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+                                card.classList.remove(`${columnId}-match`);
+                            }
+                        });
+                    }
                 });
                 
                 window.mixer.filter(filterString);
