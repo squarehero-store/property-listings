@@ -85,6 +85,28 @@
         return results.data;
     }
 
+    // Parse range values like "2-4" or "595000-645000"
+    function parseRange(value) {
+        if (!value) return null;
+        
+        const str = value.toString().trim();
+        const rangeMatch = str.match(/^([\d,]+(?:\.\d+)?)\s*-\s*([\d,]+(?:\.\d+)?)$/);
+        
+        if (rangeMatch) {
+            const min = parseFloat(rangeMatch[1].replace(/,/g, ''));
+            const max = parseFloat(rangeMatch[2].replace(/,/g, ''));
+            return { min, max, isRange: true, original: str };
+        }
+        
+        return null;
+    }
+
+    // Format range values for display
+    function formatRange(rangeObj, formatter = (v) => v) {
+        if (!rangeObj || !rangeObj.isRange) return null;
+        return `${formatter(rangeObj.min)}-${formatter(rangeObj.max)}`;
+    }
+
     Promise.all(libraries.map(url => loadLibrary(url)))
         .then(() => {
             // Fetch data from Google Sheets and Blog JSON
@@ -237,6 +259,67 @@
                 });
             }
             
+            // Parse range values for price, area, bedrooms, bathrooms
+            let price = null, priceValue = null;
+            if (sheetRow && sheetRow[1].Price) {
+                const priceRange = parseRange(sheetRow[1].Price.replace(/[$,\s]/g, ''));
+                if (priceRange) {
+                    price = priceRange;
+                    priceValue = priceRange.min;
+                } else {
+                    price = parseFloat(sheetRow[1].Price.replace(/[$,]/g, ''));
+                    priceValue = price;
+                }
+            } else {
+                price = 0;
+                priceValue = 0;
+            }
+
+            let area = null, areaValue = null;
+            if (sheetRow && sheetRow[1].Area) {
+                const areaRange = parseRange(sheetRow[1].Area.replace(/,/g, ''));
+                if (areaRange) {
+                    area = areaRange;
+                    areaValue = areaRange.min;
+                } else {
+                    area = parseInt(sheetRow[1].Area, 10);
+                    areaValue = area;
+                }
+            } else {
+                area = 0;
+                areaValue = 0;
+            }
+
+            let bedrooms = null, bedroomsValue = null;
+            if (sheetRow && sheetRow[1].Bedrooms) {
+                const bedroomsRange = parseRange(sheetRow[1].Bedrooms);
+                if (bedroomsRange) {
+                    bedrooms = bedroomsRange;
+                    bedroomsValue = bedroomsRange.min;
+                } else {
+                    bedrooms = parseInt(sheetRow[1].Bedrooms, 10);
+                    bedroomsValue = bedrooms;
+                }
+            } else {
+                bedrooms = 0;
+                bedroomsValue = 0;
+            }
+
+            let bathrooms = null, bathroomsValue = null;
+            if (sheetRow && sheetRow[1].Bathrooms) {
+                const bathroomsRange = parseRange(sheetRow[1].Bathrooms);
+                if (bathroomsRange) {
+                    bathrooms = bathroomsRange;
+                    bathroomsValue = bathroomsRange.min;
+                } else {
+                    bathrooms = parseFloat(sheetRow[1].Bathrooms);
+                    bathroomsValue = bathrooms;
+                }
+            } else {
+                bathrooms = 0;
+                bathroomsValue = 0;
+            }
+            
             return {
                 id: item.id,
                 title: item.title,
@@ -244,10 +327,14 @@
                 imageUrl: item.assetUrl,
                 category: item.categories && item.categories.length > 0 ? item.categories[0] : '',
                 excerpt: cleanExcerpt, // Added excerpt with HTML cleaning
-                price: sheetRow && sheetRow[1].Price ? parseFloat(sheetRow[1].Price.replace(/[$,]/g, '')) : 0,
-                area: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area, 10) : 0,
-                bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms, 10) : 0,
-                bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms) : 0,
+                price: price,
+                priceValue: priceValue,
+                area: area,
+                areaValue: areaValue,
+                bedrooms: bedrooms,
+                bedroomsValue: bedroomsValue,
+                bathrooms: bathrooms,
+                bathroomsValue: bathroomsValue,
                 garage: sheetRow && sheetRow[1].Garage ? sheetRow[1].Garage : '',
                 customFields: customFields, // Add custom fields
                 featured: sheetRow && sheetRow[1].Featured ? sheetRow[1].Featured : '', // Get Featured value
@@ -334,6 +421,23 @@
         const excerptHtml = property.excerpt ? 
             `<p class="property-excerpt sh-property-excerpt">${property.excerpt}</p>` : '';
 
+        // Format display values for ranges
+        const displayPrice = property.price && property.price.isRange 
+            ? formatRange(property.price, (v) => currencySymbol + v.toLocaleString())
+            : property.price ? `${currencySymbol}${property.price.toLocaleString()}` : null;
+        
+        const displayArea = property.area && property.area.isRange
+            ? formatRange(property.area, (v) => v.toLocaleString())
+            : property.area ? property.area.toLocaleString() : null;
+        
+        const displayBedrooms = property.bedrooms && property.bedrooms.isRange
+            ? formatRange(property.bedrooms, (v) => v)
+            : property.bedrooms;
+        
+        const displayBathrooms = property.bathrooms && property.bathrooms.isRange
+            ? formatRange(property.bathrooms, (v) => v)
+            : property.bathrooms;
+
         let cardContent = `
             <div class="property-image sh-property-image">
                 <img src="${property.imageUrl}" alt="${property.title}" class="sh-property-img">
@@ -342,11 +446,11 @@
             <div class="listing-content sh-listing-content">
                 <h3 class="property-title sh-property-title">${property.title}</h3>
                 ${property.location ? `<p class="property-location sh-property-location">${property.location}</p>` : ''}
-                <p class="property-price sh-property-price ${property.price === 0 ? 'no-price' : ''}">${property.price === 0 ? 'Price TBA' : `${currencySymbol}${property.price.toLocaleString()}`}</p>
+                <p class="property-price sh-property-price ${!displayPrice || property.priceValue === 0 ? 'no-price' : ''}">${displayPrice || 'Price TBA'}</p>
                 <div class="property-details sh-property-details">
-                    ${property.area > 0 ? `<span class="details-icon sh-area-icon">${areaSvg} <span class="sh-area-value">${property.area.toLocaleString()} ${areaUnit}</span></span>` : ''}
-                    ${property.bedrooms > 0 ? `<span class="details-icon sh-beds-icon">${bedsSvg} <span class="sh-beds-value">${property.bedrooms}</span></span>` : ''}
-                    ${property.bathrooms > 0 ? `<span class="details-icon sh-baths-icon">${bathsSvg} <span class="sh-baths-value">${formatBathrooms(property.bathrooms)}</span></span>` : ''}
+                    ${displayArea && property.areaValue > 0 ? `<span class="details-icon sh-area-icon">${areaSvg} <span class="sh-area-value">${displayArea} ${areaUnit}</span></span>` : ''}
+                    ${displayBedrooms && property.bedroomsValue > 0 ? `<span class="details-icon sh-beds-icon">${bedsSvg} <span class="sh-beds-value">${displayBedrooms}</span></span>` : ''}
+                    ${displayBathrooms && property.bathroomsValue > 0 ? `<span class="details-icon sh-baths-icon">${bathsSvg} <span class="sh-baths-value">${formatBathrooms(displayBathrooms)}</span></span>` : ''}
                     ${property.garage ? `<span class="details-icon sh-garage-icon">${garageSvg} <span class="sh-garage-value">${property.garage}</span></span>` : ''}
                     ${(() => {
                         // Add custom fields with icons to the main property details
@@ -435,7 +539,13 @@
     }
     
     function formatBathrooms(bathrooms) {
-        return Number.isInteger(bathrooms) ? bathrooms.toString() : bathrooms.toFixed(1);
+        // Handle range format (e.g., "2-3")
+        if (typeof bathrooms === 'string' && bathrooms.includes('-')) {
+            return bathrooms;
+        }
+        // Handle numeric values
+        const numValue = typeof bathrooms === 'string' ? parseFloat(bathrooms) : bathrooms;
+        return Number.isInteger(numValue) ? numValue.toString() : numValue.toFixed(1);
     }
 
     function renderFeaturedListings(properties, container, listingsAmount) {

@@ -130,6 +130,55 @@
                 });
             }
 
+            // Parse range values for price, area, bedrooms, bathrooms
+            let price = null, priceValue = null;
+            if (sheetRow && sheetRow[1].Price) {
+                const priceRange = parseRange(sheetRow[1].Price.replace(/[$,\s]/g, ''));
+                if (priceRange) {
+                    price = priceRange;
+                    priceValue = priceRange.min;
+                } else {
+                    price = parseFloat(sheetRow[1].Price.replace(/[$,]/g, ''));
+                    priceValue = price;
+                }
+            }
+
+            let area = null, areaValue = null;
+            if (sheetRow && sheetRow[1].Area) {
+                const areaRange = parseRange(sheetRow[1].Area.replace(/,/g, ''));
+                if (areaRange) {
+                    area = areaRange;
+                    areaValue = areaRange.min;
+                } else {
+                    area = parseInt(sheetRow[1].Area.replace(/,/g, ''), 10);
+                    areaValue = area;
+                }
+            }
+
+            let bedrooms = null, bedroomsValue = null;
+            if (sheetRow && sheetRow[1].Bedrooms) {
+                const bedroomsRange = parseRange(sheetRow[1].Bedrooms);
+                if (bedroomsRange) {
+                    bedrooms = bedroomsRange;
+                    bedroomsValue = bedroomsRange.min;
+                } else {
+                    bedrooms = parseInt(sheetRow[1].Bedrooms, 10);
+                    bedroomsValue = bedrooms;
+                }
+            }
+
+            let bathrooms = null, bathroomsValue = null;
+            if (sheetRow && sheetRow[1].Bathrooms) {
+                const bathroomsRange = parseRange(sheetRow[1].Bathrooms);
+                if (bathroomsRange) {
+                    bathrooms = bathroomsRange;
+                    bathroomsValue = bathroomsRange.min;
+                } else {
+                    bathrooms = parseFloat(sheetRow[1].Bathrooms);
+                    bathroomsValue = bathrooms;
+                }
+            }
+
             return {
                 id: item.id,
                 title: item.title,
@@ -137,10 +186,14 @@
                 imageUrl: item.assetUrl,
                 category: item.categories && item.categories.length > 0 ? item.categories[0] : '',
                 tags: item.tags || [],
-                price: sheetRow && sheetRow[1].Price ? parseFloat(sheetRow[1].Price.replace(/[$,]/g, '')) : null,
-                area: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area.replace(/,/g, ''), 10) : null,
-                bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms, 10) : null,
-                bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms) : null,
+                price: price,
+                priceValue: priceValue,
+                area: area,
+                areaValue: areaValue,
+                bedrooms: bedrooms,
+                bedroomsValue: bedroomsValue,
+                bathrooms: bathrooms,
+                bathroomsValue: bathroomsValue,
                 garage: sheetRow && sheetRow[1].Garage ? sheetRow[1].Garage : '',
                 customFields: customFields, // Add custom fields
                 url: item.fullUrl,
@@ -154,6 +207,28 @@
     function formatPrice(price) {
         if (price === null) return 'Price TBA';
         return '$' + price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+
+    // Parse range values like "2-4" or "595000-645000"
+    function parseRange(value) {
+        if (!value) return null;
+        
+        const str = value.toString().trim();
+        const rangeMatch = str.match(/^([\d,]+(?:\.\d+)?)\s*-\s*([\d,]+(?:\.\d+)?)$/);
+        
+        if (rangeMatch) {
+            const min = parseFloat(rangeMatch[1].replace(/,/g, ''));
+            const max = parseFloat(rangeMatch[2].replace(/,/g, ''));
+            return { min, max, isRange: true, original: str };
+        }
+        
+        return null;
+    }
+
+    // Format range values for display
+    function formatRange(rangeObj, formatter = (v) => v) {
+        if (!rangeObj || !rangeObj.isRange) return null;
+        return `${formatter(rangeObj.min)}-${formatter(rangeObj.max)}`;
     }
 
     // Helper function to check if a custom field value should be displayed
@@ -222,14 +297,31 @@
         // Check for custom fields before generating the HTML
         const hasCustomFields = property.customFields && Object.keys(property.customFields).length > 0;
 
+        // Format display values for ranges
+        const displayPrice = property.price && property.price.isRange 
+            ? formatRange(property.price, (v) => '$' + v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }))
+            : property.price ? formatPrice(property.price) : null;
+        
+        const displayArea = property.area && property.area.isRange
+            ? formatRange(property.area, (v) => v.toLocaleString())
+            : property.area ? property.area.toLocaleString() : null;
+        
+        const displayBedrooms = property.bedrooms && property.bedrooms.isRange
+            ? formatRange(property.bedrooms, (v) => v)
+            : property.bedrooms;
+        
+        const displayBathrooms = property.bathrooms && property.bathrooms.isRange
+            ? formatRange(property.bathrooms, (v) => v)
+            : property.bathrooms;
+
         let detailsContent = `
     <div class="listing-content sh-listing-content">
       ${property.location ? `<p class="property-location sh-property-location">${property.location}</p>` : ''}
-      ${showPricing ? `<p class="property-price sh-property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price)}</p>` : ''}
+      ${showPricing && displayPrice ? `<p class="property-price sh-property-price ${property.price === null ? 'no-price' : ''}">${displayPrice}</p>` : ''}
       <div class="property-details sh-property-details">
-        ${property.area ? `<span class="details-icon sh-area-icon">${svgIcons.area} <span class="sh-area-value">${property.area.toLocaleString()} sq ft</span></span>` : ''}
-        ${property.bedrooms ? `<span class="details-icon sh-beds-icon">${svgIcons.beds} <span class="sh-beds-value">${property.bedrooms}</span></span>` : ''}
-        ${property.bathrooms ? `<span class="details-icon sh-baths-icon">${svgIcons.baths} <span class="sh-baths-value">${property.bathrooms}</span></span>` : ''}
+        ${displayArea ? `<span class="details-icon sh-area-icon">${svgIcons.area} <span class="sh-area-value">${displayArea} sq ft</span></span>` : ''}
+        ${displayBedrooms ? `<span class="details-icon sh-beds-icon">${svgIcons.beds} <span class="sh-beds-value">${displayBedrooms}</span></span>` : ''}
+        ${displayBathrooms ? `<span class="details-icon sh-baths-icon">${svgIcons.baths} <span class="sh-baths-value">${displayBathrooms}</span></span>` : ''}
         ${property.garage ? `<span class="details-icon sh-garage-icon">${svgIcons.garage} <span class="sh-garage-value">${property.garage}</span></span>` : ''}
         ${(() => {
             // Add custom fields with icons to the main property details

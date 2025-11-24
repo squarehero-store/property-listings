@@ -81,6 +81,39 @@
         });
     }
 
+    // Parse range values (e.g., "2-4" or "595000-645000")
+    function parseRange(value) {
+        if (!value) return null;
+        
+        const stringValue = value.toString().trim();
+        
+        // Check if it's a range (contains a dash with numbers on both sides)
+        const rangeMatch = stringValue.match(/^([\d,\.]+)\s*-\s*([\d,\.]+)$/);
+        
+        if (rangeMatch) {
+            const min = parseFloat(rangeMatch[1].replace(/,/g, ''));
+            const max = parseFloat(rangeMatch[2].replace(/,/g, ''));
+            return { min, max, isRange: true, original: stringValue };
+        }
+        
+        // Single value
+        const numValue = parseFloat(stringValue.replace(/[^\d.-]/g, ''));
+        if (!isNaN(numValue)) {
+            return { min: numValue, max: numValue, isRange: false, original: stringValue };
+        }
+        
+        return null;
+    }
+    
+    // Format range for display
+    function formatRange(rangeObj, formatter) {
+        if (!rangeObj) return '';
+        if (!rangeObj.isRange) {
+            return formatter(rangeObj.min);
+        }
+        return `${formatter(rangeObj.min)}-${formatter(rangeObj.max)}`;
+    }
+
     function parseCSV(csv) {
         const results = Papa.parse(csv, {
             header: true,
@@ -182,10 +215,14 @@
                 category: item.categories && item.categories.length > 0 ? item.categories[0] : '',
                 allCategories: item.categories || [], // Store all categories
                 excerpt: cleanExcerpt, // Added excerpt with HTML cleaning
-                price: sheetRow && sheetRow[1].Price ? parseFloat(sheetRow[1].Price.replace(/[$,]/g, '')) : 0,
-                area: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area.replace(/,/g, ''), 10) : 0,
-                bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms.replace(/,/g, ''), 10) : 0,
-                bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms.replace(/,/g, '')) : 0,
+                price: sheetRow && sheetRow[1].Price ? parseRange(sheetRow[1].Price) : null,
+                priceValue: sheetRow && sheetRow[1].Price ? parseFloat(sheetRow[1].Price.replace(/[^\d.-]/g, '')) : 0, // For filtering
+                area: sheetRow && sheetRow[1].Area ? parseRange(sheetRow[1].Area) : null,
+                areaValue: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area.replace(/[^\d.-]/g, ''), 10) : 0, // For filtering
+                bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseRange(sheetRow[1].Bedrooms) : null,
+                bedroomsValue: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms.replace(/[^\d.-]/g, ''), 10) : 0, // For filtering
+                bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseRange(sheetRow[1].Bathrooms) : null,
+                bathroomsValue: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms.replace(/[^\d.-]/g, '')) : 0, // For filtering
                 garage: sheetRow && sheetRow[1].Garage ? sheetRow[1].Garage : '',
                 customFields: (() => {
                     const fields = {};
@@ -338,32 +375,25 @@
         window.customColumnTypes = {};
         window.customColumnSpecialHandling = {};
         
-        console.log(`🔍 [ColumnDetection] Processing ${customColumns.length} custom columns:`, customColumns);
         
         customColumns.forEach(column => {
             // Check values to determine type - get all values including empty ones
             const allValues = sheetData.map(row => row[column]);
             const nonEmptyValues = allValues.filter(value => value && value.toString().trim() !== '');
             
-            console.log(`🔍 [ColumnDetection] Column "${column}": ${nonEmptyValues.length} non-empty values out of ${allValues.length} total`);
-            console.log(`🔍 [ColumnDetection] Sample values:`, nonEmptyValues.slice(0, 3));
             
             if (nonEmptyValues.length === 0) {
                 window.customColumnTypes[column] = 'text';
-                console.log(`🔍 [ColumnDetection] ${column} -> text (no values)`);
             } else if (nonEmptyValues.every(value => value === 'Yes' || value === 'No')) {
                 window.customColumnTypes[column] = 'boolean';
-                console.log(`🔍 [ColumnDetection] ${column} -> boolean`);
             } else if (nonEmptyValues.every(value => !isNaN(parseFloat(value.replace(/[$,]/g, ''))))) {
                 // Check if this is a currency field (contains $ symbols)
                 const hasCurrencySymbols = nonEmptyValues.some(value => value.toString().includes('$'));
                 
                 if (hasCurrencySymbols) {
                     window.customColumnTypes[column] = 'currency';
-                    console.log(`🔍 [ColumnDetection] ${column} -> currency`);
                 } else {
                     window.customColumnTypes[column] = 'numeric';
-                    console.log(`🔍 [ColumnDetection] ${column} -> numeric`);
                 }
                 
                 // Determine whether to use button group or slider based on the range of values
@@ -378,10 +408,7 @@
                 if (uniqueIntegerValues.length <= 8 && 
                    (uniqueIntegerValues[uniqueIntegerValues.length - 1] - uniqueIntegerValues[0]) <= 10) {
                     window.customColumnSpecialHandling[column] = 'buttonGroup';
-                    console.log(`🔍 [ColumnDetection] ${column} -> using buttonGroup (${uniqueIntegerValues.length} unique values)`);
                 } else {
-                    // Use slider for larger ranges
-                    console.log(`🔍 [ColumnDetection] ${column} -> using slider (${uniqueIntegerValues.length} unique values)`);
                 }
             } else {
                 // Check if this is a comma-separated text field
@@ -391,16 +418,13 @@
                 
                 if (hasCommaSeparatedValues) {
                     window.customColumnTypes[column] = 'comma-separated';
-                    console.log(`🔍 [ColumnDetection] ${column} -> comma-separated`);
                     
                     // Log some sample comma-separated values
                     const commaSeparatedSamples = nonEmptyValues.filter(value => 
                         value.includes(',') && value.split(',').length > 1
                     ).slice(0, 3);
-                    console.log(`🔍 [ColumnDetection] Sample comma-separated values:`, commaSeparatedSamples);
                 } else {
                     window.customColumnTypes[column] = 'text';
-                    console.log(`🔍 [ColumnDetection] ${column} -> text`);
                 }
             }
         });
@@ -423,7 +447,6 @@
                     const value = sheetRow[1][column];
                     if (value !== undefined) {
                         const columnType = window.customColumnTypes[column];
-                        console.log(`🔍 [DataProcessing] Processing ${column} for ${item.title}: value="${value}", type="${columnType}"`);
                         
                         if (columnType === 'boolean') {
                             customFields[column] = value === 'Yes';
@@ -432,7 +455,6 @@
                         } else if (columnType === 'comma-separated' && value) {
                             // Split comma-separated values and clean them up
                             customFields[column] = value.split(',').map(v => v.trim()).filter(v => v);
-                            console.log(`🔍 [DataProcessing] Comma-separated ${column} split into:`, customFields[column]);
                         } else {
                             customFields[column] = value;
                         }
@@ -449,10 +471,14 @@
                 category: item.categories && item.categories.length > 0 ? item.categories[0] : '',
                 allCategories: item.categories || [], // Store all categories
                 excerpt: cleanExcerpt, // Added excerpt with HTML cleaning
-                price: sheetRow && sheetRow[1].Price ? parseFloat(sheetRow[1].Price.replace(/[$,]/g, '')) : 0,
-                area: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area.replace(/,/g, ''), 10) : 0,
-                bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms.replace(/,/g, ''), 10) : 0,
-                bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms.replace(/,/g, '')) : 0,
+                price: sheetRow && sheetRow[1].Price ? parseRange(sheetRow[1].Price) : null,
+                priceValue: sheetRow && sheetRow[1].Price ? parseFloat(sheetRow[1].Price.replace(/[^\d.-]/g, '')) : 0, // For filtering
+                area: sheetRow && sheetRow[1].Area ? parseRange(sheetRow[1].Area) : null,
+                areaValue: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area.replace(/[^\d.-]/g, ''), 10) : 0, // For filtering
+                bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseRange(sheetRow[1].Bedrooms) : null,
+                bedroomsValue: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms.replace(/[^\d.-]/g, ''), 10) : 0, // For filtering
+                bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseRange(sheetRow[1].Bathrooms) : null,
+                bathroomsValue: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms.replace(/[^\d.-]/g, '')) : 0, // For filtering
                 garage: sheetRow && sheetRow[1].Garage ? sheetRow[1].Garage : '',
                 customFields: (() => {
                     const fields = {};
@@ -496,10 +522,11 @@
         // Check which attributes are available in the data
         const hasLocations = propertyData.some(p => p.allTags && p.allTags.length > 0);
         const hasCategories = propertyData.some(p => p.allCategories && p.allCategories.length > 0);
-        const hasBedrooms = propertyData.some(p => p.bedrooms > 0);
-        const hasBathrooms = propertyData.some(p => p.bathrooms > 0);
-        const hasAreas = propertyData.some(p => p.area > 0);
-        const hasPrices = showPricing && propertyData.some(p => p.price > 0);
+        const hasBedrooms = propertyData.some(p => p.bedroomsValue > 0);
+        const hasBathrooms = propertyData.some(p => p.bathroomsValue > 0);
+        const hasAreas = propertyData.some(p => p.areaValue > 0);
+        const hasPrices = showPricing && propertyData.some(p => p.priceValue > 0);
+
 
         // Only add filters for attributes that exist in the data
         if (hasLocations) {
@@ -528,13 +555,10 @@
         
         // Add filters for custom columns if they exist
         if (window.customColumns && window.customColumns.length > 0) {
-            console.log(`🔍 [FilterCreation] Processing ${window.customColumns.length} custom columns for filters`);
             
             window.customColumns.forEach(column => {
                 const columnId = column.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
                 const columnType = window.customColumnTypes[column];
-                
-                console.log(`🔍 [FilterCreation] Creating filter for column "${column}" (${columnType})`);
                 
                 // Create a filter based on the column type
                 if (columnType === 'numeric' || columnType === 'currency') {
@@ -669,7 +693,6 @@
         container.appendChild(filtersContainer);
 
         // Log final filter summary
-        console.log(`🔍 [FilterSummary] Total filters created: ${filtersContainer.children.length}`);
         const filterTypes = Array.from(filtersContainer.children).map(child => {
             if (child.classList.contains('reset-button')) return 'reset-button';
             const select = child.querySelector('select');
@@ -680,7 +703,6 @@
             if (slider) return `slider (${slider.id})`;
             return 'unknown';
         });
-        console.log(`🔍 [FilterSummary] Filter types:`, filterTypes);
 
         const gridContainer = document.createElement('div');
         gridContainer.id = 'property-grid';
@@ -856,20 +878,57 @@
             card.setAttribute('data-all-categories', property.allCategories.join('|'));
             // Keep first category for backwards compatibility with existing filters
             card.setAttribute('data-category', property.allCategories[0]);
-        }        if (property.bedrooms > 0) {
-            card.setAttribute('data-bedrooms', `bed-${property.bedrooms}`);
         }
         
-        if (property.bathrooms > 0) {
-            card.setAttribute('data-bathrooms', `bath-${formatBathroomsForFilter(property.bathrooms)}`);
+        // Handle bedrooms - if it's a range, set attributes for all values in range
+        if (property.bedrooms) {
+            if (property.bedrooms.isRange) {
+                // For ranges, set multiple data attributes (bed-2, bed-3, bed-4 for "2-4")
+                const bedroomValues = [];
+                for (let i = property.bedrooms.min; i <= property.bedrooms.max; i++) {
+                    bedroomValues.push(`bed-${i}`);
+                }
+                card.setAttribute('data-bedrooms', bedroomValues.join(' '));
+            } else if (property.bedroomsValue > 0) {
+                card.setAttribute('data-bedrooms', `bed-${property.bedroomsValue}`);
+            }
         }
         
-        if (property.area > 0) {
-            card.setAttribute('data-area', property.area);
+        // Handle bathrooms - if it's a range, set attributes for all values in range
+        if (property.bathrooms) {
+            if (property.bathrooms.isRange) {
+                // For ranges, set multiple data attributes
+                const bathroomValues = [];
+                for (let i = property.bathrooms.min; i <= property.bathrooms.max; i += 0.5) {
+                    bathroomValues.push(`bath-${formatBathroomsForFilter(i)}`);
+                }
+                card.setAttribute('data-bathrooms', bathroomValues.join(' '));
+            } else if (property.bathroomsValue > 0) {
+                card.setAttribute('data-bathrooms', `bath-${formatBathroomsForFilter(property.bathroomsValue)}`);
+            }
         }
         
-        if (property.price > 0 && showPricing) {
-            card.setAttribute('data-price', property.price);
+        // Area and price - store both min and max for range overlap checking
+        if (property.areaValue > 0 || property.area) {
+            if (property.area && property.area.isRange) {
+                card.setAttribute('data-area-min', property.area.min);
+                card.setAttribute('data-area-max', property.area.max);
+            } else {
+                const areaVal = property.areaValue || property.area;
+                card.setAttribute('data-area-min', areaVal);
+                card.setAttribute('data-area-max', areaVal);
+            }
+        }
+        
+        if ((property.priceValue > 0 || property.price) && showPricing) {
+            if (property.price && property.price.isRange) {
+                card.setAttribute('data-price-min', property.price.min);
+                card.setAttribute('data-price-max', property.price.max);
+            } else {
+                const priceVal = property.priceValue || property.price;
+                card.setAttribute('data-price-min', priceVal);
+                card.setAttribute('data-price-max', priceVal);
+            }
         }
         
         // Add data attributes for custom fields
@@ -955,11 +1014,11 @@
                 ${property.allTags && property.allTags.length > 0 ? 
                     `<p class="property-location sh-property-location">${property.allTags.join(', ')}</p>` : ''
                 }
-                ${showPricing ? `<p class="property-price sh-property-price ${property.price === 0 ? 'no-price' : ''}">${property.price === 0 ? 'Price TBA' : `${currencySymbol}${property.price.toLocaleString()}`}</p>` : ''}
+                ${showPricing ? `<p class="property-price sh-property-price ${!property.price ? 'no-price' : ''}">${!property.price ? 'Price TBA' : `${currencySymbol}${formatRange(property.price, (val) => val.toLocaleString())}`}</p>` : ''}
                 <div class="property-details sh-property-details">
-                    ${property.area > 0 ? `<span class="details-icon sh-area-icon">${areaSvg} <span class="sh-area-value">${property.area.toLocaleString()} ${areaUnit}</span></span>` : ''}
-                    ${property.bedrooms > 0 ? `<span class="details-icon sh-beds-icon">${bedsSvg} <span class="sh-beds-value">${property.bedrooms}</span></span>` : ''}
-                    ${property.bathrooms > 0 ? `<span class="details-icon sh-baths-icon">${bathsSvg} <span class="sh-baths-value">${formatBathrooms(property.bathrooms)}</span></span>` : ''}
+                    ${property.area ? `<span class="details-icon sh-area-icon">${areaSvg} <span class="sh-area-value">${formatRange(property.area, (val) => val.toLocaleString())} ${areaUnit}</span></span>` : ''}
+                    ${property.bedrooms ? `<span class="details-icon sh-beds-icon">${bedsSvg} <span class="sh-beds-value">${formatRange(property.bedrooms, (val) => val.toString())}</span></span>` : ''}
+                    ${property.bathrooms ? `<span class="details-icon sh-baths-icon">${bathsSvg} <span class="sh-baths-value">${formatRange(property.bathrooms, (val) => Number.isInteger(val) ? val.toString() : val.toFixed(1))}</span></span>` : ''}
                     ${property.garage ? `<span class="details-icon sh-garage-icon">${garageSvg} <span class="sh-garage-value">${property.garage}</span></span>` : ''}
                     ${(() => {
                         // Add custom fields with icons to the main property details
@@ -1124,8 +1183,9 @@
         }
         
         // Initialize sliders only if they exist and have valid data
-        const areaValues = properties.map(p => p.area).filter(area => area > 0);
-        const priceValues = properties.map(p => p.price).filter(price => price > 0);
+        
+        const areaValues = properties.map(p => p.areaValue).filter(area => area > 0);
+        const priceValues = properties.map(p => p.priceValue).filter(price => price > 0);
         
         const areaSlider = document.getElementById('area-slider');
         if (areaSlider && areaValues.length > 0) {
@@ -1134,6 +1194,8 @@
             initializeSlider('area-slider', minArea, maxArea, window.storeSettings?.measurementStandard === 2 ? 'm²' : 'sq ft', () => {
                 if (window.mixer) window.mixer.filter(window.mixer.getState().activeFilter);
             });
+        } else {
+            console.log('⚠️ [AreaSlider] NOT initialized - element:', !!areaSlider, 'values:', areaValues.length);
         }
         
         const priceSlider = document.getElementById('price-slider');
@@ -1144,17 +1206,25 @@
             initializeSlider('price-slider', minPrice, maxPrice, currencySymbol, () => {
                 if (window.mixer) window.mixer.filter(window.mixer.getState().activeFilter);
             });
+        } else {
+            console.log('⚠️ [PriceSlider] NOT initialized - element:', !!priceSlider, 'values:', priceValues.length);
         }
         
         // Only initialize button group filters if they exist
         const bedroomsFilter = document.getElementById('bedrooms-filter');
         if (bedroomsFilter) {
-            hideUnusedOptions('bedrooms-filter', properties, 'bedrooms');
+            const bedroomValues = properties.map(p => p.bedroomsValue).filter(Boolean);
+            hideUnusedOptions('bedrooms-filter', properties, 'bedroomsValue');
+        } else {
+            console.log('⚠️ [BedroomsFilter] Element not found in DOM');
         }
         
         const bathroomsFilter = document.getElementById('bathrooms-filter');
         if (bathroomsFilter) {
-            hideUnusedOptions('bathrooms-filter', properties, 'bathrooms');
+            const bathroomValues = properties.map(p => p.bathroomsValue).filter(Boolean);
+            hideUnusedOptions('bathrooms-filter', properties, 'bathroomsValue');
+        } else {
+            console.log('⚠️ [BathroomsFilter] Element not found in DOM');
         }
 
         // Initialize custom numeric sliders for custom columns
@@ -1415,22 +1485,26 @@
                     // Apply area filter if slider exists
                     if (areaSlider && areaSlider.noUiSlider) {
                         const [minArea, maxArea] = areaSlider.noUiSlider.get().map(Number);
-                        const cardArea = parseFloat(card.getAttribute('data-area') || 0);
                         
-                        // Skip area filtering if card doesn't have area data
-                        if (card.hasAttribute('data-area')) {
-                            shouldShow = shouldShow && (cardArea >= minArea && cardArea <= maxArea);
+                        // Check for range overlap: card's range overlaps with filter range
+                        if (card.hasAttribute('data-area-min') && card.hasAttribute('data-area-max')) {
+                            const cardMinArea = parseFloat(card.getAttribute('data-area-min') || 0);
+                            const cardMaxArea = parseFloat(card.getAttribute('data-area-max') || 0);
+                            // Ranges overlap if: cardMin <= filterMax AND cardMax >= filterMin
+                            shouldShow = shouldShow && (cardMinArea <= maxArea && cardMaxArea >= minArea);
                         }
                     }
                     
                     // Apply price filter if slider exists and pricing is enabled
                     if (showPricing && priceSlider && priceSlider.noUiSlider) {
                         const [minPrice, maxPrice] = priceSlider.noUiSlider.get().map(Number);
-                        const cardPrice = parseFloat(card.getAttribute('data-price') || 0);
                         
-                        // Skip price filtering if card doesn't have price data
-                        if (card.hasAttribute('data-price')) {
-                            shouldShow = shouldShow && (cardPrice >= minPrice && cardPrice <= maxPrice);
+                        // Check for range overlap: card's range overlaps with filter range
+                        if (card.hasAttribute('data-price-min') && card.hasAttribute('data-price-max')) {
+                            const cardMinPrice = parseFloat(card.getAttribute('data-price-min') || 0);
+                            const cardMaxPrice = parseFloat(card.getAttribute('data-price-max') || 0);
+                            // Ranges overlap if: cardMin <= filterMax AND cardMax >= filterMin
+                            shouldShow = shouldShow && (cardMinPrice <= maxPrice && cardMaxPrice >= minPrice);
                         }
                     }
                     
@@ -1729,7 +1803,8 @@
         if (bedroomsFilter) {
             const bedrooms = getActiveFilters('bedrooms-filter');
             if (bedrooms.length > 0 && !bedrooms.includes('all')) {
-                const group = bedrooms.map(bed => `[data-bedrooms="${bed}"]`).join(', ');
+                // Use ~= to match space-separated values for ranges (e.g., "bed-2 bed-3 bed-4")
+                const group = bedrooms.map(bed => `[data-bedrooms~="${bed}"]`).join(', ');
                 filterGroups.push(group);
             }
         }
@@ -1739,7 +1814,8 @@
         if (bathroomsFilter) {
             const bathrooms = getActiveFilters('bathrooms-filter');
             if (bathrooms.length > 0 && !bathrooms.includes('all')) {
-                const group = bathrooms.map(bath => `[data-bathrooms="${bath}"]`).join(', ');
+                // Use ~= to match space-separated values for ranges
+                const group = bathrooms.map(bath => `[data-bathrooms~="${bath}"]`).join(', ');
                 filterGroups.push(group);
             }
         }
@@ -2303,9 +2379,9 @@
         if (priceSlider && priceSlider.noUiSlider) {
             const [minPrice, maxPrice] = priceSlider.noUiSlider.get().map(Number);
             
-            // Get all property cards with price data
-            const priceValues = Array.from(document.querySelectorAll('.property-card[data-price]'))
-                .map(card => parseFloat(card.getAttribute('data-price')))
+            // Get all property cards with price data (using data-price-min for compatibility)
+            const priceValues = Array.from(document.querySelectorAll('.property-card[data-price-min]'))
+                .map(card => parseFloat(card.getAttribute('data-price-min')))
                 .filter(Boolean);
             
             if (priceValues.length > 0) {
@@ -2327,9 +2403,9 @@
         if (areaSlider && areaSlider.noUiSlider) {
             const [minArea, maxArea] = areaSlider.noUiSlider.get().map(Number);
             
-            // Get all property cards with area data
-            const areaValues = Array.from(document.querySelectorAll('.property-card[data-area]'))
-                .map(card => parseFloat(card.getAttribute('data-area')))
+            // Get all property cards with area data (using data-area-min for compatibility)
+            const areaValues = Array.from(document.querySelectorAll('.property-card[data-area-min]'))
+                .map(card => parseFloat(card.getAttribute('data-area-min')))
                 .filter(Boolean);
             
             if (areaValues.length > 0) {

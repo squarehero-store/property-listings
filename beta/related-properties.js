@@ -60,6 +60,28 @@
       });
     }
   
+    // Parse range values like "2-4" or "595000-645000"
+    function parseRange(value) {
+      if (!value) return null;
+      
+      const str = value.toString().trim();
+      const rangeMatch = str.match(/^([\d,]+(?:\.\d+)?)\s*-\s*([\d,]+(?:\.\d+)?)$/);
+      
+      if (rangeMatch) {
+        const min = parseFloat(rangeMatch[1].replace(/,/g, ''));
+        const max = parseFloat(rangeMatch[2].replace(/,/g, ''));
+        return { min, max, isRange: true, original: str };
+      }
+      
+      return null;
+    }
+  
+    // Format range values for display
+    function formatRange(rangeObj, formatter = (v) => v) {
+      if (!rangeObj || !rangeObj.isRange) return null;
+      return `${formatter(rangeObj.min)}-${formatter(rangeObj.max)}`;
+    }
+  
     function processPropertyData(sheetData, blogItems) {
       const urlMap = new Map(sheetData.map(row => {
         const url = row.Url.replace(/^\//, '').trim().toLowerCase();
@@ -76,16 +98,69 @@
           console.warn(`No matching sheet data found for blog item: ${item.urlId}`);
         }
   
+        // Parse range values for price, area, bedrooms, bathrooms
+        let price = null, priceValue = null;
+        if (sheetRow && sheetRow[1].Price) {
+          const priceRange = parseRange(sheetRow[1].Price.replace(/[$,\s]/g, ''));
+          if (priceRange) {
+            price = priceRange;
+            priceValue = priceRange.min;
+          } else {
+            price = parseFloat(sheetRow[1].Price.replace(/[$,]/g, ''));
+            priceValue = price;
+          }
+        }
+
+        let area = null, areaValue = null;
+        if (sheetRow && sheetRow[1].Area) {
+          const areaRange = parseRange(sheetRow[1].Area.replace(/,/g, ''));
+          if (areaRange) {
+            area = areaRange;
+            areaValue = areaRange.min;
+          } else {
+            area = parseInt(sheetRow[1].Area.replace(/,/g, ''), 10);
+            areaValue = area;
+          }
+        }
+
+        let bedrooms = null, bedroomsValue = null;
+        if (sheetRow && sheetRow[1].Bedrooms) {
+          const bedroomsRange = parseRange(sheetRow[1].Bedrooms);
+          if (bedroomsRange) {
+            bedrooms = bedroomsRange;
+            bedroomsValue = bedroomsRange.min;
+          } else {
+            bedrooms = parseInt(sheetRow[1].Bedrooms, 10);
+            bedroomsValue = bedrooms;
+          }
+        }
+
+        let bathrooms = null, bathroomsValue = null;
+        if (sheetRow && sheetRow[1].Bathrooms) {
+          const bathroomsRange = parseRange(sheetRow[1].Bathrooms);
+          if (bathroomsRange) {
+            bathrooms = bathroomsRange;
+            bathroomsValue = bathroomsRange.min;
+          } else {
+            bathrooms = parseFloat(sheetRow[1].Bathrooms);
+            bathroomsValue = bathrooms;
+          }
+        }
+  
         return {
           id: item.id,
           title: item.title,
           location: item.tags && item.tags.length > 0 ? item.tags[0] : '',
           imageUrl: item.assetUrl,
           category: item.categories && item.categories.length > 0 ? item.categories[0] : '',
-          price: sheetRow && sheetRow[1].Price ? parseFloat(sheetRow[1].Price.replace(/[$,]/g, '')) : null,
-          area: sheetRow && sheetRow[1].Area ? parseInt(sheetRow[1].Area.replace(/,/g, ''), 10) : null,
-          bedrooms: sheetRow && sheetRow[1].Bedrooms ? parseInt(sheetRow[1].Bedrooms, 10) : null,
-          bathrooms: sheetRow && sheetRow[1].Bathrooms ? parseFloat(sheetRow[1].Bathrooms) : null,
+          price: price,
+          priceValue: priceValue,
+          area: area,
+          areaValue: areaValue,
+          bedrooms: bedrooms,
+          bedroomsValue: bedroomsValue,
+          bathrooms: bathrooms,
+          bathroomsValue: bathroomsValue,
           garage: sheetRow && sheetRow[1].Garage ? sheetRow[1].Garage : '',
           url: item.fullUrl,
           urlId: item.urlId
@@ -98,6 +173,23 @@
       card.className = 'property-card';
       card.href = property.url;
   
+      // Format display values for ranges
+      const displayPrice = property.price && property.price.isRange 
+        ? formatRange(property.price, (v) => '$' + v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }))
+        : property.price ? formatPrice(property.price) : null;
+      
+      const displayArea = property.area && property.area.isRange
+        ? formatRange(property.area, (v) => v.toLocaleString())
+        : property.area ? property.area.toLocaleString() : null;
+      
+      const displayBedrooms = property.bedrooms && property.bedrooms.isRange
+        ? formatRange(property.bedrooms, (v) => v)
+        : property.bedrooms;
+      
+      const displayBathrooms = property.bathrooms && property.bathrooms.isRange
+        ? formatRange(property.bathrooms, (v) => v)
+        : property.bathrooms;
+  
       let cardContent = `
         <div class="property-image">
           <img src="${property.imageUrl}" alt="${property.title}">
@@ -106,11 +198,11 @@
         <div class="listing-content">
           <h3 class="property-title">${property.title}</h3>
           ${property.location ? `<p class="property-location">${property.location}</p>` : ''}
-          <p class="property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price)}</p>
+          <p class="property-price ${property.price === null ? 'no-price' : ''}">${displayPrice || 'Price TBA'}</p>
           <div class="property-details">
-            ${property.area ? `<span class="details-icon"><img src="https://cdn.jsdelivr.net/gh/squarehero-store/property-listings@main/Icons/Icon-Set_Size.svg" alt="Area"> ${property.area.toLocaleString()} sq ft</span>` : ''}
-            ${property.bedrooms ? `<span class="details-icon"><img src="https://cdn.jsdelivr.net/gh/squarehero-store/property-listings@main/Icons/Icon-Set_Bedroom.svg" alt="Bedrooms"> ${property.bedrooms}</span>` : ''}
-            ${property.bathrooms ? `<span class="details-icon"><img src="https://cdn.jsdelivr.net/gh/squarehero-store/property-listings@main/Icons/Icon-Set_Bathroom.svg" alt="Bathrooms"> ${property.bathrooms}</span>` : ''}
+            ${displayArea ? `<span class="details-icon"><img src="https://cdn.jsdelivr.net/gh/squarehero-store/property-listings@main/Icons/Icon-Set_Size.svg" alt="Area"> ${displayArea} sq ft</span>` : ''}
+            ${displayBedrooms ? `<span class="details-icon"><img src="https://cdn.jsdelivr.net/gh/squarehero-store/property-listings@main/Icons/Icon-Set_Bedroom.svg" alt="Bedrooms"> ${displayBedrooms}</span>` : ''}
+            ${displayBathrooms ? `<span class="details-icon"><img src="https://cdn.jsdelivr.net/gh/squarehero-store/property-listings@main/Icons/Icon-Set_Bathroom.svg" alt="Bathrooms"> ${displayBathrooms}</span>` : ''}
             ${property.garage ? `<span class="details-icon"><img src="https://cdn.jsdelivr.net/gh/squarehero-store/property-listings@main/Icons/Icon-Set_Garage.svg" alt="Garage"> ${property.garage}</span>` : ''}
           </div>
           <div class="sh-button">View Home</div>
