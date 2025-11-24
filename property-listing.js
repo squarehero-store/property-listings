@@ -580,6 +580,23 @@
         // Check for custom fields before generating the HTML
         const hasCustomFields = property.customFields && Object.keys(property.customFields).length > 0;
 
+        // Format display values for ranges
+        const displayPrice = property.price && property.price.isRange 
+            ? formatRange(property.price, (v) => '$' + v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }))
+            : property.price ? formatPrice(property.price) : null;
+        
+        const displayArea = property.area && property.area.isRange
+            ? formatRange(property.area, (v) => v.toLocaleString())
+            : property.area ? property.area.toLocaleString() : null;
+        
+        const displayBedrooms = property.bedrooms && property.bedrooms.isRange
+            ? formatRange(property.bedrooms, (v) => v)
+            : property.bedrooms;
+        
+        const displayBathrooms = property.bathrooms && property.bathrooms.isRange
+            ? formatRange(property.bathrooms, (v) => v)
+            : property.bathrooms;
+
         let cardContent = `
       <div class="property-image sh-property-image">
         <img src="${property.imageUrl}" alt="${property.title}" class="sh-property-img">
@@ -588,11 +605,11 @@
       <div class="listing-content sh-listing-content">
         <h3 class="property-title sh-property-title">${property.title}</h3>
         ${property.location ? `<p class="property-location sh-property-location">${property.location}</p>` : ''}
-        ${showPricing ? `<p class="property-price sh-property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price)}</p>` : ''}
+        ${showPricing && displayPrice ? `<p class="property-price sh-property-price ${!displayPrice ? 'no-price' : ''}">${displayPrice}</p>` : ''}
         <div class="property-details sh-property-details">
-          ${property.area ? `<span class="details-icon sh-area-icon">${svgIcons.area} <span class="sh-area-value">${property.area.toLocaleString()} sq ft</span></span>` : ''}
-          ${property.bedrooms ? `<span class="details-icon sh-beds-icon">${svgIcons.beds} <span class="sh-beds-value">${property.bedrooms}</span></span>` : ''}
-          ${property.bathrooms ? `<span class="details-icon sh-baths-icon">${svgIcons.baths} <span class="sh-baths-value">${property.bathrooms}</span></span>` : ''}
+          ${displayArea ? `<span class="details-icon sh-area-icon">${svgIcons.area} <span class="sh-area-value">${displayArea} sq ft</span></span>` : ''}
+          ${displayBedrooms ? `<span class="details-icon sh-beds-icon">${svgIcons.beds} <span class="sh-beds-value">${displayBedrooms}</span></span>` : ''}
+          ${displayBathrooms ? `<span class="details-icon sh-baths-icon">${svgIcons.baths} <span class="sh-baths-value">${displayBathrooms}</span></span>` : ''}
           ${property.garage ? `<span class="details-icon sh-garage-icon">${svgIcons.garage} <span class="sh-garage-value">${property.garage}</span></span>` : ''}
           ${(() => {
               // Add custom fields with icons to the main property details
