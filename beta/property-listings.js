@@ -1348,7 +1348,25 @@
         const filterButtons = document.querySelectorAll(`#${filterId} .filter-button`);
         if (!filterButtons.length) return;
         
-        const availableValues = new Set(properties.map(p => p[propertyKey]).filter(Boolean));
+        // For range support, we need to check both the Value property and the range object
+        const availableValues = new Set();
+        
+        properties.forEach(p => {
+            const value = p[propertyKey];
+            if (value) {
+                availableValues.add(value);
+            }
+            
+            // Also check the range object (e.g., bedrooms, bathrooms without "Value" suffix)
+            const rangeKey = propertyKey.replace('Value', '');
+            const rangeObj = p[rangeKey];
+            if (rangeObj && rangeObj.isRange) {
+                // Add all values in the range
+                for (let i = rangeObj.min; i <= rangeObj.max; i += (rangeKey === 'bathrooms' ? 0.5 : 1)) {
+                    availableValues.add(i);
+                }
+            }
+        });
 
         filterButtons.forEach(button => {
             const filterValue = button.getAttribute('data-filter');
