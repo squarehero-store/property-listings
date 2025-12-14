@@ -1184,8 +1184,25 @@
         
         // Initialize sliders only if they exist and have valid data
         
-        const areaValues = properties.map(p => p.areaValue).filter(area => area > 0);
-        const priceValues = properties.map(p => p.priceValue).filter(price => price > 0);
+        // For area, collect both min and max values from ranges
+        const areaValues = [];
+        properties.forEach(p => {
+            if (p.area && p.area.isRange) {
+                areaValues.push(p.area.min, p.area.max);
+            } else if (p.areaValue > 0) {
+                areaValues.push(p.areaValue);
+            }
+        });
+        
+        // For price, collect both min and max values from ranges
+        const priceValues = [];
+        properties.forEach(p => {
+            if (p.price && p.price.isRange) {
+                priceValues.push(p.price.min, p.price.max);
+            } else if (p.priceValue > 0) {
+                priceValues.push(p.priceValue);
+            }
+        });
         
         const areaSlider = document.getElementById('area-slider');
         if (areaSlider && areaValues.length > 0) {
