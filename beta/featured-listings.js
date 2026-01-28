@@ -13,6 +13,9 @@
     // Custom button text
     const buttonText = metaTag.getAttribute('button-text') || 'View Home';
     
+    // Custom loading label text
+    const loadingLabel = metaTag.getAttribute('loading-label') || 'Loading featured properties...';
+    
     // Development logging
     console.log('📌 SquareHero.store Featured Listings plugin configuration:');
     console.log('- Sheet URL:', sheetUrl);
@@ -109,6 +112,48 @@
 
     Promise.all(libraries.map(url => loadLibrary(url)))
         .then(async () => {
+            // Show loading indicator for all featured listings containers
+            const containers = document.querySelectorAll('#propertyListingsContainer.featured-listings');
+            containers.forEach(container => {
+                const loadingIndicator = document.createElement('div');
+                loadingIndicator.className = 'sh-loading-indicator';
+                loadingIndicator.innerHTML = `
+                    <div class="sh-spinner"></div>
+                    <p>${loadingLabel}</p>
+                `;
+                container.appendChild(loadingIndicator);
+            });
+            
+            // Add spinner styles if not already added
+            if (!document.getElementById('sh-featured-spinner-style')) {
+                const spinnerStyle = document.createElement('style');
+                spinnerStyle.id = 'sh-featured-spinner-style';
+                spinnerStyle.textContent = `
+                    .sh-loading-indicator {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 40px 0;
+                        width: 100%;
+                    }
+                    .sh-spinner {
+                        border: 4px solid rgba(0, 0, 0, 0.1);
+                        border-radius: 50%;
+                        border-top: 4px solid hsl(var(--accent-hsl));
+                        width: 40px;
+                        height: 40px;
+                        animation: sh-spin 1s linear infinite;
+                        margin-bottom: 15px;
+                    }
+                    @keyframes sh-spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                `;
+                document.head.appendChild(spinnerStyle);
+            }
+            
             // Fetch CSV data from Google Sheets
             const csvData = await fetch(sheetUrl).then(response => response.text());
             
@@ -173,6 +218,14 @@
 
                 // Find the container element - now looking for class instead of ID
                 const containers = document.querySelectorAll('#propertyListingsContainer.featured-listings');
+                
+                // Remove loading indicators
+                containers.forEach(container => {
+                    const loadingIndicator = container.querySelector('.sh-loading-indicator');
+                    if (loadingIndicator) {
+                        container.removeChild(loadingIndicator);
+                    }
+                });
                 containers.forEach(container => {
                     if (container) {
                         // Get the number of listings to show from the attribute
