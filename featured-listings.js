@@ -108,12 +108,57 @@
     }
 
     Promise.all(libraries.map(url => loadLibrary(url)))
-        .then(() => {
-            // Fetch data from Google Sheets and Blog JSON
-            Promise.all([
-                fetch(sheetUrl).then(response => response.text()),
-                fetch(blogJsonUrl).then(response => response.json())
-            ]).then(([csvData, blogData]) => {
+        .then(async () => {
+            // Fetch CSV data from Google Sheets
+            const csvData = await fetch(sheetUrl).then(response => response.text());
+            
+            // Fetch all blog pages with pagination
+            let allBlogItems = [];
+            let currentUrl = blogJsonUrl;
+            let page = 1;
+            
+            while (currentUrl) {
+                const response = await fetch(currentUrl);
+                const data = await response.json();
+                
+                if (!data.items || data.items.length === 0) {
+                    break;
+                }
+                
+                // Add items to the collection
+                allBlogItems.push(...data.items);
+                console.log(`📄 Fetched page ${page} with ${data.items.length} properties`);
+                
+                // Check for pagination
+                if (data.pagination && data.pagination.nextPage) {
+                    const offset = data.pagination.nextPageOffset;
+                    if (offset) {
+                        const nextPageUrl = new URL(`/${target}`, window.location.origin);
+                        nextPageUrl.searchParams.set('format', 'json');
+                        nextPageUrl.searchParams.set('offset', offset);
+                        nextPageUrl.searchParams.set('nocache', new Date().getTime());
+                        currentUrl = nextPageUrl.toString();
+                        page++;
+                    } else {
+                        currentUrl = null;
+                    }
+                } else {
+                    currentUrl = null;
+                }
+            }
+            
+            console.log(`✅ Total properties fetched: ${allBlogItems.length}`);
+            
+            // Get the first page's data for website settings
+            const firstPageData = await fetch(blogJsonUrl).then(response => response.json());
+            
+            // Create blogData object with all items and settings from first page
+            const blogData = {
+                ...firstPageData,
+                items: allBlogItems
+            };
+            
+            Promise.resolve([csvData, blogData]).then(([csvData, blogData]) => {
                 const storeSettings = blogData.websiteSettings?.storeSettings || {};
                 
                 const isMetric = storeSettings.measurementStandard === 2;
@@ -230,6 +275,13 @@
         return blogData.items.map(item => {
             const urlId = item.urlId.toLowerCase();
             const sheetRow = Array.from(urlMap.entries()).find(([regexPattern, value]) => regexPattern.test(urlId));
+    
+            // Debug URL matching
+            if (!sheetRow) {
+                console.log(`⚠️ No sheet match for blog item: ${urlId}`);
+            } else if (sheetRow[1].Featured && sheetRow[1].Featured.trim() !== '') {
+                console.log(`✅ Matched featured property: ${urlId} = Featured ${sheetRow[1].Featured}`);
+            }
     
             // Clean and trim the excerpt if available
             let cleanExcerpt = '';
