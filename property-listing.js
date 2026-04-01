@@ -204,9 +204,21 @@
         return processedItems;
     }
 
-    function formatPrice(price) {
+    const getCurrencySymbol = (currencyCode) => {
+        const symbols = {
+            USD: '$',
+            CAD: '$',
+            AUD: '$',
+            NZD: '$',
+            GBP: '£',
+            EUR: '€'
+        };
+        return symbols[currencyCode] || '$';
+    };
+
+    function formatPrice(price, currencySymbol = '$') {
         if (price === null) return 'Price TBA';
-        return '$' + price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        return currencySymbol + price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     }
 
     // Parse range values like "2-4" or "595000-645000"
@@ -294,13 +306,17 @@
         // Get custom icons configuration
         const customIcons = getCustomIcons();
 
+        // Get currency symbol from store settings
+        const storeSettings = window.storeSettings || {};
+        const currencySymbol = getCurrencySymbol(storeSettings.selectedCurrency);
+
         // Check for custom fields before generating the HTML
         const hasCustomFields = property.customFields && Object.keys(property.customFields).length > 0;
 
         // Format display values for ranges
         const displayPrice = property.price && property.price.isRange 
-            ? formatRange(property.price, (v) => '$' + v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }))
-            : property.price ? formatPrice(property.price) : null;
+            ? formatRange(property.price, (v) => currencySymbol + v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }))
+            : property.price ? formatPrice(property.price, currencySymbol) : null;
         
         const displayArea = property.area && property.area.isRange
             ? formatRange(property.area, (v) => v.toLocaleString())
@@ -577,13 +593,17 @@
             });
         }
         
+        // Get currency symbol from store settings
+        const storeSettings = window.storeSettings || {};
+        const currencySymbol = getCurrencySymbol(storeSettings.selectedCurrency);
+
         // Check for custom fields before generating the HTML
         const hasCustomFields = property.customFields && Object.keys(property.customFields).length > 0;
 
         // Format display values for ranges
         const displayPrice = property.price && property.price.isRange 
-            ? formatRange(property.price, (v) => '$' + v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }))
-            : property.price ? formatPrice(property.price) : null;
+            ? formatRange(property.price, (v) => currencySymbol + v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }))
+            : property.price ? formatPrice(property.price, currencySymbol) : null;
         
         const displayArea = property.area && property.area.isRange
             ? formatRange(property.area, (v) => v.toLocaleString())

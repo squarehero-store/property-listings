@@ -10,18 +10,27 @@
     const target = metaTag.getAttribute('target');
     const blogJsonUrl = `/${target}?format=json&nocache=${new Date().getTime()}`;
     
-    // Custom labels for filter sections (with defaults)
+    // Custom labels for multi-lingual support (with defaults)
     const categoryLabel = metaTag.getAttribute('category-label') || 'Property Status';
     const tagLabel = metaTag.getAttribute('tag-label') || 'Location';
-    
-    // Custom button text (new)
+    const bedroomsLabel = metaTag.getAttribute('bedrooms-label') || 'Bedrooms';
+    const bathroomsLabel = metaTag.getAttribute('bathrooms-label') || 'Bathrooms';
+    const areaLabel = metaTag.getAttribute('area-label') || 'Area';
+    const priceLabel = metaTag.getAttribute('price-label') || 'Price';
     const buttonText = metaTag.getAttribute('button-text') || 'View Home';
-    
-    // Custom item type for non-real estate uses
     const itemType = metaTag.getAttribute('item-type') || 'properties';
-    
-    // Custom loading label text (new)
     const loadingLabel = metaTag.getAttribute('loading-label') || `Loading all ${itemType}...`;
+    const anyLabel = metaTag.getAttribute('any-label') || 'Any';
+    const allLabel = metaTag.getAttribute('all-label') || 'All';
+    const resetFiltersLabel = metaTag.getAttribute('reset-filters-label') || 'Reset Filters';
+    const noResultsTitle = metaTag.getAttribute('no-results-title') || `No ${itemType} found`;
+    const noResultsText1 = metaTag.getAttribute('no-results-text') || `We couldn't find any ${itemType} matching your current filter criteria.`;
+    const noResultsText2 = metaTag.getAttribute('no-results-adjust-text') || 'Please try adjusting your filters or';
+    const noResultsResetLink = metaTag.getAttribute('no-results-reset-link') || 'reset all filters';
+    const noResultsText3 = metaTag.getAttribute('no-results-see-all-text') || `to see all available ${itemType}.`;
+    const priceTBALabel = metaTag.getAttribute('price-tba-label') || 'Price TBA';
+    const yesLabel = metaTag.getAttribute('yes-label') || 'Yes';
+    const noLabel = metaTag.getAttribute('no-label') || 'No';
     
     // Check if pricing should be shown or hidden
     const showPricing = metaTag.getAttribute('pricing') !== 'false';
@@ -530,27 +539,27 @@
 
         // Only add filters for attributes that exist in the data
         if (hasLocations) {
-            filtersContainer.appendChild(createDropdownFilter('location-filter', tagLabel, 'All', 'sh-location-filter'));
+            filtersContainer.appendChild(createDropdownFilter('location-filter', tagLabel, allLabel, 'sh-location-filter'));
         }
         
         if (hasCategories) {
-            filtersContainer.appendChild(createDropdownFilter('status-filter', categoryLabel, 'All', 'sh-status-filter'));
+            filtersContainer.appendChild(createDropdownFilter('status-filter', categoryLabel, allLabel, 'sh-status-filter'));
         }
         
         if (hasBedrooms) {
-            filtersContainer.appendChild(createButtonGroupFilter('bedrooms-filter', 'Bedrooms', ['Any', '1', '2', '3', '4', '5', '6', '7', '8'], 'sh-bedrooms-filter'));
+            filtersContainer.appendChild(createButtonGroupFilter('bedrooms-filter', bedroomsLabel, [anyLabel, '1', '2', '3', '4', '5', '6', '7', '8'], 'sh-bedrooms-filter'));
         }
         
         if (hasBathrooms) {
-            filtersContainer.appendChild(createButtonGroupFilter('bathrooms-filter', 'Bathrooms', ['Any', '1', '1.5', '2', '2.5', '3', '3.5', '4', '4.5', '5', '5.5', '6'], 'sh-bathrooms-filter'));
+            filtersContainer.appendChild(createButtonGroupFilter('bathrooms-filter', bathroomsLabel, [anyLabel, '1', '1.5', '2', '2.5', '3', '3.5', '4', '4.5', '5', '5.5', '6'], 'sh-bathrooms-filter'));
         }
         
         if (hasAreas) {
-            filtersContainer.appendChild(createSliderFilter('area-slider', 'Area', 'sh-area-filter'));
+            filtersContainer.appendChild(createSliderFilter('area-slider', areaLabel, 'sh-area-filter'));
         }
         
         if (hasPrices && showPricing) {
-            filtersContainer.appendChild(createSliderFilter('price-slider', 'Price', 'sh-price-filter'));
+            filtersContainer.appendChild(createSliderFilter('price-slider', priceLabel, 'sh-price-filter'));
         }
         
         // Add filters for custom columns if they exist
@@ -597,8 +606,8 @@
                             const uniqueValues = [...new Set(values.map(v => Math.floor(Number(v))))];
                             uniqueValues.sort((a, b) => a - b);
                             
-                            // Create options array with "Any" and all possible values
-                            const options = ['Any', ...uniqueValues.map(v => v.toString())];
+                            // Create options array with anyLabel and all possible values
+                            const options = [anyLabel, ...uniqueValues.map(v => v.toString())];
                             
                             filtersContainer.appendChild(createButtonGroupFilter(
                                 `${columnId}-filter`, 
@@ -613,7 +622,7 @@
                     }
                 } else if (columnType === 'boolean') {
                     // For Yes/No columns, create a toggle filter
-                    filtersContainer.appendChild(createButtonGroupFilter(`${columnId}-filter`, column, ['Any', 'Yes', 'No'], `sh-${columnId}-filter`));
+                    filtersContainer.appendChild(createButtonGroupFilter(`${columnId}-filter`, column, [anyLabel, yesLabel, noLabel], `sh-${columnId}-filter`));
                 } else if (columnType === 'comma-separated') {
                     // For comma-separated fields, collect all individual values
                     const allValues = new Set();
@@ -641,7 +650,7 @@
                     });
                     
                     if (allValues.size > 0 && allValues.size <= 15) {
-                        const customDropdown = createDropdownFilter(`${columnId}-filter`, column, `Any ${column}`, `sh-${columnId}-filter`);
+                        const customDropdown = createDropdownFilter(`${columnId}-filter`, column, `${anyLabel} ${column}`, `sh-${columnId}-filter`);
                         // Populate the dropdown with individual values
                         const dropdown = customDropdown.querySelector(`#${columnId}-filter`);
                         
@@ -662,7 +671,7 @@
                         .filter(v => v !== undefined && v !== null && v !== ''));
                     
                     if (values.size > 0 && values.size <= 10) {
-                        const customDropdown = createDropdownFilter(`${columnId}-filter`, column, `Any ${column}`, `sh-${columnId}-filter`);
+                        const customDropdown = createDropdownFilter(`${columnId}-filter`, column, `${anyLabel} ${column}`, `sh-${columnId}-filter`);
                         // Populate the dropdown with values
                         const dropdown = customDropdown.querySelector(`#${columnId}-filter`);
                         values.forEach(value => {
@@ -685,7 +694,7 @@
             const resetButton = document.createElement('button');
             resetButton.id = 'reset-filters';
             resetButton.className = 'reset-button sh-button sh-reset-button';
-            resetButton.textContent = 'Reset Filters';
+            resetButton.textContent = resetFiltersLabel;
             resetButton.addEventListener('click', resetFilters);
             filtersContainer.appendChild(resetButton);
         }
@@ -749,9 +758,9 @@
         // Check if this is a boolean filter (Yes/No)
         const isBooleanFilter = id.includes('-filter') && 
                                options.length === 3 && 
-                               options.includes('Any') && 
-                               options.includes('Yes') && 
-                               options.includes('No');
+                               options.includes(anyLabel) && 
+                               options.includes(yesLabel) && 
+                               options.includes(noLabel);
         
         // Use a special class for boolean filters to style them differently
         buttonGroup.className = isBooleanFilter 
@@ -767,11 +776,11 @@
             const button = document.createElement('button');
             button.className = 'filter-button';
             let filterValue = 'all';
-            if (id === 'bedrooms-filter' && option.toLowerCase() !== 'any') {
+            if (id === 'bedrooms-filter' && option !== anyLabel) {
                 filterValue = `bed-${option}`;
-            } else if (id === 'bathrooms-filter' && option.toLowerCase() !== 'any') {
+            } else if (id === 'bathrooms-filter' && option !== anyLabel) {
                 filterValue = `bath-${option}`;
-            } else if (option.toLowerCase() === 'any') {
+            } else if (option === anyLabel) {
                 filterValue = 'all';
             } else {
                 filterValue = option;
@@ -1433,9 +1442,9 @@
         noResultsMessage.className = 'no-results-message sh-no-results';
         noResultsMessage.style.display = 'none';
         noResultsMessage.innerHTML = `
-            <h3 class="sh-no-results-title">No ${itemType} found</h3>
-            <p class="sh-no-results-text">We couldn't find any ${itemType} matching your current filter criteria. 
-            Please try adjusting your filters or <a href="#" id="reset-filters-link" class="sh-reset-link">reset all filters</a> to see all available ${itemType}.</p>
+            <h3 class="sh-no-results-title">${noResultsTitle}</h3>
+            <p class="sh-no-results-text">${noResultsText1} 
+            ${noResultsText2} <a href="#" id="reset-filters-link" class="sh-reset-link">${noResultsResetLink}</a> ${noResultsText3}</p>
         `;
         container.parentNode.insertBefore(noResultsMessage, container.nextSibling);
 

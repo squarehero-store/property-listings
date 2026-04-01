@@ -204,9 +204,27 @@
         return processedItems;
     }
 
-    function formatPrice(price) {
-        if (price === null) return 'Price TBA';
-        return '$' + price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const getCurrencySymbol = (currencyCode) => {
+        const symbols = {
+            USD: '$',
+            CAD: '$',
+            AUD: '$',
+            NZD: '$',
+            GBP: '£',
+            EUR: '€'
+        };
+        return symbols[currencyCode] || '$';
+    };
+
+    // Area unit helper
+    const getAreaUnit = (isMetric) => {
+        return isMetric ? 'm²' : 'sq ft';
+    };
+
+    function formatPrice(price, currencySymbol = '$') {
+        const labels = getLabels();
+        if (price === null) return labels.priceTBA;
+        return currencySymbol + price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     }
 
     // Parse range values like "2-4" or "595000-645000"
@@ -255,6 +273,20 @@
         garage: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="18" fill="none" viewBox="0 0 20 18"><g fill="hsl(var(--black-hsl))" clip-path="url(#garageClip)"><path d="M15.908 17.09c.413-.046.717-.41.717-.826v-.788a.81.81 0 0 0 .81-.81v-3.238a.81.81 0 0 0-.81-.81h-.113l-1.122-3.77a.404.404 0 0 0-.384-.277H5.292a.404.404 0 0 0-.384.277l-1.122 3.77h-.113a.81.81 0 0 0-.81.81v3.238a.81.81 0 0 0 .81.81v.788c0 .415.304.78.717.826a.812.812 0 0 0 .9-.805v-.81h9.716v.81a.81.81 0 0 0 .902.805ZM5.896 7.785h8.506l.843 2.834H5.052l.844-2.834Zm-.917 5.764a.911.911 0 1 1-.185-1.814.911.911 0 0 1 .185 1.814Zm9.526-.814a.91.91 0 1 1 1.812-.187.91.91 0 0 1-1.812.187ZM18.24 5.92l-8.091-4.245-8.09 4.245a.85.85 0 0 1-1.15-.358l-.254-.487 9.494-4.98 9.494 4.98-.256.487a.851.851 0 0 1-1.148.358Z"/></g><defs><clipPath id="garageClip"><path fill="#fff" d="M.649.094h19v17h-19z"/></clipPath></defs></svg>`
     };
 
+    // Get customizable labels from meta tag (multi-lingual support)
+    function getLabels() {
+        const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
+        if (!metaTag) return {};
+        
+        return {
+            relatedLabel: metaTag.getAttribute('related-label') || 'Related',
+            moreLabel: metaTag.getAttribute('more-label') || 'More',
+            priceTBA: metaTag.getAttribute('price-tba-label') || 'Price TBA',
+            yesLabel: metaTag.getAttribute('yes-label') || 'Yes',
+            noLabel: metaTag.getAttribute('no-label') || 'No'
+        };
+    }
+
     // Updated Current Property Details Script
     function setupCurrentPropertyDetails() {
         const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
@@ -294,13 +326,19 @@
         // Get custom icons configuration
         const customIcons = getCustomIcons();
 
+        // Get currency symbol and area unit from store settings
+        const storeSettings = window.storeSettings || {};
+        const currencySymbol = getCurrencySymbol(storeSettings.selectedCurrency);
+        const isMetric = storeSettings.measurementStandard === 2;
+        const areaUnit = getAreaUnit(isMetric);
+
         // Check for custom fields before generating the HTML
         const hasCustomFields = property.customFields && Object.keys(property.customFields).length > 0;
 
         // Format display values for ranges
         const displayPrice = property.price && property.price.isRange 
-            ? formatRange(property.price, (v) => '$' + v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }))
-            : property.price ? formatPrice(property.price) : null;
+            ? formatRange(property.price, (v) => currencySymbol + v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }))
+            : property.price ? formatPrice(property.price, currencySymbol) : null;
         
         const displayArea = property.area && property.area.isRange
             ? formatRange(property.area, (v) => v.toLocaleString())
@@ -319,7 +357,7 @@
       ${property.location ? `<p class="property-location sh-property-location">${property.location}</p>` : ''}
       ${showPricing && displayPrice ? `<p class="property-price sh-property-price ${property.price === null ? 'no-price' : ''}">${displayPrice}</p>` : ''}
       <div class="property-details sh-property-details">
-        ${displayArea ? `<span class="details-icon sh-area-icon">${svgIcons.area} <span class="sh-area-value">${displayArea} sq ft</span></span>` : ''}
+        ${displayArea ? `<span class="details-icon sh-area-icon">${svgIcons.area} <span class="sh-area-value">${displayArea} ${areaUnit}</span></span>` : ''}
         ${displayBedrooms ? `<span class="details-icon sh-beds-icon">${svgIcons.beds} <span class="sh-beds-value">${displayBedrooms}</span></span>` : ''}
         ${displayBathrooms ? `<span class="details-icon sh-baths-icon">${svgIcons.baths} <span class="sh-baths-value">${displayBathrooms}</span></span>` : ''}
         ${property.garage ? `<span class="details-icon sh-garage-icon">${svgIcons.garage} <span class="sh-garage-value">${property.garage}</span></span>` : ''}
@@ -344,8 +382,9 @@
                     return ''; // Don't show fields with empty/zero values
                 }
                 
+                const labels = getLabels();
                 const formattedValue = columnType === 'boolean' 
-                    ? (value ? 'Yes' : 'No')
+                    ? (value ? labels.yesLabel : labels.noLabel)
                     : (columnType === 'numeric' ? value.toLocaleString() 
                     : (columnType === 'comma-separated' ? value.join(', ') : value));
                 
@@ -381,12 +420,13 @@
             });
             
             if (fieldsWithoutIcons.length > 0) {
+                const labels = getLabels();
                 detailsContent += `
       <div class="custom-property-details sh-custom-property-details">
         ${fieldsWithoutIcons.map(([key, value]) => {
             const columnType = window.customColumnTypes && window.customColumnTypes[key];
             const formattedValue = columnType === 'boolean' 
-                ? (value ? 'Yes' : 'No')
+                ? (value ? labels.yesLabel : labels.noLabel)
                 : (columnType === 'numeric' ? value.toLocaleString() 
                 : (columnType === 'comma-separated' ? value.join(', ') : value));
             
@@ -577,8 +617,31 @@
             });
         }
         
+        // Get currency symbol and area unit from store settings
+        const storeSettings = window.storeSettings || {};
+        const currencySymbol = getCurrencySymbol(storeSettings.selectedCurrency);
+        const isMetric = storeSettings.measurementStandard === 2;
+        const areaUnit = getAreaUnit(isMetric);
+
         // Check for custom fields before generating the HTML
         const hasCustomFields = property.customFields && Object.keys(property.customFields).length > 0;
+
+        // Format display values for ranges
+        const displayPrice = property.price && property.price.isRange 
+            ? formatRange(property.price, (v) => currencySymbol + v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }))
+            : property.price ? formatPrice(property.price, currencySymbol) : null;
+        
+        const displayArea = property.area && property.area.isRange
+            ? formatRange(property.area, (v) => v.toLocaleString())
+            : property.area ? property.area.toLocaleString() : null;
+        
+        const displayBedrooms = property.bedrooms && property.bedrooms.isRange
+            ? formatRange(property.bedrooms, (v) => v)
+            : property.bedrooms;
+        
+        const displayBathrooms = property.bathrooms && property.bathrooms.isRange
+            ? formatRange(property.bathrooms, (v) => v)
+            : property.bathrooms;
 
         let cardContent = `
       <div class="property-image sh-property-image">
@@ -588,11 +651,11 @@
       <div class="listing-content sh-listing-content">
         <h3 class="property-title sh-property-title">${property.title}</h3>
         ${property.location ? `<p class="property-location sh-property-location">${property.location}</p>` : ''}
-        ${showPricing ? `<p class="property-price sh-property-price ${property.price === null ? 'no-price' : ''}">${formatPrice(property.price)}</p>` : ''}
+        ${showPricing && displayPrice ? `<p class="property-price sh-property-price ${!displayPrice ? 'no-price' : ''}">${displayPrice}</p>` : ''}
         <div class="property-details sh-property-details">
-          ${property.area ? `<span class="details-icon sh-area-icon">${svgIcons.area} <span class="sh-area-value">${property.area.toLocaleString()} sq ft</span></span>` : ''}
-          ${property.bedrooms ? `<span class="details-icon sh-beds-icon">${svgIcons.beds} <span class="sh-beds-value">${property.bedrooms}</span></span>` : ''}
-          ${property.bathrooms ? `<span class="details-icon sh-baths-icon">${svgIcons.baths} <span class="sh-baths-value">${property.bathrooms}</span></span>` : ''}
+          ${displayArea ? `<span class="details-icon sh-area-icon">${svgIcons.area} <span class="sh-area-value">${displayArea} ${areaUnit}</span></span>` : ''}
+          ${displayBedrooms ? `<span class="details-icon sh-beds-icon">${svgIcons.beds} <span class="sh-beds-value">${displayBedrooms}</span></span>` : ''}
+          ${displayBathrooms ? `<span class="details-icon sh-baths-icon">${svgIcons.baths} <span class="sh-baths-value">${displayBathrooms}</span></span>` : ''}
           ${property.garage ? `<span class="details-icon sh-garage-icon">${svgIcons.garage} <span class="sh-garage-value">${property.garage}</span></span>` : ''}
           ${(() => {
               // Add custom fields with icons to the main property details
@@ -615,8 +678,9 @@
                       return ''; // Don't show fields with empty/zero values
                   }
                   
+                  const labels = getLabels();
                   const formattedValue = columnType === 'boolean' 
-                      ? (value ? 'Yes' : 'No')
+                      ? (value ? labels.yesLabel : labels.noLabel)
                       : (columnType === 'numeric' ? value.toLocaleString() 
                       : (columnType === 'comma-separated' ? value.join(', ') : value));
                   
@@ -652,12 +716,13 @@
             });
             
             if (fieldsWithoutIcons.length > 0) {
+                const labels = getLabels();
                 cardContent += `
         <div class="custom-property-details sh-custom-property-details">
           ${fieldsWithoutIcons.map(([key, value]) => {
               const columnType = window.customColumnTypes && window.customColumnTypes[key];
               const formattedValue = columnType === 'boolean' 
-                  ? (value ? 'Yes' : 'No')
+                  ? (value ? labels.yesLabel : labels.noLabel)
                   : (columnType === 'numeric' ? value.toLocaleString() 
                   : (columnType === 'comma-separated' ? value.join(', ') : value));
               
@@ -690,6 +755,7 @@
         // Get custom item type from meta tag
         const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
         const itemType = metaTag ? metaTag.getAttribute('item-type') || 'Properties' : 'Properties';
+        const labels = getLabels();
         
         // Capitalize the first letter of itemType
         const capitalizedItemType = itemType.charAt(0).toUpperCase() + itemType.slice(1);
@@ -697,7 +763,7 @@
         const relatedSection = document.createElement('div');
         relatedSection.className = 'related-properties-section';
 
-        const sectionTitle = isTagFiltered ? `Related ${capitalizedItemType}` : `More ${capitalizedItemType}`;
+        const sectionTitle = isTagFiltered ? `${labels.relatedLabel} ${capitalizedItemType}` : `${labels.moreLabel} ${capitalizedItemType}`;
         relatedSection.innerHTML = `<h2>${sectionTitle}</h2>`;
 
         const relatedContainer = document.createElement('div');
