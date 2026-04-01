@@ -299,6 +299,10 @@
             fetch(sheetUrl).then(response => response.text()),
             fetch(currentPropertyJsonUrl).then(response => response.json())
         ]).then(([csvData, currentPropertyData]) => {
+            // Extract and store website settings globally for currency/units
+            const storeSettings = currentPropertyData.websiteSettings?.storeSettings || {};
+            window.storeSettings = storeSettings;
+            
             const sheetData = parseCSV(csvData);
             const propertyData = processPropertyData(sheetData, [currentPropertyData.item]);
             const currentProperty = propertyData[0];
@@ -523,6 +527,10 @@
         fetch(currentPropertyJsonUrl)
             .then(response => response.json())
             .then(currentPropertyData => {
+                // Extract and store website settings globally for currency/units
+                const storeSettings = currentPropertyData.websiteSettings?.storeSettings || {};
+                window.storeSettings = storeSettings;
+                
                 const currentUrlId = currentPropertyData.item.urlId;
                 const currentTags = currentPropertyData.item.tags || [];
 
