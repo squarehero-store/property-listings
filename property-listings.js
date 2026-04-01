@@ -2541,7 +2541,7 @@
         }
     });
 
-    // Add MixItUp library
+    // Add the MixItUp library
     if (!window.mixitup && !document.querySelector('script[src*="mixitup"]')) {
         const mixitupScript = document.createElement('script');
         mixitupScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mixitup/3.3.1/mixitup.min.js';

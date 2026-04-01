@@ -9,7 +9,7 @@
   /*Title*/
   /*Location*/
   /*Price*/
-  /*icons*/
+  /*The icons*/
 }
 .propertyStyles .property-title {
   margin: 0;
@@ -23,8 +23,9 @@
 }
 .propertyStyles .property-details {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-start;
-  gap: 15px;
+  gap: 5px 15px;
   margin: 15px 0;
 }
 .propertyStyles .property-details .details-icon {
@@ -115,7 +116,7 @@
   /*Title*/
   /*Location*/
   /*Price*/
-  /*icons*/
+  /*The icons*/
 }
 #propertyListingsContainer .property-card .listing-content .property-title,
 .related-properties-section .property-card .listing-content .property-title {
@@ -133,8 +134,9 @@
 #propertyListingsContainer .property-card .listing-content .property-details,
 .related-properties-section .property-card .listing-content .property-details {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-start;
-  gap: 15px;
+  gap: 5px 15px;
   margin: 15px 0;
 }
 #propertyListingsContainer .property-card .listing-content .property-details .details-icon,
@@ -377,7 +379,7 @@
   /*Title*/
   /*Location*/
   /*Price*/
-  /*icons*/
+  /*The icons*/
   padding-left: 0;
 }
 .property-listings.view-item .blog-item-title .current-property-details .listing-content .property-title {
@@ -392,8 +394,9 @@
 }
 .property-listings.view-item .blog-item-title .current-property-details .listing-content .property-details {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-start;
-  gap: 15px;
+  gap: 5px 15px;
   margin: 15px 0;
 }
 .property-listings.view-item .blog-item-title .current-property-details .listing-content .property-details .details-icon {
