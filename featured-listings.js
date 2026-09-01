@@ -40,6 +40,25 @@
         return isMetric ? 'm²' : 'sq ft';
     };
 
+    // Parse a sheet value that may carry a currency symbol / thousands separators
+    // (e.g. "€4,389.00", "£500,000") into a plain number, keeping parseFloat's
+    // permissive behaviour. Returns NaN when there's no leading number.
+    function parseNumeric(value) {
+        if (value === null || value === undefined) return NaN;
+        return parseFloat(value.toString().replace(/[$£€¥₹]/g, '').replace(/,/g, '').trim());
+    }
+
+    // Format a numeric custom-field value with the right currency symbol: the one
+    // found in that column's sheet data first, then the store currency.
+    function formatCurrencyValue(key, value) {
+        if (typeof value === 'string' && /[$£€¥₹]/.test(value)) return value;
+        const storeSettings = window.storeSettings || {};
+        const symbol = (window.customColumnCurrencySymbols && window.customColumnCurrencySymbols[key])
+            || getCurrencySymbol(storeSettings.selectedCurrency);
+        const num = typeof value === 'number' ? value : parseNumeric(value);
+        return isNaN(num) ? value : symbol + num.toLocaleString();
+    }
+
     // Read custom icon configurations from meta tag attributes
     function getCustomIcons() {
         const metaTag = document.querySelector('meta[squarehero-plugin="real-estate-listings"]');
@@ -272,20 +291,30 @@
         // Determine data types for custom columns
         window.customColumnTypes = {};
         window.customColumnSpecialHandling = {};
-        
+        window.customColumnCurrencySymbols = {};
+
         customColumns.forEach(column => {
             // Check values to determine type
             const values = sheetData.map(row => row[column]).filter(Boolean);
-            
+
             if (values.length === 0) {
                 window.customColumnTypes[column] = 'text';
             } else if (values.every(value => value === 'Yes' || value === 'No')) {
                 window.customColumnTypes[column] = 'boolean';
-            } else if (values.every(value => !isNaN(parseFloat(value)))) {
-                window.customColumnTypes[column] = 'numeric';
-                
+            } else if (values.every(value => !isNaN(parseNumeric(value)))) {
+                // A currency symbol ($ £ € ¥ ₹) in the data marks this as a currency column
+                const currencySymbol = values
+                    .map(value => (value.toString().match(/[$£€¥₹]/) || [])[0])
+                    .find(Boolean);
+                if (currencySymbol) {
+                    window.customColumnTypes[column] = 'currency';
+                    window.customColumnCurrencySymbols[column] = currencySymbol;
+                } else {
+                    window.customColumnTypes[column] = 'numeric';
+                }
+
                 // Determine whether to use button group or slider based on the range of values
-                const numericValues = values.map(v => parseFloat(v));
+                const numericValues = values.map(v => parseNumeric(v));
                 // Find unique integer values (floor the numbers to group similar values)
                 const uniqueIntegerValues = [...new Set(numericValues.map(v => Math.floor(v)))];
                 // Sort the values to determine range
@@ -352,7 +381,7 @@
                         const columnType = window.customColumnTypes[column];
                         if (columnType === 'boolean') {
                             customFields[column] = value === 'Yes';
-                        } else if (columnType === 'numeric' && value) {
+                        } else if ((columnType === 'numeric' || columnType === 'currency') && value) {
                             customFields[column] = parseFloat(value.replace(/[^\d.-]/g, ''));
                         } else if (columnType === 'comma-separated' && value) {
                             // Split comma-separated values and clean them up
@@ -367,12 +396,12 @@
             // Parse range values for price, area, bedrooms, bathrooms
             let price = null, priceValue = null;
             if (sheetRow && sheetRow[1].Price) {
-                const priceRange = parseRange(sheetRow[1].Price.replace(/[$,\s]/g, ''));
+                const priceRange = parseRange(sheetRow[1].Price.replace(/[$£€¥₹,\s]/g, ''));
                 if (priceRange) {
                     price = priceRange;
                     priceValue = priceRange.min;
                 } else {
-                    price = parseFloat(sheetRow[1].Price.replace(/[$,]/g, ''));
+                    price = parseFloat(sheetRow[1].Price.replace(/[$£€¥₹,]/g, ''));
                     priceValue = price;
                 }
             } else {
@@ -454,7 +483,7 @@
         
         if (columnType === 'boolean') {
             return true; // Always show boolean values (Yes/No)
-        } else if (columnType === 'numeric') {
+        } else if (columnType === 'numeric' || columnType === 'currency') {
             return value > 0; // Only show numeric values greater than 0
         } else if (columnType === 'comma-separated') {
             return Array.isArray(value) && value.length > 0; // Show if array has items
@@ -492,7 +521,7 @@
                 if (columnType === 'boolean') {
                     // For boolean fields, set to 'yes' or 'no' for easier filtering
                     card.setAttribute(attributeName, value ? 'yes' : 'no');
-                } else if (columnType === 'numeric') {
+                } else if (columnType === 'numeric' || columnType === 'currency') {
                     if (specialHandling === 'buttonGroup') {
                         // For special numeric fields with button group
                         card.setAttribute(attributeName, Math.floor(Number(value)));
@@ -580,7 +609,7 @@
                             
                             const formattedValue = columnType === 'boolean' 
                                 ? (value ? 'Yes' : 'No')
-                                : (columnType === 'numeric' ? value.toLocaleString() 
+                                : (columnType === 'numeric' ? value.toLocaleString() : columnType === 'currency' ? formatCurrencyValue(key, value)
                                 : (columnType === 'comma-separated' ? value.join(', ') : value));
                             
                             // Handle different icon file types and add error handling
@@ -621,7 +650,7 @@
                         const columnType = window.customColumnTypes && window.customColumnTypes[key];
                         const formattedValue = columnType === 'boolean' 
                             ? (value ? 'Yes' : 'No')
-                            : (columnType === 'numeric' ? value.toLocaleString() 
+                            : (columnType === 'numeric' ? value.toLocaleString() : columnType === 'currency' ? formatCurrencyValue(key, value)
                             : (columnType === 'comma-separated' ? value.join(', ') : value));
                         
                         return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}">

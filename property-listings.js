@@ -64,6 +64,17 @@
     const getAreaUnit = (isMetric) => {
         return isMetric ? 'm²' : 'sq ft';
     };
+
+    // Format a numeric custom-field value with the right currency symbol. Prefers
+    // the symbol found in that column's sheet data (e.g. "£", "€"), then the
+    // store currency. Sheet values like "£500,000" or "€4,389.00" are supported.
+    function formatCurrencyValue(key, value) {
+        if (typeof value === 'string' && /[$£€¥₹]/.test(value)) return value;
+        const symbol = (window.customColumnCurrencySymbols && window.customColumnCurrencySymbols[key])
+            || getCurrencySymbol(window.storeSettings && window.storeSettings.selectedCurrency);
+        const num = typeof value === 'number' ? value : parseFloat(String(value).replace(/[^\d.-]/g, ''));
+        return isNaN(num) ? value : symbol + num.toLocaleString();
+    }
     // Load required libraries
     const libraries = [
         'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js',
@@ -95,18 +106,20 @@
         if (!value) return null;
         
         const stringValue = value.toString().trim();
-        
+        // Drop currency symbols so "£500,000 - £600,000" still parses as a range
+        const normalized = stringValue.replace(/[$£€¥₹]/g, '');
+
         // Check if it's a range (contains a dash with numbers on both sides)
-        const rangeMatch = stringValue.match(/^([\d,\.]+)\s*-\s*([\d,\.]+)$/);
-        
+        const rangeMatch = normalized.match(/^([\d,\.]+)\s*-\s*([\d,\.]+)$/);
+
         if (rangeMatch) {
             const min = parseFloat(rangeMatch[1].replace(/,/g, ''));
             const max = parseFloat(rangeMatch[2].replace(/,/g, ''));
             return { min, max, isRange: true, original: stringValue };
         }
-        
+
         // Single value
-        const numValue = parseFloat(stringValue.replace(/[^\d.-]/g, ''));
+        const numValue = parseFloat(normalized.replace(/[^\d.-]/g, ''));
         if (!isNaN(numValue)) {
             return { min: numValue, max: numValue, isRange: false, original: stringValue };
         }
@@ -207,7 +220,7 @@
                         if (columnType === 'boolean') {
                             customFields[column] = value === 'Yes';
                         } else if ((columnType === 'numeric' || columnType === 'currency') && value) {
-                            customFields[column] = parseFloat(value.replace(/[$,]/g, ''));
+                            customFields[column] = parseFloat(value.replace(/[$£€¥₹,]/g, ''));
                         } else {
                             customFields[column] = value;
                         }
@@ -243,7 +256,7 @@
                                 if (columnType === 'boolean') {
                                     fields[column] = value === 'Yes';
                                 } else if (columnType === 'numeric' && value) {
-                                    fields[column] = parseFloat(value.replace(/[$,]/g, ''));
+                                    fields[column] = parseFloat(value.replace(/[$£€¥₹,]/g, ''));
                                 } else {
                                     fields[column] = value;
                                 }
@@ -383,6 +396,7 @@
         // Determine data types for custom columns
         window.customColumnTypes = {};
         window.customColumnSpecialHandling = {};
+        window.customColumnCurrencySymbols = {};
         
         
         customColumns.forEach(column => {
@@ -395,18 +409,21 @@
                 window.customColumnTypes[column] = 'text';
             } else if (nonEmptyValues.every(value => value === 'Yes' || value === 'No')) {
                 window.customColumnTypes[column] = 'boolean';
-            } else if (nonEmptyValues.every(value => !isNaN(parseFloat(value.replace(/[$,]/g, ''))))) {
-                // Check if this is a currency field (contains $ symbols)
-                const hasCurrencySymbols = nonEmptyValues.some(value => value.toString().includes('$'));
-                
-                if (hasCurrencySymbols) {
+            } else if (nonEmptyValues.every(value => !isNaN(parseFloat(value.replace(/[$£€¥₹,]/g, ''))))) {
+                // Check if this is a currency field (contains a currency symbol: $ £ € ¥ ₹)
+                const currencySymbol = nonEmptyValues
+                    .map(value => (value.toString().match(/[$£€¥₹]/) || [])[0])
+                    .find(Boolean);
+
+                if (currencySymbol) {
                     window.customColumnTypes[column] = 'currency';
+                    window.customColumnCurrencySymbols[column] = currencySymbol;
                 } else {
                     window.customColumnTypes[column] = 'numeric';
                 }
                 
                 // Determine whether to use button group or slider based on the range of values
-                const numericValues = nonEmptyValues.map(v => parseFloat(v.replace(/[$,]/g, '')));
+                const numericValues = nonEmptyValues.map(v => parseFloat(v.replace(/[$£€¥₹,]/g, '')));
                 // Find unique integer values (floor the numbers to group similar values)
                 const uniqueIntegerValues = [...new Set(numericValues.map(v => Math.floor(v)))];
                 // Sort the values to determine range
@@ -460,7 +477,7 @@
                         if (columnType === 'boolean') {
                             customFields[column] = value === 'Yes';
                         } else if (columnType === 'numeric' && value) {
-                            customFields[column] = parseFloat(value.replace(/[$,]/g, ''));
+                            customFields[column] = parseFloat(value.replace(/[$£€¥₹,]/g, ''));
                         } else if (columnType === 'comma-separated' && value) {
                             // Split comma-separated values and clean them up
                             customFields[column] = value.split(',').map(v => v.trim()).filter(v => v);
@@ -499,7 +516,7 @@
                                 if (columnType === 'boolean') {
                                     fields[column] = value === 'Yes';
                                 } else if (columnType === 'numeric' && value) {
-                                    fields[column] = parseFloat(value.replace(/[$,]/g, ''));
+                                    fields[column] = parseFloat(value.replace(/[$£€¥₹,]/g, ''));
                                 } else {
                                     fields[column] = value;
                                 }
@@ -579,7 +596,7 @@
                             if (columnType === 'currency') {
                                 // For currency fields, extract numeric value from formatted string
                                 const numericValue = typeof v === 'string' && v.includes('$') 
-                                    ? parseFloat(v.replace(/[$,]/g, ''))
+                                    ? parseFloat(v.replace(/[$£€¥₹,]/g, ''))
                                     : parseFloat(v);
                                 return !isNaN(numericValue);
                             }
@@ -589,7 +606,7 @@
                             if (columnType === 'currency') {
                                 // Convert currency strings to numeric values
                                 return typeof v === 'string' && v.includes('$') 
-                                    ? parseFloat(v.replace(/[$,]/g, ''))
+                                    ? parseFloat(v.replace(/[$£€¥₹,]/g, ''))
                                     : parseFloat(v);
                             }
                             return v;
@@ -968,7 +985,7 @@
                         // For currency fields, extract numeric value for filtering
                         if (columnType === 'currency' && value && value !== '') {
                             // Remove currency symbols, spaces, and commas to get clean numeric value
-                            const numericValue = value.toString().replace(/[\$,\s]/g, '');
+                            const numericValue = value.toString().replace(/[$£€¥₹,\s]/g, '');
                             card.setAttribute(attributeName, numericValue);
                         } else {
                             // For standard numeric fields, set the raw number for range filtering
@@ -1052,8 +1069,7 @@
                             
                             const formattedValue = columnType === 'boolean' 
                                 ? (value ? 'Yes' : 'No')
-                                : (columnType === 'currency' ? 
-                                    (typeof value === 'string' && value.includes('$') ? value : `$${value.toLocaleString()}`)
+                                : (columnType === 'currency' ? formatCurrencyValue(key, value)
                                     : (columnType === 'numeric' ? value.toLocaleString() : value));
                             
                             // Handle different icon file types and add error handling
@@ -1103,8 +1119,7 @@
                             const columnType = window.customColumnTypes && window.customColumnTypes[key];
                             const formattedValue = columnType === 'boolean' 
                                 ? (value ? 'Yes' : 'No')
-                                : (columnType === 'currency' ? 
-                                    (typeof value === 'string' && value.includes('$') ? value : `$${value.toLocaleString()}`)
+                                : (columnType === 'currency' ? formatCurrencyValue(key, value)
                                     : (columnType === 'numeric' ? value.toLocaleString() : value));
                             
                             return `<div class="custom-detail sh-custom-detail sh-custom-${key.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')}">
@@ -1269,8 +1284,8 @@
                             
                             if (columnType === 'currency') {
                                 // For currency fields, extract numeric value from formatted string
-                                const numericValue = typeof value === 'string' && value.includes('$') 
-                                    ? parseFloat(value.replace(/[$,\s]/g, ''))
+                                const numericValue = typeof value === 'string' && /[$£€¥₹]/.test(value)
+                                    ? parseFloat(value.replace(/[$£€¥₹,\s]/g, ''))
                                     : parseFloat(value);
                                 return isNaN(numericValue) ? null : numericValue;
                             } else {

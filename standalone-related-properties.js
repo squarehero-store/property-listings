@@ -172,12 +172,12 @@
       // Parse range values for price, area, bedrooms, bathrooms
       let price = null, priceValue = null;
       if (sheetRow && sheetRow[1].Price) {
-        const priceRange = parseRange(sheetRow[1].Price.replace(/[$,\s]/g, ''));
+        const priceRange = parseRange(sheetRow[1].Price.replace(/[$£€¥₹,\s]/g, ''));
         if (priceRange) {
           price = priceRange;
           priceValue = priceRange.min;
         } else {
-          price = parseFloat(sheetRow[1].Price.replace(/[$,]/g, ''));
+          price = parseFloat(sheetRow[1].Price.replace(/[$£€¥₹,]/g, ''));
           priceValue = price;
         }
       }
