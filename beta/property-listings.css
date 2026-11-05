@@ -316,6 +316,9 @@
 .property-listings.view-list .content-collection {
   display: none;
 }
+.property-listings.view-list .cdk-section {
+  display: none !important;
+}
 .property-listings.view-item .header {
   position: relative !important;
 }
